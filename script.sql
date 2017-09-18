@@ -1,0 +1,32 @@
+
+CREATE TABLE IF NOT EXISTS exception (
+    _id serial8 PRIMARY KEY,
+    service_id int8,
+    service_version varchar(32),
+    name varchar(512),
+    processed_stack varchar(64000),
+    processed_stack_hash varchar(64)
+);
+
+CREATE TABLE IF NOT EXISTS exception_data (
+    _id serial8 PRIMARY KEY,
+    raw_data varchar(64000),
+    processed_data varchar(64000),
+    hash varchar(64)
+);
+
+CREATE TABLE IF NOT EXISTS exception_instance (
+    _id serial8 PRIMARY KEY,
+    exception_id int8 REFERENCES exception(_id),
+    exception_data_id int8 REFERENCES exception_data(_id),
+    raw_stack varchar(64000)
+);
+
+CREATE TABLE IF NOT EXISTS exception_instance_period (
+    _id serial8 PRIMARY KEY,
+    exception_instance_id int8 REFERENCES exception_instance(_id),
+    exception_data_id int8 REFERENCES exception_data(_id),
+    created_at timestamp,
+    updated_at timestamp,
+    count int8
+);
