@@ -6,6 +6,7 @@ import (
 	"github.com/go-pg/pg"
 )
 
+// Base class for handling HTTP Requests
 type httpHandler struct {
 	db *pg.DB
 }

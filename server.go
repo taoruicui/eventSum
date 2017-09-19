@@ -9,6 +9,7 @@ type Config struct {
 	port string
 }
 
+// Create a connection to Postgres Database
 func connectDB() *pg.DB {
 
 	EMConfig, err := ParseEMConfig("default.json")
@@ -29,6 +30,7 @@ func main() {
 	db := connectDB()
 	h := httpHandler{db: db}
 
+	// Routing
 	http.HandleFunc("/", h.recentExceptionsHandler)
 	http.HandleFunc("/api/exceptions/recent", h.recentExceptionsHandler)
 	http.HandleFunc("api/exceptions/details", h.detailsExceptionsHandler)
