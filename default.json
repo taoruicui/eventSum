@@ -1,0 +1,6 @@
+{
+  "postgres_address": "localhost:5433",
+  "postgres_user": "postgres",
+  "postgres_pass": "password",
+  "postgres_database": "exception_master"
+}

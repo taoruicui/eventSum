@@ -10,11 +10,17 @@ type Config struct {
 }
 
 func connectDB() *pg.DB {
+
+	EMConfig, err := ParseEMConfig("default.json")
+	if err != nil {
+		panic(err)
+	}
+
 	db := pg.Connect(&pg.Options{
-		Addr: ,
-		User: ,
-		Password: ,
-		Database: ,
+		Addr: EMConfig.Address,
+		User: EMConfig.User,
+		Password: EMConfig.Pass,
+		Database: EMConfig.Database,
 	})
 	return db
 }
