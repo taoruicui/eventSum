@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"github.com/go-pg/pg"
 	"net/http"
+	"time"
 )
 
 // Base class for handling HTTP Requests
 type httpHandler struct {
 	Db *pg.DB
-	ExceptionChannel chan UnaddedException
-	BatchSize int 
+	Channel *ExceptionChannel
 }
 
 // Writes an error to ResponseWriter
@@ -22,7 +22,7 @@ func (h *httpHandler) sendError(w http.ResponseWriter, code int, err error, mess
 	w.Write([]byte(errMsg))
 }
 
-func (h httpHandler) recentExceptionsHandler(w http.ResponseWriter, r *http.Request) {
+func (h *httpHandler) recentExceptionsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
 	var exceptions []Exception
 	err := h.Db.Model(&exceptions).Select()
@@ -32,20 +32,21 @@ func (h httpHandler) recentExceptionsHandler(w http.ResponseWriter, r *http.Requ
 	fmt.Println(exceptions)
 }
 
-func (h httpHandler) detailsExceptionsHandler(w http.ResponseWriter, r *http.Request) {
+func (h *httpHandler) detailsExceptionsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
 
 }
 
-func (h httpHandler) histogramExceptionsHandler(w http.ResponseWriter, r *http.Request) {
+func (h *httpHandler) histogramExceptionsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
 
 }
 
-func (h httpHandler) captureExceptionsHandler(w http.ResponseWriter, r *http.Request) {
+func (h *httpHandler) captureExceptionsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Invalid request type", 405)
 	}
+
 	var exc UnaddedException
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
@@ -54,10 +55,11 @@ func (h httpHandler) captureExceptionsHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	h.ExceptionChannel <- exc
-	if len(h.ExceptionChannel) == h.BatchSize {
-		close(h.ExceptionChannel)
-		go ProcessBatchException(h.ExceptionChannel, h.BatchSize)
+	h.Channel.Send(exc)
+	if h.Channel.HasReachedLimit(time.Now()) {
+		go h.Channel.ProcessBatchException()
+	} else {
+		fmt.Println("not time yet", len(h.Channel._queue))
 	}
 	// Add to database
 	//err := h.Db.Insert(exc)

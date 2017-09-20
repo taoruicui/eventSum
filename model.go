@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"time"
+	"fmt"
+)
 
 /* MODELS CORRESPONDING TO DATABASE TABLES */
 
@@ -22,6 +25,7 @@ type ExceptionInstance struct {
 	ExceptionClassId int8
 	ExceptionDataId  string
 	RawStack         string
+	RawStackHash string
 }
 
 type ExceptionInstancePeriod struct {
@@ -52,9 +56,34 @@ type UnaddedException struct {
 
 }
 
-/* FUNCTIONS */
+// Wrapper struct for Exception Channel
+type ExceptionChannel struct {
+	_queue chan UnaddedException
+	BatchSize int
+	TimeLimit time.Duration
+	TimeStart time.Time
+}
+
+func (c *ExceptionChannel) Send(exc UnaddedException) {
+	c._queue <- exc
+}
+
+// Checks if either the channel has reached the max batch size or passed the time duration
+func (c *ExceptionChannel) HasReachedLimit(t time.Time) bool {
+	fmt.Println(len(c._queue), c.TimeLimit.Seconds())
+	if c.TimeStart.Add(c.TimeLimit).Before(t) || len(c._queue) == c.BatchSize {
+		c.TimeStart = t
+		return true
+	} else {
+		c.TimeStart = t
+		return false
+	}
+}
 
 // Process Batch from channel and bulk insert into Db
-func ProcessBatchException(c chan UnaddedException, size int) {
-
+func (channel *ExceptionChannel) ProcessBatchException() {
+	for length:=len(channel._queue); length>0; length-- {
+		exc := <- channel._queue
+		fmt.Println(exc)
+	}
 }
