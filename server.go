@@ -1,8 +1,8 @@
 package main
 
 import (
-	"net/http"
 	"github.com/go-pg/pg"
+	"net/http"
 )
 
 type Config struct {
@@ -10,30 +10,40 @@ type Config struct {
 }
 
 // Create a connection to Postgres Database
-func connectDB() *pg.DB {
-
-	EMConfig, err := ParseEMConfig("default.json")
-	if err != nil {
-		panic(err)
-	}
+func connectDB(conf EMConfig) *pg.DB {
 
 	db := pg.Connect(&pg.Options{
-		Addr: EMConfig.Address,
-		User: EMConfig.User,
-		Password: EMConfig.Pass,
-		Database: EMConfig.Database,
+		Addr:     conf.Address,
+		User:     conf.User,
+		Password: conf.Pass,
+		Database: conf.Database,
 	})
 	return db
 }
 
 func main() {
-	db := connectDB()
-	h := httpHandler{db: db}
+	// Get configurations
+	config, err := ParseEMConfig("default.json")
+	if err != nil {
+		panic(err)
+	}
 
-	// Routing
+	db := connectDB(config)
+	h := httpHandler{
+		db,
+		make(chan UnaddedException, config.BatchSize),
+		config.BatchSize,
+	}
+
+	/* ROUTING */
+	// GET requests
 	http.HandleFunc("/", h.recentExceptionsHandler)
 	http.HandleFunc("/api/exceptions/recent", h.recentExceptionsHandler)
 	http.HandleFunc("api/exceptions/details", h.detailsExceptionsHandler)
 	http.HandleFunc("api/exceptions/histogram", h.histogramExceptionsHandler)
+
+	// POST requests
+	http.HandleFunc("/api/exceptions/capture", h.captureExceptionsHandler)
+
 	http.ListenAndServe(":8080", nil)
 }
