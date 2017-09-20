@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS exception_instance (
     _id serial8 PRIMARY KEY,
     exception_id int8 REFERENCES exception(_id),
     exception_data_id int8 REFERENCES exception_data(_id),
-    raw_stack varchar(64000)
+    raw_stack varchar(64000),
+    raw_stack_hash varchar(64)
 );
 
 CREATE TABLE IF NOT EXISTS exception_instance_period (

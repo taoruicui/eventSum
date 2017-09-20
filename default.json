@@ -3,5 +3,7 @@
   "postgres_user": "postgres",
   "postgres_pass": "password",
   "postgres_database": "exception_master",
-  "exception_batch_limit": 100
+  "exception_batch_limit": 3,
+  "exception_time_limit": 5000000000,
+  "server_port": 8080
 }

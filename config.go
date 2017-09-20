@@ -4,15 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 )
 
 // EMConfig are settings used ... XXX
 type EMConfig struct {
-	Address  string `json:"postgres_address"`
-	User     string `json:"postgres_user"`
-	Pass     string `json:"postgres_pass"`
-	Database string `json:"postgres_database"`
+	PgAddress  string `json:"postgres_address"`
+	PgUsername     string `json:"postgres_user"`
+	PgPassword     string `json:"postgres_pass"`
+	PgDatabase string `json:"postgres_database"`
 	BatchSize int `json:"exception_batch_limit"`
+	TimeLimit time.Duration `json:"exception_time_limit"`
+	ServerPort int `json:"server_port"`
 }
 
 // ParseEMConfig parses configuration out of a json file
