@@ -38,8 +38,8 @@ func connectDB(conf EMConfig) *pg.DB {
 
 // Creates new HTTP Server given options.
 // Options is a function which will be applied to the new ExceptionServer
-// Returns a pointer to http.Server
-func newExceptionServer(options func(server *ExceptionServer)) *http.Server {
+// Returns a pointer to ExceptionServer
+func newExceptionServer(options func(server *ExceptionServer)) *ExceptionServer {
 	s := &ExceptionServer{route: http.NewServeMux()}
 	options(s)
 
@@ -57,22 +57,24 @@ func newExceptionServer(options func(server *ExceptionServer)) *http.Server {
 	// POST requests
 	s.route.HandleFunc("/api/exceptions/capture", s.httpHandler.captureExceptionsHandler)
 
-	hs := &http.Server{Addr: s.port, Handler: s}
-	return hs
+	return s
 }
 
 // Graceful shutdown of the server
-func graceful(hs *http.Server, logger *log.Logger, timeout time.Duration) {
+func graceful(hs *http.Server, es *ExceptionServer, logger *log.Logger, timeout time.Duration) {
+	// listen for termination signal
 	stop := make(chan os.Signal, 1)
-
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
 	<-stop
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	// make sure we process exceptions inside the queue
 	logger.Printf("\nShutdown with timeout: %s\n", timeout)
+	logger.Printf("\nProcessing exceptions still left in the queue")
+	close(es.httpHandler.Channel._queue)
+	es.httpHandler.Channel.ProcessBatchException()
 
 	if err := hs.Shutdown(ctx); err != nil {
 		logger.Printf("Error: %v\n", err)
@@ -91,7 +93,7 @@ func main() {
 	logger := log.New(os.Stdout, "", 0)
 	db := connectDB(config)
 
-	// create new exception server
+	// create new http server
 	exceptionServer := newExceptionServer(func(s *ExceptionServer) {
 		s.logger = logger
 		s.httpHandler = httpHandler{
@@ -105,14 +107,18 @@ func main() {
 		}
 		s.port = ":" + strconv.Itoa(config.ServerPort)
 	})
+	httpServer := &http.Server{
+		Addr: exceptionServer.port,
+		Handler: exceptionServer,
+	}
 
 	// run the server in a goroutine
 	go func() {
-		logger.Printf("Listening on http://0.0.0.0%s\n", exceptionServer.Addr)
-		if err := exceptionServer.ListenAndServe(); err != http.ErrServerClosed {
+		logger.Printf("Listening on http://0.0.0.0%s\n", httpServer.Addr)
+		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
 			logger.Fatal(err)
 		}
 	}()
 
-	graceful(exceptionServer, logger, 5*time.Second)
+	graceful(httpServer, exceptionServer, logger, 5*time.Second)
 }
