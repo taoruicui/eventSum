@@ -51,9 +51,35 @@ type ExceptionData struct {
 /* OTHER MODELS */
 
 type UnaddedException struct {
-	Level string
-	Modules string
+	EventId string `json:"event_id"`
+	Message string `json:"message"`
+	Level int `json:"level"`
+	StackTrace StackTrace `json:"stacktrace"`
+	Extra map[string]interface{} `json:"extra"`
+	Modules map[string]interface{} `json:"modules"`
+	Platform string `json:"platform"`
+	Sdk map[string]interface{} `json:"sdk"`
+	ServerName string `json:"server_name"`
+	Timestamp float32 `json:"timestamp"`
+}
 
+type StackTrace struct {
+	Module string `json:"module"`
+	Type string `json:"type"`
+	Value string `json:"value"`
+	Frames []Frame `json:"frames"`
+}
+
+type Frame struct {
+	AbsPath string `json:"abs_path"`
+	ContextLine string `json:"context_line"`
+	Filename string `json:"filename"`
+	Function string `json:"function"`
+	LineNo int `json:"lineno"`
+	Module string `json:"module"`
+	PostContext []string `json:"post_context"`
+	PreContext []string `json:"pre_context"`
+	Vars map[string]interface{} `json:"vars"`
 }
 
 // Wrapper struct for Exception Channel
@@ -82,8 +108,13 @@ func (c *ExceptionChannel) HasReachedLimit(t time.Time) bool {
 
 // Process Batch from channel and bulk insert into Db
 func (channel *ExceptionChannel) ProcessBatchException() {
+	var excsToAdd []UnaddedException
 	for length:=len(channel._queue); length>0; length-- {
 		exc := <- channel._queue
 		fmt.Println(exc)
+		excsToAdd = append(excsToAdd, exc)
 	}
+
+	// Match exceptions with each other to find similar ones
+
 }
