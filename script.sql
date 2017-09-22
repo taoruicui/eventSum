@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS exception_data (
     _id serial8 PRIMARY KEY,
     raw_data varchar(64000),
     processed_data varchar(64000),
-    hash varchar(64)
+    processed_data_hash varchar(64)
 );
 
 CREATE TABLE IF NOT EXISTS exception_instance (

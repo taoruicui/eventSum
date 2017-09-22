@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/go-pg/pg"
 	"net/http"
 	"time"
 	"log"
@@ -24,17 +23,7 @@ func (s *ExceptionServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.route.ServeHTTP(w, r)
 }
 
-// Create a connection to Postgres Database
-func connectDB(conf EMConfig) *pg.DB {
 
-	db := pg.Connect(&pg.Options{
-		Addr:     conf.PgAddress,
-		User:     conf.PgUsername,
-		Password: conf.PgPassword,
-		Database: conf.PgDatabase,
-	})
-	return db
-}
 
 // Creates new HTTP Server given options.
 // Options is a function which will be applied to the new ExceptionServer
@@ -73,8 +62,8 @@ func graceful(hs *http.Server, es *ExceptionServer, logger *log.Logger, timeout 
 	// make sure we process exceptions inside the queue
 	logger.Printf("\nShutdown with timeout: %s\n", timeout)
 	logger.Printf("\nProcessing exceptions still left in the queue")
-	close(es.httpHandler.Channel._queue)
-	es.httpHandler.Channel.ProcessBatchException()
+	close(es.httpHandler.es.channel._queue)
+	es.httpHandler.es.ProcessBatchException()
 
 	if err := hs.Shutdown(ctx); err != nil {
 		logger.Printf("Error: %v\n", err)
@@ -91,19 +80,15 @@ func main() {
 	}
 
 	logger := log.New(os.Stdout, "", 0)
-	db := connectDB(config)
+	ds := newDataStore(config)
+	es := newExceptionStore(ds, config)
 
 	// create new http server
 	exceptionServer := newExceptionServer(func(s *ExceptionServer) {
 		s.logger = logger
 		s.httpHandler = httpHandler{
-			db,
-			&ExceptionChannel{
-				make(chan UnaddedException, config.BatchSize),
-				config.BatchSize,
-				config.TimeLimit,
-				time.Now(),
-			},
+			es,
+
 		}
 		s.port = ":" + strconv.Itoa(config.ServerPort)
 	})

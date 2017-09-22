@@ -3,15 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-pg/pg"
 	"net/http"
 	"time"
 )
 
 // Base class for handling HTTP Requests
 type httpHandler struct {
-	Db *pg.DB
-	Channel *ExceptionChannel
+	es *ExceptionStore
 }
 
 // Writes an error to ResponseWriter
@@ -24,12 +22,12 @@ func (h *httpHandler) sendError(w http.ResponseWriter, code int, err error, mess
 
 func (h *httpHandler) recentExceptionsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
-	var exceptions []Exception
-	err := h.Db.Model(&exceptions).Select()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(exceptions)
+	//var exceptions []Exception
+	//err := h.Db.Model(&exceptions).Select()
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println(exceptions)
 }
 
 func (h *httpHandler) detailsExceptionsHandler(w http.ResponseWriter, r *http.Request) {
@@ -55,16 +53,13 @@ func (h *httpHandler) captureExceptionsHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	h.Channel.Send(exc)
-	if h.Channel.HasReachedLimit(time.Now()) {
-		go h.Channel.ProcessBatchException()
+	// Pre-process exception
+	//ProcessException(&exc)
+	// Send to batching channel
+	h.es.Send(exc)
+	if h.es.HasReachedLimit(time.Now()) {
+		go h.es.ProcessBatchException()
 	} else {
-		fmt.Println("not time yet", len(h.Channel._queue))
+		fmt.Println("not time yet", len(h.es.channel._queue))
 	}
-	// Add to database
-	//err := h.Db.Insert(exc)
-	//if err != nil {
-	//	h.sendError(w, http.StatusBadRequest, err, "Error Inserting into database", r.URL.Path)
-	//	return
-	//}
 }
