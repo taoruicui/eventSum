@@ -81,8 +81,7 @@ func newDataStore(conf EMConfig) DataStore {
 // been created or have already existed before
 func (p *PostgresStore) AddExceptions(excs []Exception) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
-		OnConflict("(processed_stack_hash) DO UPDATE").
-		Set("processed_stack_hash = EXCLUDED.processed_stack_hash").
+		OnConflict("(processed_stack_hash) DO NOTHING").
 		Returning("_id").
 		Insert()
 	return res, err
@@ -90,8 +89,7 @@ func (p *PostgresStore) AddExceptions(excs []Exception) (orm.Result, error) {
 
 func (p *PostgresStore) AddExceptionInstances(excs []ExceptionInstance) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
-		OnConflict("(raw_stack_hash) DO UPDATE").
-		Set("raw_stack_hash = EXCLUDED.raw_stack_hash").
+		OnConflict("(raw_stack_hash) DO NOTHING").
 		Returning("_id").
 		Insert()
 	return res, err
@@ -101,7 +99,6 @@ func (p *PostgresStore) AddExceptioninstancePeriods(excs []ExceptionInstancePeri
 	res, err := p.db.Model(&excs).
 		OnConflict("(exception_instance_id, exception_data_id) DO UPDATE").
 		Set("count = exception_instance_period.count + EXCLUDED.count").
-		//Where("exception_instance_period.exception_instance_id = EXCLUDED.exception_instance_id and exception_instance_period.exception_data_id = EXCLUDED.exception_data_id").
 		Returning("_id").
 		Insert()
 	return res, err
@@ -109,8 +106,7 @@ func (p *PostgresStore) AddExceptioninstancePeriods(excs []ExceptionInstancePeri
 
 func (p *PostgresStore) AddExceptionData(excs []ExceptionData) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
-		OnConflict("(processed_data_hash) DO UPDATE").
-		Set("processed_data_hash = EXCLUDED.processed_data_hash").
+		OnConflict("(processed_data_hash) DO NOTHING").
 		Returning("_id").
 		Insert()
 	return res, err
