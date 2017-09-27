@@ -114,7 +114,7 @@ func (p *PostgresStore) AddExceptionInstances(excs []ExceptionInstance) (orm.Res
 
 func (p *PostgresStore) AddExceptioninstancePeriods(excs []ExceptionInstancePeriod) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
-		OnConflict("(exception_instance_id, exception_data_id) DO UPDATE").
+		OnConflict("(exception_instance_id, exception_data_id, created_at) DO UPDATE").
 		Set("count = exception_instance_period.count + EXCLUDED.count").
 		Returning("_id").
 		Insert()
