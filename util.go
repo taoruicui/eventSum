@@ -52,9 +52,13 @@ func GenerateFullStack(st StackTrace) string {
 	return buffer.String()
 }
 
-func ProcessStack(st StackTrace) string {
+func ProcessStack(st string) string {
 	// Strip the line numbers
-	return GenerateFullStack(st)
+	return st
+}
+
+func ExtractDataFromException(e UnaddedException) map[string]interface{} {
+	return e.Extra
 }
 
 func ProcessData(data map[string]interface{}) string {

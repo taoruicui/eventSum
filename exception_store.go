@@ -29,6 +29,7 @@ type StackTrace struct {
 	Module string  `json:"module"`
 	Type   string  `json:"type"`
 	Value  string  `json:"value"`
+	RawStack string `json:"raw_stack"`
 	Frames []Frame `json:"frames"`
 }
 
@@ -111,9 +112,10 @@ func (es *ExceptionStore) ProcessBatchException() {
 	var exceptionDataMap = make(map[string]int)
 
 	for _, exception := range excsToAdd {
+		//fullStack := GenerateFullStack(exception.StackTrace)
 		rawStack := GenerateFullStack(exception.StackTrace)
-		processedStack := ProcessStack(exception.StackTrace)
-		rawData := exception.Extra
+		processedStack := ProcessStack(rawStack)
+		rawData := ExtractDataFromException(exception)
 		processedData := ProcessData(rawData)
 
 		rawStackHash := Hash(rawStack)
@@ -145,7 +147,7 @@ func (es *ExceptionStore) ProcessBatchException() {
 
 		// The unique key should be the raw stack, the processed stack, and the time period,
 		// since the count should keep track of an exception instance in a certain time frame.
-		t := PythonUnixToGoUnix(exception.Timestamp)
+		t := PythonUnixToGoUnix(exception.Timestamp).UTC()
 		key := KeyExceptionPeriod{
 			rawStackHash,
 			processedDataHash,

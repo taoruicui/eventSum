@@ -95,6 +95,11 @@ func (p *PostgresStore) QueryExceptionInstances(excs []ExceptionInstance) error 
 	return err
 }
 
+func (p *PostgresStore) QueryExceptionInstancePeriods(excs []ExceptionInstance) error {
+	err := p.db.Model(&excs).Select()
+	return err
+}
+
 // Adds new exceptions as long as the stack hash is unique
 func (p *PostgresStore) AddExceptions(excs []Exception) (orm.Result, error) {
 	res, err := p.db.Model(&excs).

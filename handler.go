@@ -21,23 +21,21 @@ func (h *httpHandler) sendError(w http.ResponseWriter, code int, err error, mess
 }
 
 func (h *httpHandler) recentExceptionsHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
-	//var exceptions []Exception
-	//err := h.Db.Model(&exceptions).Select()
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println(exceptions)
+	if r.Method != "GET" {
+		http.Error(w, "Invalid request type", 405)
+	}
 }
 
 func (h *httpHandler) detailsExceptionsHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
-
+	if r.Method != "GET" {
+		http.Error(w, "Invalid request type", 405)
+	}
 }
 
 func (h *httpHandler) histogramExceptionsHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
-
+	if r.Method != "GET" {
+		http.Error(w, "Invalid request type", 405)
+	}
 }
 
 func (h *httpHandler) captureExceptionsHandler(w http.ResponseWriter, r *http.Request) {
