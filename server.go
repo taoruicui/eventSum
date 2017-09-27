@@ -31,7 +31,7 @@ func newExceptionServer(options func(server *ExceptionServer)) *ExceptionServer 
 	options(s)
 
 	if s.logger == nil {
-		s.logger = log.New(os.Stdout, "", 0)
+		s.logger = log.New(os.Stdout, "", log.Lshortfile)
 	}
 
 	/* ROUTING */
@@ -77,18 +77,20 @@ func main() {
 		panic(err)
 	}
 
-	logger := log.New(os.Stdout, "", 0)
-	ds := newDataStore(config)
-	es := newExceptionStore(ds, config)
+	logger := log.New(os.Stdout, "", log.Lshortfile)
+	ds := newDataStore(config, logger)
+	es := newExceptionStore(ds, config, logger)
 
 	// create new http server
 	exceptionServer := newExceptionServer(func(s *ExceptionServer) {
 		s.logger = logger
 		s.httpHandler = httpHandler{
 			es,
+			logger,
 		}
 		s.port = ":" + strconv.Itoa(config.ServerPort)
 	})
+
 	httpServer := &http.Server{
 		Addr:    exceptionServer.port,
 		Handler: exceptionServer,

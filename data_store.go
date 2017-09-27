@@ -4,12 +4,14 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"time"
+	"log"
 )
 
 type DataStore interface {
 	QueryExceptions([]Exception) error
 	QueryExceptionData([]ExceptionData) error
 	QueryExceptionInstances([]ExceptionInstance) error
+	QueryExceptionInstancePeriods([]ExceptionInstance) error
 	AddExceptions([]Exception) (orm.Result, error)
 	AddExceptionInstances([]ExceptionInstance) (orm.Result, error)
 	AddExceptioninstancePeriods([]ExceptionInstancePeriod) (orm.Result, error)
@@ -18,6 +20,7 @@ type DataStore interface {
 
 type PostgresStore struct {
 	db *pg.DB
+	log *log.Logger
 }
 
 /* MODELS CORRESPONDING TO DATABASE TABLES */
@@ -68,7 +71,7 @@ type ExceptionData struct {
 }
 
 // Create a new DataStore
-func newDataStore(conf EMConfig) DataStore {
+func newDataStore(conf EMConfig, log *log.Logger) DataStore {
 	// Create a connection to Postgres Database
 	db := pg.Connect(&pg.Options{
 		Addr:     conf.PgAddress,
@@ -76,7 +79,7 @@ func newDataStore(conf EMConfig) DataStore {
 		Password: conf.PgPassword,
 		Database: conf.PgDatabase,
 	})
-	dataStore := PostgresStore{db}
+	dataStore := PostgresStore{db, log}
 	return &dataStore
 }
 
@@ -106,6 +109,9 @@ func (p *PostgresStore) AddExceptions(excs []Exception) (orm.Result, error) {
 		OnConflict("(processed_stack_hash) DO NOTHING").
 		Returning("_id").
 		Insert()
+	if err != nil {
+		p.log.Print("Cannot insert rows into table")
+	}
 	return res, err
 }
 
@@ -114,6 +120,9 @@ func (p *PostgresStore) AddExceptionInstances(excs []ExceptionInstance) (orm.Res
 		OnConflict("(raw_stack_hash) DO NOTHING").
 		Returning("_id").
 		Insert()
+	if err != nil {
+		p.log.Print("Cannot insert rows into table")
+	}
 	return res, err
 }
 
@@ -123,6 +132,9 @@ func (p *PostgresStore) AddExceptioninstancePeriods(excs []ExceptionInstancePeri
 		Set("count = exception_instance_period.count + EXCLUDED.count").
 		Returning("_id").
 		Insert()
+	if err != nil {
+		p.log.Print("Cannot insert rows into table")
+	}
 	return res, err
 }
 
@@ -131,5 +143,8 @@ func (p *PostgresStore) AddExceptionData(excs []ExceptionData) (orm.Result, erro
 		OnConflict("(processed_data_hash) DO NOTHING").
 		Returning("_id").
 		Insert()
+	if err != nil {
+		p.log.Print("Cannot insert rows into table")
+	}
 	return res, err
 }

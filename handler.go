@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"log"
 )
 
 // Base class for handling HTTP Requests
 type httpHandler struct {
 	es *ExceptionStore
+	log *log.Logger
 }
 
 // Writes an error to ResponseWriter
@@ -56,7 +58,9 @@ func (h *httpHandler) captureExceptionsHandler(w http.ResponseWriter, r *http.Re
 	// Send to batching channel
 	h.es.Send(exc)
 	if h.es.HasReachedLimit(time.Now()) {
-		go h.es.ProcessBatchException()
+		if err:= h.es.ProcessBatchException(); err != nil {
+			h.log.Printf("Error while processing exceptions: %s", err)
+		}
 	} else {
 		fmt.Println("not time yet", len(h.es.channel._queue))
 	}

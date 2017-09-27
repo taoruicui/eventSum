@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"time"
+	"log"
 )
 
 /* EXCEPTION STORE MODELS */
@@ -56,12 +57,13 @@ type ExceptionChannel struct {
 type ExceptionStore struct {
 	ds      DataStore         // link to any data store (Postgres, Cassandra, etc.)
 	channel *ExceptionChannel // channel, or queue, for the processing of new exceptions
+	log *log.Logger
 }
 
 // create new Exception Store. This 'store' stores necessary information
 // about the exceptions and how they are processed, the exception channel,
 // as well as contains the link to the data store, or the DB.
-func newExceptionStore(ds DataStore, config EMConfig) *ExceptionStore {
+func newExceptionStore(ds DataStore, config EMConfig, log *log.Logger) *ExceptionStore {
 	return &ExceptionStore{
 		ds,
 		&ExceptionChannel{
@@ -70,6 +72,7 @@ func newExceptionStore(ds DataStore, config EMConfig) *ExceptionStore {
 			config.TimeLimit,
 			time.Now(),
 		},
+		log,
 	}
 }
 
@@ -90,7 +93,7 @@ func (es *ExceptionStore) HasReachedLimit(t time.Time) bool {
 }
 
 // Process Batch from channel and bulk insert into Db
-func (es *ExceptionStore) ProcessBatchException() {
+func (es *ExceptionStore) ProcessBatchException() error {
 	var excsToAdd []UnaddedException
 	for length := len(es.channel._queue); length > 0; length-- {
 		exc := <-es.channel._queue
@@ -177,23 +180,23 @@ func (es *ExceptionStore) ProcessBatchException() {
 	}
 
 	if _, err := es.ds.AddExceptions(exceptionClasses); err != nil {
-		fmt.Println("Error while inserting into db: ", err)
-		return
-	}
-
-	if err := es.ds.QueryExceptions(exceptionClasses); err != nil {
-		fmt.Println("Error while querying db: ", err)
-		return
+		es.log.Print("Error while inserting exceptions")
+		return err
 	}
 
 	if _, err := es.ds.AddExceptionData(exceptionData); err != nil {
-		fmt.Println("Error while inserting into db: ", err)
-		return
+		es.log.Print("Error while inserting exception data")
+		return err
+	}
+
+	if err := es.ds.QueryExceptions(exceptionClasses); err != nil {
+		es.log.Print("Error while querying exception class")
+		return err
 	}
 
 	if err := es.ds.QueryExceptionData(exceptionData); err != nil {
-		fmt.Println("Error while querying db: ", err)
-		return
+		es.log.Print("Error while querying exception data")
+		return err
 	}
 
 	// Add the ids generated from above
@@ -207,13 +210,13 @@ func (es *ExceptionStore) ProcessBatchException() {
 	}
 
 	if _, err := es.ds.AddExceptionInstances(exceptionClassInstances); err != nil {
-		fmt.Println("Error while inserting into db: ", err)
-		return
+		es.log.Print("Error while inserting exception instances")
+		return err
 	}
 
 	if err := es.ds.QueryExceptionInstances(exceptionClassInstances); err != nil {
-		fmt.Println("Error while querying db: ", err)
-		return
+		es.log.Print("Error while querying exception instances")
+		return err
 	}
 	// Add the ids generated from above
 	for _, idx := range exceptionClassInstancePeriodsMap {
@@ -226,7 +229,9 @@ func (es *ExceptionStore) ProcessBatchException() {
 	}
 
 	if _, err := es.ds.AddExceptioninstancePeriods(exceptionClassInstancePeriods); err != nil {
-		fmt.Println("Error while inserting into db: ", err)
-		return
+		es.log.Print("Error while inserting exception time periods")
+		return err
 	}
+
+	return nil
 }
