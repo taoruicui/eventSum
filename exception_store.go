@@ -1,59 +1,59 @@
 package main
 
 import (
-	"time"
 	"fmt"
+	"time"
 )
 
 /* EXCEPTION STORE MODELS */
 
 type KeyExceptionPeriod struct {
 	RawStackHash, ProcessedDataHash string
-	TimePeriod time.Time
+	TimePeriod                      time.Time
 }
 
 type UnaddedException struct {
-	EventId string `json:"event_id"`
-	Message string `json:"message"`
-	Level int `json:"level"`
-	StackTrace StackTrace `json:"stacktrace"`
-	Extra map[string]interface{} `json:"extra"`
-	Modules map[string]interface{} `json:"modules"`
-	Platform string `json:"platform"`
-	Sdk map[string]interface{} `json:"sdk"`
-	ServerName string `json:"server_name"`
-	Timestamp float64 `json:"timestamp"`
+	EventId    string                 `json:"event_id"`
+	Message    string                 `json:"message"`
+	Level      int                    `json:"level"`
+	StackTrace StackTrace             `json:"stacktrace"`
+	Extra      map[string]interface{} `json:"extra"`
+	Modules    map[string]interface{} `json:"modules"`
+	Platform   string                 `json:"platform"`
+	Sdk        map[string]interface{} `json:"sdk"`
+	ServerName string                 `json:"server_name"`
+	Timestamp  float64                `json:"timestamp"`
 }
 
 type StackTrace struct {
-	Module string `json:"module"`
-	Type string `json:"type"`
-	Value string `json:"value"`
+	Module string  `json:"module"`
+	Type   string  `json:"type"`
+	Value  string  `json:"value"`
 	Frames []Frame `json:"frames"`
 }
 
 type Frame struct {
-	AbsPath string `json:"abs_path"`
-	ContextLine string `json:"context_line"`
-	Filename string `json:"filename"`
-	Function string `json:"function"`
-	LineNo int `json:"lineno"`
-	Module string `json:"module"`
-	PostContext []string `json:"post_context"`
-	PreContext []string `json:"pre_context"`
-	Vars map[string]interface{} `json:"vars"`
+	AbsPath     string                 `json:"abs_path"`
+	ContextLine string                 `json:"context_line"`
+	Filename    string                 `json:"filename"`
+	Function    string                 `json:"function"`
+	LineNo      int                    `json:"lineno"`
+	Module      string                 `json:"module"`
+	PostContext []string               `json:"post_context"`
+	PreContext  []string               `json:"pre_context"`
+	Vars        map[string]interface{} `json:"vars"`
 }
 
 // Wrapper struct for Exception Channel
 type ExceptionChannel struct {
-	_queue chan UnaddedException
+	_queue    chan UnaddedException
 	BatchSize int
 	TimeLimit time.Duration
 	TimeStart time.Time
 }
 
 type ExceptionStore struct {
-	ds DataStore // link to any data store (Postgres, Cassandra, etc.)
+	ds      DataStore         // link to any data store (Postgres, Cassandra, etc.)
 	channel *ExceptionChannel // channel, or queue, for the processing of new exceptions
 }
 
@@ -91,14 +91,9 @@ func (es *ExceptionStore) HasReachedLimit(t time.Time) bool {
 // Process Batch from channel and bulk insert into Db
 func (es *ExceptionStore) ProcessBatchException() {
 	var excsToAdd []UnaddedException
-	//var excs []Exception
-	for length:=len(es.channel._queue); length>0; length-- {
-		exc := <- es.channel._queue
+	for length := len(es.channel._queue); length > 0; length-- {
+		exc := <-es.channel._queue
 		excsToAdd = append(excsToAdd, exc)
-		//excs = append(excs, Exception{
-		//	ServiceId: length,
-		//	ProcessedStackHash: exc.Message,
-		//})
 	}
 
 	// Match exceptions with each other to find similar ones
@@ -129,23 +124,23 @@ func (es *ExceptionStore) ProcessBatchException() {
 		// they are not repeated in the array by checking the associated map.
 		if _, ok := exceptionClassesMap[processedStackHash]; !ok {
 			exceptionClasses = append(exceptionClasses, Exception{
-				ServiceId: 0, // TODO: add proper id
-				ServiceVersion: exception.ServerName,
-				Name: exception.Message,
-				ProcessedStack: processedStack,
+				ServiceId:          0, // TODO: add proper id
+				ServiceVersion:     exception.ServerName,
+				Name:               exception.Message,
+				ProcessedStack:     processedStack,
 				ProcessedStackHash: processedStackHash,
 			})
-			exceptionClassesMap[processedStackHash] = len(exceptionClasses)-1
+			exceptionClassesMap[processedStackHash] = len(exceptionClasses) - 1
 		}
 
 		if _, ok := exceptionClassInstancesMap[rawStackHash]; !ok {
 			exceptionClassInstances = append(exceptionClassInstances, ExceptionInstance{
 				ProcessedStackHash: processedStackHash, // Used to reference exception_class_id later
-				ProcessedDataHash: processedDataHash, // Used to reference exception_data_id later
-				RawStack: rawStack,
-				RawStackHash: rawStackHash,
+				ProcessedDataHash:  processedDataHash,  // Used to reference exception_data_id later
+				RawStack:           rawStack,
+				RawStackHash:       rawStackHash,
 			})
-			exceptionClassInstancesMap[rawStackHash] = len(exceptionClassInstances)-1
+			exceptionClassInstancesMap[rawStackHash] = len(exceptionClassInstances) - 1
 		}
 
 		// The unique key should be the raw stack, the processed stack, and the time period,
@@ -158,37 +153,47 @@ func (es *ExceptionStore) ProcessBatchException() {
 		}
 		if _, ok := exceptionClassInstancePeriodsMap[key]; !ok {
 			exceptionClassInstancePeriods = append(exceptionClassInstancePeriods, ExceptionInstancePeriod{
-				CreatedAt: key.TimePeriod,
-				UpdatedAt: t,
-				RawStackHash: rawStackHash, // Used to reference exception_class_instance_id later
+				CreatedAt:         key.TimePeriod,
+				UpdatedAt:         t,
+				RawStackHash:      rawStackHash,      // Used to reference exception_class_instance_id later
 				ProcessedDataHash: processedDataHash, // Used to reference exception_data_id later
-				Count: 1,
+				Count:             1,
 			})
-			exceptionClassInstancePeriodsMap[key] = len(exceptionClassInstancePeriods)-1
+			exceptionClassInstancePeriodsMap[key] = len(exceptionClassInstancePeriods) - 1
 		} else {
-			exceptionClassInstancePeriods[exceptionClassInstancePeriodsMap[key]].Count ++
+			exceptionClassInstancePeriods[exceptionClassInstancePeriodsMap[key]].Count++
 		}
 
 		if _, ok := exceptionDataMap[processedDataHash]; !ok {
 			exceptionData = append(exceptionData, ExceptionData{
-				RawData: processedData,
-				ProcessedData: processedData,
+				RawData:           processedData,
+				ProcessedData:     processedData,
 				ProcessedDataHash: processedDataHash,
 			})
-			exceptionDataMap[processedDataHash] = len(exceptionData)-1
+			exceptionDataMap[processedDataHash] = len(exceptionData) - 1
 		}
 	}
 
-	_, err := es.ds.AddExceptions(exceptionClasses)
-	if err != nil {
+	if _, err := es.ds.AddExceptions(exceptionClasses); err != nil {
 		fmt.Println("Error while inserting into db: ", err)
 		return
 	}
-	_, err = es.ds.AddExceptionData(exceptionData)
-	if err != nil {
+
+	if err := es.ds.QueryExceptions(exceptionClasses); err != nil {
+		fmt.Println("Error while querying db: ", err)
+		return
+	}
+
+	if _, err := es.ds.AddExceptionData(exceptionData); err != nil {
 		fmt.Println("Error while inserting into db: ", err)
 		return
 	}
+
+	if err := es.ds.QueryExceptionData(exceptionData); err != nil {
+		fmt.Println("Error while querying db: ", err)
+		return
+	}
+
 	// Add the ids generated from above
 	for _, idx := range exceptionClassInstancesMap {
 		stackHash := exceptionClassInstances[idx].ProcessedStackHash
@@ -198,9 +203,14 @@ func (es *ExceptionStore) ProcessBatchException() {
 		exceptionClassInstances[idx].ExceptionDataId =
 			exceptionData[exceptionDataMap[dataHash]].Id
 	}
-	_, err = es.ds.AddExceptionInstances(exceptionClassInstances)
-	if err != nil {
+
+	if _, err := es.ds.AddExceptionInstances(exceptionClassInstances); err != nil {
 		fmt.Println("Error while inserting into db: ", err)
+		return
+	}
+
+	if err := es.ds.QueryExceptionInstances(exceptionClassInstances); err != nil {
+		fmt.Println("Error while querying db: ", err)
 		return
 	}
 	// Add the ids generated from above
@@ -212,8 +222,8 @@ func (es *ExceptionStore) ProcessBatchException() {
 		exceptionClassInstancePeriods[idx].ExceptionDataId =
 			exceptionData[exceptionDataMap[dataHash]].Id
 	}
-	_, err = es.ds.AddExceptioninstancePeriods(exceptionClassInstancePeriods)
-	if err != nil {
+
+	if _, err := es.ds.AddExceptioninstancePeriods(exceptionClassInstancePeriods); err != nil {
 		fmt.Println("Error while inserting into db: ", err)
 		return
 	}

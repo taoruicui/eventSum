@@ -38,6 +38,6 @@ CREATE TABLE IF NOT EXISTS exception_instance_period (
   created_at timestamp,
   updated_at timestamp,
   count int8,
-  UNIQUE (exception_instance_id, exception_data_id)
+  UNIQUE (exception_instance_id, exception_data_id, created_at)
 );
 

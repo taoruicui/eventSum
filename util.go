@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
-	"bytes"
-	"time"
-	"math"
 	"encoding/json"
+	"math"
+	"time"
 )
 
 /* TIME FUNCTIONS */
@@ -14,14 +14,14 @@ import (
 var TIME_INTERVAL = 15 * time.Minute
 
 // returns the start time of the interval bounding time t
-func FindBoundingTime(t time.Time) (time.Time) {
+func FindBoundingTime(t time.Time) time.Time {
 	return t.Truncate(time.Duration(TIME_INTERVAL))
 }
 
 // convert Python unix time.time to Go unix time.Time
-func PythonUnixToGoUnix(t float64) (time.Time) {
+func PythonUnixToGoUnix(t float64) time.Time {
 	seconds := int64(t)
-	nanoseconds := int64(t - math.Floor(t)) * int64(time.Second)
+	nanoseconds := int64(t-math.Floor(t)) * int64(time.Second)
 	return time.Unix(seconds, nanoseconds)
 }
 
@@ -61,4 +61,3 @@ func ProcessData(data map[string]interface{}) string {
 	res, _ := json.Marshal(data)
 	return string(res)
 }
-

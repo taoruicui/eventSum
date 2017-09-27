@@ -1,29 +1,27 @@
 package main
 
 import (
-	"net/http"
-	"time"
-	"log"
-	"os"
-	"strconv"
-	"os/signal"
-	"syscall"
 	"context"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
 )
 
 type ExceptionServer struct {
-	logger *log.Logger
-	route *http.ServeMux
+	logger      *log.Logger
+	route       *http.ServeMux
 	httpHandler httpHandler
-	port string
+	port        string
 }
 
 func (s *ExceptionServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Server", "example Go server")
 	s.route.ServeHTTP(w, r)
 }
-
-
 
 // Creates new HTTP Server given options.
 // Options is a function which will be applied to the new ExceptionServer
@@ -88,12 +86,11 @@ func main() {
 		s.logger = logger
 		s.httpHandler = httpHandler{
 			es,
-
 		}
 		s.port = ":" + strconv.Itoa(config.ServerPort)
 	})
 	httpServer := &http.Server{
-		Addr: exceptionServer.port,
+		Addr:    exceptionServer.port,
 		Handler: exceptionServer,
 	}
 

@@ -1,12 +1,15 @@
 package main
 
 import (
-	"time"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"time"
 )
 
 type DataStore interface {
+	QueryExceptions([]Exception) error
+	QueryExceptionData([]ExceptionData) error
+	QueryExceptionInstances([]ExceptionInstance) error
 	AddExceptions([]Exception) (orm.Result, error)
 	AddExceptionInstances([]ExceptionInstance) (orm.Result, error)
 	AddExceptioninstancePeriods([]ExceptionInstancePeriod) (orm.Result, error)
@@ -20,8 +23,8 @@ type PostgresStore struct {
 /* MODELS CORRESPONDING TO DATABASE TABLES */
 
 type Exception struct {
-	tableName struct{} `sql:"exception,alias:exception"`
-	Id                 int64 `sql:"_id,pk"`
+	tableName          struct{} `sql:"exception,alias:exception"`
+	Id                 int64    `sql:"_id,pk"`
 	ServiceId          int
 	ServiceVersion     string
 	Name               string
@@ -30,38 +33,38 @@ type Exception struct {
 }
 
 type ExceptionInstance struct {
-	tableName struct{} `sql:"exception_instance,alias:exception_instance"`
-	Id               int64 `sql:"_id,pk"`
-	ExceptionId int64
-	ExceptionDataId  int64
-	RawStack         string
-	RawStackHash string
+	tableName       struct{} `sql:"exception_instance,alias:exception_instance"`
+	Id              int64    `sql:"_id,pk"`
+	ExceptionId     int64
+	ExceptionDataId int64
+	RawStack        string
+	RawStackHash    string
 
 	// ignored fields, used internally
 	ProcessedStackHash string `sql:"-"`
-	ProcessedDataHash string `sql:"-"`
+	ProcessedDataHash  string `sql:"-"`
 }
 
 type ExceptionInstancePeriod struct {
-	tableName struct{} `sql:"exception_instance_period,alias:exception_instance_period"`
-	Id                       int64 `sql:"_id,pk"`
+	tableName           struct{} `sql:"exception_instance_period,alias:exception_instance_period"`
+	Id                  int64    `sql:"_id,pk"`
 	ExceptionInstanceId int64
-	ExceptionDataId          int64
-	CreatedAt                time.Time
-	UpdatedAt                time.Time
-	Count                    int
+	ExceptionDataId     int64
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	Count               int
 
 	// ignored fields, used internally
-	RawStackHash string `sql:"-"`
+	RawStackHash      string `sql:"-"`
 	ProcessedDataHash string `sql:"-"`
 }
 
 type ExceptionData struct {
-	tableName struct{} `sql:"exception_data,alias:exception_data"`
-	Id            int64 `sql:"_id,pk"`
-	RawData       string
-	ProcessedData string
-	ProcessedDataHash          string
+	tableName         struct{} `sql:"exception_data,alias:exception_data"`
+	Id                int64    `sql:"_id,pk"`
+	RawData           string
+	ProcessedData     string
+	ProcessedDataHash string
 }
 
 // Create a new DataStore
@@ -77,8 +80,22 @@ func newDataStore(conf EMConfig) DataStore {
 	return &dataStore
 }
 
-// Adds new exceptions as long as the stack hash is unique, returning all ids that have
-// been created or have already existed before
+func (p *PostgresStore) QueryExceptions(excs []Exception) error {
+	err := p.db.Model(&excs).Select()
+	return err
+}
+
+func (p *PostgresStore) QueryExceptionData(excs []ExceptionData) error {
+	err := p.db.Model(&excs).Select()
+	return err
+}
+
+func (p *PostgresStore) QueryExceptionInstances(excs []ExceptionInstance) error {
+	err := p.db.Model(&excs).Select()
+	return err
+}
+
+// Adds new exceptions as long as the stack hash is unique
 func (p *PostgresStore) AddExceptions(excs []Exception) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
 		OnConflict("(processed_stack_hash) DO NOTHING").
