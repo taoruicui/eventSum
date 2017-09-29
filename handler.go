@@ -51,7 +51,6 @@ func (h *httpHandler) captureExceptionsHandler(w http.ResponseWriter, r *http.Re
 		h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event", r.URL.Path)
 		return
 	}
-
 	// TODO: make sure we validate the unadded exception
 
 	// Send to batching channel

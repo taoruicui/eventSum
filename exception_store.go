@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 	"log"
 )
@@ -50,8 +49,6 @@ type Frame struct {
 type ExceptionChannel struct {
 	_queue    chan UnaddedException
 	BatchSize int
-	TimeLimit time.Duration
-	TimeStart time.Time
 	ticker *time.Ticker
 }
 
@@ -70,8 +67,6 @@ func newExceptionStore(ds DataStore, config EMConfig, log *log.Logger) *Exceptio
 		&ExceptionChannel{
 			make(chan UnaddedException, config.BatchSize),
 			config.BatchSize,
-			config.TimeLimit,
-			time.Now(),
 			time.NewTicker(config.TimeLimit),
 		},
 		log,
@@ -101,13 +96,13 @@ func (es *ExceptionStore) Send(exc UnaddedException) {
 }
 
 // Process Batch from channel and bulk insert into Db
-func (es *ExceptionStore) ProcessBatchException() error {
+func (es *ExceptionStore) ProcessBatchException() {
 	var excsToAdd []UnaddedException
 	for length := len(es.channel._queue); length > 0; length-- {
 		exc := <-es.channel._queue
 		excsToAdd = append(excsToAdd, exc)
 	}
-	if len(excsToAdd) == 0 { return nil }
+	if len(excsToAdd) == 0 { return }
 
 	// Match exceptions with each other to find similar ones
 
@@ -190,22 +185,18 @@ func (es *ExceptionStore) ProcessBatchException() error {
 
 	if _, err := es.ds.AddExceptions(exceptionClasses); err != nil {
 		es.log.Print("Error while inserting exceptions")
-		return err
 	}
 
 	if _, err := es.ds.AddExceptionData(exceptionData); err != nil {
 		es.log.Print("Error while inserting exception data")
-		return err
 	}
 
 	if err := es.ds.QueryExceptions(exceptionClasses); err != nil {
 		es.log.Print("Error while querying exception class")
-		return err
 	}
 
 	if err := es.ds.QueryExceptionData(exceptionData); err != nil {
 		es.log.Print("Error while querying exception data")
-		return err
 	}
 
 	// Add the ids generated from above
@@ -220,12 +211,10 @@ func (es *ExceptionStore) ProcessBatchException() error {
 
 	if _, err := es.ds.AddExceptionInstances(exceptionClassInstances); err != nil {
 		es.log.Print("Error while inserting exception instances")
-		return err
 	}
 
 	if err := es.ds.QueryExceptionInstances(exceptionClassInstances); err != nil {
 		es.log.Print("Error while querying exception instances")
-		return err
 	}
 	// Add the ids generated from above
 	for _, idx := range exceptionClassInstancePeriodsMap {
@@ -239,8 +228,5 @@ func (es *ExceptionStore) ProcessBatchException() error {
 
 	if _, err := es.ds.AddExceptioninstancePeriods(exceptionClassInstancePeriods); err != nil {
 		es.log.Print("Error while inserting exception time periods")
-		return err
 	}
-
-	return nil
 }
