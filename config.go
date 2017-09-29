@@ -16,6 +16,7 @@ type EMConfig struct {
 	BatchSize  int           `json:"exception_batch_limit"`
 	TimeLimit  time.Duration `json:"exception_time_limit"`
 	ServerPort int           `json:"server_port"`
+	Args       interface{}   `json:"args"`
 }
 
 // ParseEMConfig parses configuration out of a json file

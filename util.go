@@ -25,6 +25,10 @@ func PythonUnixToGoUnix(t float64) time.Time {
 	return time.Unix(seconds, nanoseconds)
 }
 
+func ValidateUnaddedException(e UnaddedException) error {
+	return nil
+}
+
 func Hash(s string) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(s))
@@ -58,19 +62,18 @@ func ProcessStack(st string) string {
 }
 
 func ExtractDataFromException(e UnaddedException) map[string]interface{} {
-	//data := make(map[string]interface{})
-	//// add system arguments
-	//for key, val := range e.Extra {
-	//	data[key] = val
-	//}
-	//// add stack variables
-	//data["stack_vars"] = make(map[int]interface{})
-	//for idx, frame := range e.StackTrace.Frames {
-	//	data["stack_vars"][idx] = frame.Vars
-	//}
-	//return data
+	data := make(map[string]interface{})
 
-	return e.Extra
+	// add system arguments
+	sysArgs := make(map[string]interface{})
+	for key, val := range e.Extra { sysArgs[key] = val }
+	data["system_args"] = sysArgs
+
+	// add stack variables
+	stackVars := make(map[int]interface{})
+	for idx, frame := range e.StackTrace.Frames { stackVars[idx] = frame.Vars }
+	data["stack_vars"] = stackVars
+	return data
 }
 
 func ProcessData(data map[string]interface{}) string {
