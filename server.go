@@ -37,12 +37,12 @@ func newExceptionServer(options func(server *ExceptionServer)) *ExceptionServer 
 	/* ROUTING */
 	// GET requests
 	s.route.HandleFunc("/", s.httpHandler.recentExceptionsHandler)
-	s.route.HandleFunc("api/exception/recent", s.httpHandler.recentExceptionsHandler)
-	s.route.HandleFunc("api/exception/detail", s.httpHandler.detailsExceptionsHandler)
-	s.route.HandleFunc("api/exception/histogram", s.httpHandler.histogramExceptionsHandler)
+	s.route.HandleFunc("/api/exception/recent", s.httpHandler.recentExceptionsHandler)
+	s.route.HandleFunc("/api/exception/detail", s.httpHandler.detailsExceptionsHandler)
+	s.route.HandleFunc("/api/exception/histogram", s.httpHandler.histogramExceptionsHandler)
 
 	// POST requests
-	s.route.HandleFunc("api/exception/capture", s.httpHandler.captureExceptionsHandler)
+	s.route.HandleFunc("/api/exception/capture", s.httpHandler.captureExceptionsHandler)
 
 	return s
 }
@@ -96,12 +96,16 @@ func main() {
 		Handler: exceptionServer,
 	}
 
+	// run queue in a goroutine
+	go es.Start()
+
 	// run the server in a goroutine
 	go func() {
 		logger.Printf("Listening on http://0.0.0.0%s\n", httpServer.Addr)
 		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
 			logger.Fatal(err)
 		}
+		//quit <- 0
 	}()
 
 	graceful(httpServer, exceptionServer, logger, 5*time.Second)

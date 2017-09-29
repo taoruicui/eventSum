@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 	"log"
 )
 
@@ -57,11 +56,4 @@ func (h *httpHandler) captureExceptionsHandler(w http.ResponseWriter, r *http.Re
 
 	// Send to batching channel
 	h.es.Send(exc)
-	if h.es.HasReachedLimit(time.Now()) {
-		if err:= h.es.ProcessBatchException(); err != nil {
-			h.log.Printf("Error while processing exceptions: %s", err)
-		}
-	} else {
-		fmt.Println("not time yet", len(h.es.channel._queue))
-	}
 }

@@ -52,6 +52,7 @@ type ExceptionChannel struct {
 	BatchSize int
 	TimeLimit time.Duration
 	TimeStart time.Time
+	ticker *time.Ticker
 }
 
 type ExceptionStore struct {
@@ -71,24 +72,31 @@ func newExceptionStore(ds DataStore, config EMConfig, log *log.Logger) *Exceptio
 			config.BatchSize,
 			config.TimeLimit,
 			time.Now(),
+			time.NewTicker(config.TimeLimit),
 		},
 		log,
 	}
 }
 
-func (es *ExceptionStore) Send(exc UnaddedException) {
-	es.channel._queue <- exc
+// Periodic processing of channel
+func (es *ExceptionStore) Start() {
+	quit := make(chan int)
+	for {
+		select{
+		case <- es.channel.ticker.C:
+			es.ProcessBatchException()
+		case <- quit:
+			es.channel.ticker.Stop()
+			return
+		}
+	}
 }
 
-// Checks if either the channel has reached the max batch size or passed the time duration
-func (es *ExceptionStore) HasReachedLimit(t time.Time) bool {
-	fmt.Println(len(es.channel._queue))
-	if es.channel.TimeStart.Add(es.channel.TimeLimit).Before(t) || len(es.channel._queue) == es.channel.BatchSize {
-		es.channel.TimeStart = t
-		return true
-	} else {
-		es.channel.TimeStart = t
-		return false
+// Add new UnaddedException to channel, process if full
+func (es *ExceptionStore) Send(exc UnaddedException) {
+	es.channel._queue <- exc
+	if len(es.channel._queue) == es.channel.BatchSize {
+		go es.ProcessBatchException()
 	}
 }
 
@@ -99,6 +107,7 @@ func (es *ExceptionStore) ProcessBatchException() error {
 		exc := <-es.channel._queue
 		excsToAdd = append(excsToAdd, exc)
 	}
+	if len(excsToAdd) == 0 { return nil }
 
 	// Match exceptions with each other to find similar ones
 
