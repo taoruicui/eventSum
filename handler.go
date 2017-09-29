@@ -53,8 +53,8 @@ func (h *httpHandler) captureExceptionsHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Pre-process exception
-	//ProcessException(&exc)
+	// TODO: make sure we validate the unadded exception
+
 	// Send to batching channel
 	h.es.Send(exc)
 	if h.es.HasReachedLimit(time.Now()) {

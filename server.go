@@ -37,12 +37,12 @@ func newExceptionServer(options func(server *ExceptionServer)) *ExceptionServer 
 	/* ROUTING */
 	// GET requests
 	s.route.HandleFunc("/", s.httpHandler.recentExceptionsHandler)
-	s.route.HandleFunc("/api/exceptions/recent", s.httpHandler.recentExceptionsHandler)
-	s.route.HandleFunc("api/exceptions/details", s.httpHandler.detailsExceptionsHandler)
-	s.route.HandleFunc("api/exceptions/histogram", s.httpHandler.histogramExceptionsHandler)
+	s.route.HandleFunc("api/exception/recent", s.httpHandler.recentExceptionsHandler)
+	s.route.HandleFunc("api/exception/detail", s.httpHandler.detailsExceptionsHandler)
+	s.route.HandleFunc("api/exception/histogram", s.httpHandler.histogramExceptionsHandler)
 
 	// POST requests
-	s.route.HandleFunc("/api/exceptions/capture", s.httpHandler.captureExceptionsHandler)
+	s.route.HandleFunc("api/exception/capture", s.httpHandler.captureExceptionsHandler)
 
 	return s
 }

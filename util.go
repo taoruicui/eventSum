@@ -58,6 +58,18 @@ func ProcessStack(st string) string {
 }
 
 func ExtractDataFromException(e UnaddedException) map[string]interface{} {
+	//data := make(map[string]interface{})
+	//// add system arguments
+	//for key, val := range e.Extra {
+	//	data[key] = val
+	//}
+	//// add stack variables
+	//data["stack_vars"] = make(map[int]interface{})
+	//for idx, frame := range e.StackTrace.Frames {
+	//	data["stack_vars"][idx] = frame.Vars
+	//}
+	//return data
+
 	return e.Extra
 }
 
