@@ -50,6 +50,7 @@ type ExceptionChannel struct {
 	_queue    chan UnaddedException
 	BatchSize int
 	ticker *time.Ticker
+	quit chan int
 }
 
 type ExceptionStore struct {
@@ -68,12 +69,13 @@ func newExceptionStore(ds DataStore, config EMConfig, log *log.Logger) *Exceptio
 			make(chan UnaddedException, config.BatchSize),
 			config.BatchSize,
 			time.NewTicker(config.TimeLimit),
+			make(chan int),
 		},
 		log,
 	}
 }
 
-// Periodic processing of channel
+// Starts the periodic processing of channel
 func (es *ExceptionStore) Start() {
 	quit := make(chan int)
 	for {
@@ -85,6 +87,10 @@ func (es *ExceptionStore) Start() {
 			return
 		}
 	}
+}
+
+func (es *ExceptionStore) Stop() {
+	es.channel.quit <- 0
 }
 
 // Add new UnaddedException to channel, process if full
@@ -119,9 +125,8 @@ func (es *ExceptionStore) ProcessBatchException() {
 	var exceptionDataMap = make(map[string]int)
 
 	for _, exception := range excsToAdd {
-		//fullStack := GenerateFullStack(exception.StackTrace)
-		rawStack := GenerateFullStack(exception.StackTrace)
-		processedStack := ProcessStack(rawStack)
+		rawStack := GenerateRawStack(exception.StackTrace)
+		processedStack := ProcessStack(exception.StackTrace)
 		rawData := ExtractDataFromException(exception)
 		processedData := ProcessData(rawData)
 
@@ -190,11 +195,11 @@ func (es *ExceptionStore) ProcessBatchException() {
 	if _, err := es.ds.AddExceptionData(exceptionData); err != nil {
 		es.log.Print("Error while inserting exception data")
 	}
-
+	// Query since upsert does not return ids
 	if err := es.ds.QueryExceptions(exceptionClasses); err != nil {
 		es.log.Print("Error while querying exception class")
 	}
-
+	// Query since upsert does not return ids
 	if err := es.ds.QueryExceptionData(exceptionData); err != nil {
 		es.log.Print("Error while querying exception data")
 	}

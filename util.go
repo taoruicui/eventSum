@@ -56,9 +56,24 @@ func GenerateFullStack(st StackTrace) string {
 	return buffer.String()
 }
 
-func ProcessStack(st string) string {
+func GenerateRawStack(st StackTrace) string {
+	data := st
+	for i := range data.Frames {
+		data.Frames[i].Vars = nil
+	}
+	res, _ := json.Marshal(data)
+	return string(res)
+}
+
+func ProcessStack(st StackTrace) string {
 	// Strip the line numbers
-	return st
+	data := st
+	for i := range data.Frames {
+		data.Frames[i].Vars = nil
+		data.Frames[i].LineNo = 0
+	}
+	res, _:= json.Marshal(data)
+	return string(res)
 }
 
 func ExtractDataFromException(e UnaddedException) map[string]interface{} {

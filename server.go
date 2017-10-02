@@ -58,6 +58,7 @@ func graceful(hs *http.Server, es *ExceptionServer, logger *log.Logger, timeout 
 	defer cancel()
 
 	// make sure we process exceptions inside the queue
+	es.httpHandler.es.Stop()
 	logger.Printf("\nShutdown with timeout: %s\n", timeout)
 	logger.Printf("\nProcessing exceptions still left in the queue")
 	close(es.httpHandler.es.channel._queue)
@@ -105,7 +106,6 @@ func main() {
 		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
 			logger.Fatal(err)
 		}
-		//quit <- 0
 	}()
 
 	graceful(httpServer, exceptionServer, logger, 5*time.Second)
