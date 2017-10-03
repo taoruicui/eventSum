@@ -77,12 +77,11 @@ func newExceptionStore(ds DataStore, config EMConfig, log *log.Logger) *Exceptio
 
 // Starts the periodic processing of channel
 func (es *ExceptionStore) Start() {
-	quit := make(chan int)
 	for {
 		select{
 		case <- es.channel.ticker.C:
 			es.ProcessBatchException()
-		case <- quit:
+		case <- es.channel.quit:
 			es.channel.ticker.Stop()
 			return
 		}
