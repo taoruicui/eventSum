@@ -81,11 +81,7 @@ func newDataStore(conf EMConfig, log *log.Logger) DataStore {
 		Password: conf.PgPassword,
 		Database: conf.PgDatabase,
 	})
-	timeInterval := 15
-	if v := conf.TimeInterval; v != 0 {
-		timeInterval = v
-	}
-	dataStore := PostgresStore{db, log, timeInterval}
+	dataStore := PostgresStore{db, log, conf.TimeInterval}
 	return &dataStore
 }
 

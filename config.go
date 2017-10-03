@@ -20,10 +20,24 @@ type EMConfig struct {
 	Args       map[string]interface{}   `json:"args"`
 }
 
+func DefaultConfig() (EMConfig) {
+	return EMConfig{
+		PgAddress: "localhost:5432",
+		PgUsername: "username",
+		PgPassword: "password",
+		PgDatabase: "exception_master",
+		BatchSize: 5,
+		TimeLimit: 5000000000,
+		ServerPort: 8080,
+		TimeInterval: 15,
+		Args: make(map[string]interface{}),
+	}
+}
+
 // ParseEMConfig parses configuration out of a json file
 func ParseEMConfig(file string) (EMConfig, error) {
 
-	configuration := EMConfig{}
+	configuration := DefaultConfig()
 	f, err := os.Open(file)
 	if err != nil {
 		return configuration, fmt.Errorf("Error", err)
