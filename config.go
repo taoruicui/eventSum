@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"time"
 )
 
 // EMConfig are settings used ... XXX
@@ -14,9 +13,9 @@ type EMConfig struct {
 	PgPassword string        `json:"postgres_pass"`
 	PgDatabase string        `json:"postgres_database"`
 	BatchSize  int           `json:"exception_batch_limit"`
-	TimeLimit  time.Duration `json:"exception_time_limit"`
+	TimeLimit  int `json:"exception_time_limit"` // in seconds
 	ServerPort int           `json:"server_port"`
-	TimeInterval int `json:"time_interval"`
+	TimeInterval int `json:"time_interval"` // in minutes
 	Args       map[string]interface{}   `json:"args"`
 }
 
@@ -27,7 +26,7 @@ func DefaultConfig() (EMConfig) {
 		PgPassword: "password",
 		PgDatabase: "exception_master",
 		BatchSize: 5,
-		TimeLimit: 5000000000,
+		TimeLimit: 5,
 		ServerPort: 8080,
 		TimeInterval: 15,
 		Args: make(map[string]interface{}),

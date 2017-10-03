@@ -13,8 +13,8 @@ import (
 // returns the start time of the interval bounding time t,
 // interval specific as minutes
 func FindBoundingTime(t time.Time, interval int) time.Time {
-	duration := interval * int(time.Minute)
-	return t.Truncate(time.Duration(duration))
+	duration := time.Duration(interval) * time.Minute
+	return t.Truncate(duration)
 }
 
 // convert Python unix time.time to Go unix time.Time

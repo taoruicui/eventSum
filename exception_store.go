@@ -3,6 +3,7 @@ package main
 import (
 	"time"
 	"log"
+	"fmt"
 )
 
 /* EXCEPTION STORE MODELS */
@@ -69,7 +70,7 @@ func newExceptionStore(ds DataStore, config EMConfig, log *log.Logger) *Exceptio
 		&ExceptionChannel{
 			make(chan UnaddedException, config.BatchSize),
 			config.BatchSize,
-			time.NewTicker(config.TimeLimit),
+			time.NewTicker(time.Duration(config.TimeLimit)*time.Second),
 			make(chan int),
 		},
 		log,
@@ -82,7 +83,7 @@ func (es *ExceptionStore) Start() {
 	for {
 		select{
 		case <- es.channel.ticker.C:
-			//fmt.Println("running")
+			fmt.Println("running")
 			es.ProcessBatchException()
 		case <- es.channel.quit:
 			es.channel.ticker.Stop()
