@@ -14,9 +14,9 @@ type httpHandler struct {
 }
 
 // Writes an error to ResponseWriter
-func (h *httpHandler) sendError(w http.ResponseWriter, code int, err error, message string, path string) {
+func (h *httpHandler) sendError(w http.ResponseWriter, code int, err error, message string) {
 	errMsg := fmt.Sprintf("%s: %s", message, err.Error())
-	fmt.Println(errMsg)
+	h.log.Println(errMsg)
 	w.WriteHeader(code)
 	w.Write([]byte(errMsg))
 }
@@ -31,6 +31,14 @@ func (h *httpHandler) detailsExceptionsHandler(w http.ResponseWriter, r *http.Re
 	if r.Method != "GET" {
 		http.Error(w, "Invalid request type", 405)
 	}
+
+	query := r.URL.Query()
+
+	if str := query.Get("exception_id"); str == "" {
+		//h.sendError(w, http.StatusBadRequest, error("Exception ID is missing"), "")
+		return
+	}
+	fmt.Println(query)
 }
 
 func (h *httpHandler) histogramExceptionsHandler(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +56,7 @@ func (h *httpHandler) captureExceptionsHandler(w http.ResponseWriter, r *http.Re
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&exc); err != nil {
-		h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event", r.URL.Path)
+		h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event")
 		return
 	}
 	// TODO: make sure we validate the unadded exception

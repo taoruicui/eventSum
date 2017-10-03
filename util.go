@@ -7,15 +7,14 @@ import (
 	"encoding/json"
 	"math"
 	"time"
+	"fmt"
 )
 
-/* TIME FUNCTIONS */
-
-var TIME_INTERVAL = 15 * time.Minute
-
-// returns the start time of the interval bounding time t
-func FindBoundingTime(t time.Time) time.Time {
-	return t.Truncate(time.Duration(TIME_INTERVAL))
+// returns the start time of the interval bounding time t,
+// interval specific as minutes
+func FindBoundingTime(t time.Time, interval int) time.Time {
+	duration := interval * int(time.Minute)
+	return t.Truncate(time.Duration(duration))
 }
 
 // convert Python unix time.time to Go unix time.Time
@@ -39,19 +38,10 @@ func Hash(s string) string {
 func GenerateFullStack(st StackTrace) string {
 	// buffer to resolve string concat issues
 	var buffer bytes.Buffer
+	buffer.WriteString(fmt.Sprintf("%s: %s\n", st.Type, st.Value))
 	for _, frame := range st.Frames {
-		// Loop through precontext
-		for _, pre := range frame.PreContext {
-			buffer.WriteString(pre)
-			buffer.WriteString("\n")
-		}
-		buffer.WriteString(frame.ContextLine)
-		buffer.WriteString("\n")
-		// Loop through postcontext
-		for _, post := range frame.PreContext {
-			buffer.WriteString(post)
-			buffer.WriteString("\n")
-		}
+		str := fmt.Sprintf("File\"%s\", line %s, in %s\n", frame.Filename, frame.LineNo, frame.Function)
+		buffer.WriteString(str)
 	}
 	return buffer.String()
 }

@@ -21,6 +21,7 @@ type DataStore interface {
 type PostgresStore struct {
 	db *pg.DB
 	log *log.Logger
+	timeInterval int
 }
 
 /* MODELS CORRESPONDING TO DATABASE TABLES */
@@ -53,8 +54,9 @@ type ExceptionInstancePeriod struct {
 	Id                  int64    `sql:"_id,pk"`
 	ExceptionInstanceId int64
 	ExceptionDataId     int64
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	StartTime           time.Time
+	Updated             time.Time
+	TimeInterval        int
 	Count               int
 
 	// ignored fields, used internally
@@ -79,7 +81,11 @@ func newDataStore(conf EMConfig, log *log.Logger) DataStore {
 		Password: conf.PgPassword,
 		Database: conf.PgDatabase,
 	})
-	dataStore := PostgresStore{db, log}
+	timeInterval := 15
+	if v := conf.TimeInterval; v != 0 {
+		timeInterval = v
+	}
+	dataStore := PostgresStore{db, log, timeInterval}
 	return &dataStore
 }
 
@@ -128,7 +134,7 @@ func (p *PostgresStore) AddExceptionInstances(excs []ExceptionInstance) (orm.Res
 
 func (p *PostgresStore) AddExceptioninstancePeriods(excs []ExceptionInstancePeriod) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
-		OnConflict("(exception_instance_id, exception_data_id, created_at) DO UPDATE").
+		OnConflict("(exception_instance_id, exception_data_id, start_time, time_interval) DO UPDATE").
 		Set("count = exception_instance_period.count + EXCLUDED.count").
 		Returning("_id").
 		Insert()

@@ -35,9 +35,10 @@ CREATE TABLE IF NOT EXISTS exception_instance_period (
   _id serial8 PRIMARY KEY,
   exception_instance_id int8 REFERENCES exception_instance(_id),
   exception_data_id int8 REFERENCES exception_data(_id),
-  created_at timestamp with TIME ZONE,
-  updated_at timestamp with TIME ZONE,
+  start_time timestamp with TIME ZONE,
+  updated timestamp with TIME ZONE,
+  time_interval SMALLINT,
   count int8,
-  UNIQUE (exception_instance_id, exception_data_id, created_at)
+  UNIQUE (exception_instance_id, exception_data_id, start_time, time_interval)
 );
 

@@ -3,6 +3,7 @@ package main
 import (
 	"time"
 	"log"
+	"fmt"
 )
 
 /* EXCEPTION STORE MODELS */
@@ -57,11 +58,12 @@ type ExceptionStore struct {
 	ds      DataStore         // link to any data store (Postgres, Cassandra, etc.)
 	channel *ExceptionChannel // channel, or queue, for the processing of new exceptions
 	log *log.Logger
+	timeInterval int
 }
 
 // create new Exception Store. This 'store' stores necessary information
-// about the exceptions and how they are processed, the exception channel,
-// as well as contains the link to the data store, or the DB.
+// about the exceptions and how they are processed. The exception channel,
+// is the queue, and ds contains the link to the data store, or the DB.
 func newExceptionStore(ds DataStore, config EMConfig, log *log.Logger) *ExceptionStore {
 	return &ExceptionStore{
 		ds,
@@ -72,6 +74,7 @@ func newExceptionStore(ds DataStore, config EMConfig, log *log.Logger) *Exceptio
 			make(chan int),
 		},
 		log,
+		config.TimeInterval,
 	}
 }
 
@@ -80,6 +83,7 @@ func (es *ExceptionStore) Start() {
 	for {
 		select{
 		case <- es.channel.ticker.C:
+			//fmt.Println("running")
 			es.ProcessBatchException()
 		case <- es.channel.quit:
 			es.channel.ticker.Stop()
@@ -162,12 +166,13 @@ func (es *ExceptionStore) ProcessBatchException() {
 		key := KeyExceptionPeriod{
 			rawStackHash,
 			processedDataHash,
-			FindBoundingTime(t),
+			FindBoundingTime(t, es.timeInterval),
 		}
 		if _, ok := exceptionClassInstancePeriodsMap[key]; !ok {
 			exceptionClassInstancePeriods = append(exceptionClassInstancePeriods, ExceptionInstancePeriod{
-				CreatedAt:         key.TimePeriod,
-				UpdatedAt:         t,
+				StartTime:         key.TimePeriod,
+				Updated  :         t,
+				TimeInterval:      es.timeInterval,
 				RawStackHash:      rawStackHash,      // Used to reference exception_class_instance_id later
 				ProcessedDataHash: processedDataHash, // Used to reference exception_data_id later
 				Count:             1,
