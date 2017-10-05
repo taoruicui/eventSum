@@ -50,54 +50,39 @@ func (h *httpHandler) detailsExceptionsHandler(w http.ResponseWriter, r *http.Re
 	if r.Method != "GET" {
 		http.Error(w, "Invalid request type", 405)
 	}
-
 	query := r.URL.Query()
-	if str := query.Get("exception_id") == ""; str {
-		h.sendError(w, http.StatusBadRequest, errors.New("Exception ID is missing"), "Error")
-		return
-	}
 	exceptionId, err := strconv.Atoi(query.Get("exception_id"))
 	if err != nil {
-		h.sendError(w, http.StatusBadRequest, errors.New("Exception ID is not an int"), "Error")
-		return
-	}
-	if str := query.Get("exception_data_id") == ""; str {
-		h.sendError(w, http.StatusBadRequest, errors.New("Exception Data ID is missing"), "Error")
+		h.sendError(w, http.StatusBadRequest, errors.New("Exception ID is missing or not an int"), "Error")
 		return
 	}
 	exceptionDataId, err := strconv.Atoi(query.Get("exception_data_id"))
 	if err != nil {
-		h.sendError(w, http.StatusBadRequest, errors.New("Exception Data ID is not an int"), "Error")
+		h.sendError(w, http.StatusBadRequest, errors.New("Exception Data ID is missing or not an int"), "Error")
 		return
 	}
-	projectId := query.Get("project")
-	if projectId == "" {
-		h.sendError(w, http.StatusBadRequest, errors.New("Project ID is missing"), "Error")
-		return
-	}
-	fmt.Println(exceptionId, exceptionDataId)
+
 	// Query the DB
 	var exceptionInstance []ExceptionInstance
 	var exceptionData []ExceptionData
-	var exceptionPeriod []ExceptionInstancePeriod
 	exceptionInstance = append(exceptionInstance, ExceptionInstance{})
 	exceptionData = append(exceptionData, ExceptionData{})
-	exceptionPeriod = append(exceptionPeriod, ExceptionInstancePeriod{})
 	exceptionInstance[0].Id = int64(exceptionId)
 	exceptionData[0].Id = int64(exceptionDataId)
 
 	h.es.ds.QueryExceptionInstances(exceptionInstance)
 	h.es.ds.QueryExceptionData(exceptionData)
-	exceptionPeriod[0].ExceptionInstanceId = exceptionInstance[0].Id
-	exceptionPeriod[0].ExceptionDataId = exceptionData[0].Id
+	h.es.ds.Query(ExceptionInstance{})
+	exceptionPeriod, _ := h.es.ds.FindPeriods(exceptionInstance[0].Id, exceptionData[0].Id)
+	h.log.Println(exceptionPeriod)
 	// Process result
 	response := ExceptionDetailsResult {}
-	//	dateCreated: ,
+	//	dateCreated: time.Now(),
 	//	exceptionType: ,
 	//	message: ,
 	//	count: ,
 	//	function: ,
-	//	path:,
+	//	path: ,
 	//	stacktrace: ,
 	//	data: ,
 	//}

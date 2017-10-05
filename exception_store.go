@@ -104,6 +104,10 @@ func (es *ExceptionStore) Send(exc UnaddedException) {
 	}
 }
 
+func (es *ExceptionStore) FindInstanceById(id int64) {
+
+}
+
 // Process Batch from channel and bulk insert into Db
 func (es *ExceptionStore) ProcessBatchException() {
 	var excsToAdd []UnaddedException

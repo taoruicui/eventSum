@@ -5,9 +5,13 @@ import (
 	"github.com/go-pg/pg/orm"
 	"time"
 	"log"
+	"reflect"
+	"fmt"
 )
 
 type DataStore interface {
+	FindPeriods(int64, int64) ([]ExceptionInstancePeriod, error)
+	Query(interface{})
 	QueryExceptions([]Exception) error
 	QueryExceptionData([]ExceptionData) error
 	QueryExceptionInstances([]ExceptionInstance) error
@@ -83,6 +87,39 @@ func newDataStore(conf EMConfig, log *log.Logger) DataStore {
 	})
 	dataStore := PostgresStore{db, log, conf.TimeInterval}
 	return &dataStore
+}
+
+func (p *PostgresStore) Query(e interface{}) {
+	// Figure out what model it is
+	t := reflect.TypeOf(e).Name()
+	v := reflect.ValueOf(e)
+	var m *orm.Query
+	switch  t {
+	case "Exception":
+		m = p.db.Model(v.Interface().(Exception))
+	case "ExceptionInstance":
+
+	case "ExceptionInstancePeriod":
+
+	case "ExceptionData":
+
+	default:
+
+	}
+	fmt.Println(t,v)
+}
+
+func (p *PostgresStore) FindPeriods(excId, dataId int64) ([]ExceptionInstancePeriod, error) {
+	var res []ExceptionInstancePeriod
+	m := p.db.Model(&res)
+	if excId != 0 {
+		m = m.Where("exception_instance_id = ?", excId)
+	}
+	if dataId != 0 {
+		m = m.Where("exception_data_id = ?", dataId)
+	}
+	err := m.Select()
+	return res, err
 }
 
 func (p *PostgresStore) QueryExceptions(excs []Exception) error {
