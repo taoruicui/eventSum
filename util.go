@@ -8,6 +8,7 @@ import (
 	"math"
 	"time"
 	"fmt"
+	"strings"
 )
 
 // returns the start time of the interval bounding time t,
@@ -40,9 +41,15 @@ func GenerateFullStack(st StackTrace) string {
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("%s: %s\n", st.Type, st.Value))
 	for _, frame := range st.Frames {
-		str := fmt.Sprintf("File\"%s\", line %s, in %s\n", frame.Filename, frame.LineNo, frame.Function)
+		str := fmt.Sprintf("File\"%s\", line %d, in %v\n  %s\n",
+			frame.Filename,
+			frame.LineNo,
+			frame.Function,
+			strings.TrimSpace(frame.ContextLine),
+		)
 		buffer.WriteString(str)
 	}
+	fmt.Print(buffer.String())
 	return buffer.String()
 }
 

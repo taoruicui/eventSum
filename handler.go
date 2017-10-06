@@ -93,7 +93,7 @@ func (h *httpHandler) detailsExceptionsHandler(w http.ResponseWriter, r *http.Re
 	response := ExceptionDetailsResult {
 		DateCreated: time.Now(),
 		ExceptionType: stack.Type,
-		Message: "",
+		Message: GenerateFullStack(stack),
 		Function: stack.Value,
 		Path: stack.Module,
 		Stacktrace: stack,
