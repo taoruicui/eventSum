@@ -5,16 +5,15 @@ import (
 	"github.com/go-pg/pg/orm"
 	"time"
 	"log"
-	"reflect"
-	"fmt"
+	"github.com/pkg/errors"
 )
 
 type DataStore interface {
 	FindPeriods(int64, int64) ([]ExceptionInstancePeriod, error)
 	Query(interface{})
 	QueryExceptions([]Exception) error
-	QueryExceptionData([]ExceptionData) error
-	QueryExceptionInstances([]ExceptionInstance) error
+	QueryExceptionData(...ExceptionData) (ExceptionData, error)
+	QueryExceptionInstances(...ExceptionInstance) (ExceptionInstance, error)
 	QueryExceptionInstancePeriods([]ExceptionInstance) error
 	AddExceptions([]Exception) (orm.Result, error)
 	AddExceptionInstances([]ExceptionInstance) (orm.Result, error)
@@ -91,22 +90,22 @@ func newDataStore(conf EMConfig, log *log.Logger) DataStore {
 
 func (p *PostgresStore) Query(e interface{}) {
 	// Figure out what model it is
-	t := reflect.TypeOf(e).Name()
-	v := reflect.ValueOf(e)
-	var m *orm.Query
-	switch  t {
-	case "Exception":
-		m = p.db.Model(v.Interface().(Exception))
-	case "ExceptionInstance":
-
-	case "ExceptionInstancePeriod":
-
-	case "ExceptionData":
-
-	default:
-
-	}
-	fmt.Println(t,v)
+	//t := reflect.TypeOf(e).Name()
+	//v := reflect.ValueOf(e)
+	//var m *orm.Query
+	//switch  t {
+	//case "Exception":
+	//	m = p.db.Model(v.Interface().(Exception))
+	//case "ExceptionInstance":
+	//
+	//case "ExceptionInstancePeriod":
+	//
+	//case "ExceptionData":
+	//
+	//default:
+	//
+	//}
+	//fmt.Println(t,v)
 }
 
 func (p *PostgresStore) FindPeriods(excId, dataId int64) ([]ExceptionInstancePeriod, error) {
@@ -127,14 +126,20 @@ func (p *PostgresStore) QueryExceptions(excs []Exception) error {
 	return err
 }
 
-func (p *PostgresStore) QueryExceptionData(excs []ExceptionData) error {
+func (p *PostgresStore) QueryExceptionData(excs ...ExceptionData) (ExceptionData, error) {
+	if len(excs) == 0 {
+		return ExceptionData{}, errors.New("Array length is 0!")
+	}
 	err := p.db.Model(&excs).Select()
-	return err
+	return excs[0], err
 }
 
-func (p *PostgresStore) QueryExceptionInstances(excs []ExceptionInstance) error {
+func (p *PostgresStore) QueryExceptionInstances(excs ...ExceptionInstance) (ExceptionInstance, error) {
+	if len(excs) == 0 {
+		return ExceptionInstance{}, errors.New("Array length is 0!")
+	}
 	err := p.db.Model(&excs).Select()
-	return err
+	return excs[0], err
 }
 
 func (p *PostgresStore) QueryExceptionInstancePeriods(excs []ExceptionInstance) error {

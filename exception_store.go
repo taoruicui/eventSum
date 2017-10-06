@@ -208,7 +208,7 @@ func (es *ExceptionStore) ProcessBatchException() {
 		es.log.Print("Error while querying exception class")
 	}
 	// Query since upsert does not return ids
-	if err := es.ds.QueryExceptionData(exceptionData); err != nil {
+	if _, err := es.ds.QueryExceptionData(exceptionData...); err != nil {
 		es.log.Print("Error while querying exception data")
 	}
 
@@ -226,7 +226,7 @@ func (es *ExceptionStore) ProcessBatchException() {
 		es.log.Print("Error while inserting exception instances")
 	}
 
-	if err := es.ds.QueryExceptionInstances(exceptionClassInstances); err != nil {
+	if _, err := es.ds.QueryExceptionInstances(exceptionClassInstances...); err != nil {
 		es.log.Print("Error while querying exception instances")
 	}
 	// Add the ids generated from above

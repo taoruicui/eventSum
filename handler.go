@@ -17,15 +17,14 @@ type httpHandler struct {
 }
 
 type ExceptionDetailsResult struct {
-	dateCreated time.Time
-	dateUpdated time.Time
-	exceptionType string
-	message string
-	count int
-	function string
-	path string
-	stacktrace StackTrace
-	data map[string]interface{}
+	DateCreated time.Time `json:"date_created"`
+	DateUpdated time.Time`json:"date_updated"`
+	ExceptionType string `json:"exception_type"`
+	Message string `json:"message"`
+	Function string `json:"function"`
+	Path string `json:"path"`
+	Stacktrace StackTrace `json:"stacktrace"`
+	Data map[string]interface{} `json:"data"`
 }
 
 // Writes an error to ResponseWriter
@@ -36,8 +35,23 @@ func (h *httpHandler) sendError(w http.ResponseWriter, code int, err error, mess
 	w.Write([]byte(errMsg))
 }
 
-func (h *httpHandler) sendResp(w http.ResponseWriter, key string, val string) {
-
+func (h *httpHandler) sendResp(w http.ResponseWriter, key string, val interface{}) {
+	var response []byte
+	if key == "" {
+		response, _ = json.Marshal(val)
+	} else {
+		resp := make(map[string]interface{})
+		resp[key] = val
+		var err error
+		response, err = json.Marshal(resp)
+		if err != nil {
+			h.sendError(w, http.StatusInternalServerError, err, "Error marshalling response to JSON")
+			return
+		}
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(response)
 }
 
 func (h *httpHandler) recentExceptionsHandler(w http.ResponseWriter, r *http.Request) {
@@ -63,34 +77,29 @@ func (h *httpHandler) detailsExceptionsHandler(w http.ResponseWriter, r *http.Re
 	}
 
 	// Query the DB
-	var exceptionInstance []ExceptionInstance
-	var exceptionData []ExceptionData
-	exceptionInstance = append(exceptionInstance, ExceptionInstance{})
-	exceptionData = append(exceptionData, ExceptionData{})
-	exceptionInstance[0].Id = int64(exceptionId)
-	exceptionData[0].Id = int64(exceptionDataId)
+	instance := ExceptionInstance{}
+	data := ExceptionData{}
+	instance.Id = int64(exceptionId)
+	data.Id = int64(exceptionDataId)
+	var stack StackTrace
+	var args map[string]interface{}
 
-	h.es.ds.QueryExceptionInstances(exceptionInstance)
-	h.es.ds.QueryExceptionData(exceptionData)
-	h.es.ds.Query(ExceptionInstance{})
-	exceptionPeriod, _ := h.es.ds.FindPeriods(exceptionInstance[0].Id, exceptionData[0].Id)
-	h.log.Println(exceptionPeriod)
+	instance, _ = h.es.ds.QueryExceptionInstances(instance)
+	data, _ = h.es.ds.QueryExceptionData(data)
+	json.Unmarshal([]byte(instance.RawStack), &stack)
+	json.Unmarshal([]byte(data.RawData), &args)
+
 	// Process result
-	response := ExceptionDetailsResult {}
-	//	dateCreated: time.Now(),
-	//	exceptionType: ,
-	//	message: ,
-	//	count: ,
-	//	function: ,
-	//	path: ,
-	//	stacktrace: ,
-	//	data: ,
-	//}
-
-	fmt.Println(exceptionInstance)
-	js, _ := json.Marshal(response)
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
+	response := ExceptionDetailsResult {
+		DateCreated: time.Now(),
+		ExceptionType: stack.Type,
+		Message: "",
+		Function: stack.Value,
+		Path: stack.Module,
+		Stacktrace: stack,
+		Data: args,
+	}
+	h.sendResp(w, "exception_details", response)
 }
 
 func (h *httpHandler) histogramExceptionsHandler(w http.ResponseWriter, r *http.Request) {
