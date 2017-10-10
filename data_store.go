@@ -9,16 +9,16 @@ import (
 )
 
 type DataStore interface {
-	FindPeriods(int64, int64) ([]ExceptionInstancePeriod, error)
+	FindPeriods(int64, int64) ([]EventInstancePeriod, error)
 	Query(interface{})
-	QueryExceptions([]Exception) error
-	QueryExceptionData(...ExceptionData) (ExceptionData, error)
-	QueryExceptionInstances(...ExceptionInstance) (ExceptionInstance, error)
-	QueryExceptionInstancePeriods([]ExceptionInstance) error
-	AddExceptions([]Exception) (orm.Result, error)
-	AddExceptionInstances([]ExceptionInstance) (orm.Result, error)
-	AddExceptioninstancePeriods([]ExceptionInstancePeriod) (orm.Result, error)
-	AddExceptionData([]ExceptionData) (orm.Result, error)
+	QueryEvents([]EventBase) error
+	QueryEventData(...EventData) (EventData, error)
+	QueryEventInstances(...EventInstance) (EventInstance, error)
+	QueryEventInstancePeriods([]EventInstance) error
+	AddEvents([]EventBase) (orm.Result, error)
+	AddEventInstances([]EventInstance) (orm.Result, error)
+	AddEventinstancePeriods([]EventInstancePeriod) (orm.Result, error)
+	AddEventData([]EventData) (orm.Result, error)
 }
 
 type PostgresStore struct {
@@ -29,8 +29,8 @@ type PostgresStore struct {
 
 /* MODELS CORRESPONDING TO DATABASE TABLES */
 
-type Exception struct {
-	tableName          struct{} `sql:"exception,alias:exception"`
+type EventBase struct {
+	tableName          struct{} `sql:"event_base,alias:event_base"`
 	Id                 int64    `sql:"_id,pk"`
 	ServiceId          int
 	ServiceVersion     string
@@ -39,11 +39,11 @@ type Exception struct {
 	ProcessedStackHash string
 }
 
-type ExceptionInstance struct {
-	tableName       struct{} `sql:"exception_instance,alias:exception_instance"`
+type EventInstance struct {
+	tableName       struct{} `sql:"event_instance,alias:event_instance"`
 	Id              int64    `sql:"_id,pk"`
-	ExceptionId     int64
-	ExceptionDataId int64
+	EventBaseId     int64
+	EventDataId int64
 	RawStack        string
 	RawStackHash    string
 
@@ -52,11 +52,11 @@ type ExceptionInstance struct {
 	ProcessedDataHash  string `sql:"-"`
 }
 
-type ExceptionInstancePeriod struct {
-	tableName           struct{} `sql:"exception_instance_period,alias:exception_instance_period"`
+type EventInstancePeriod struct {
+	tableName           struct{} `sql:"event_instance_period,alias:event_instance_period"`
 	Id                  int64    `sql:"_id,pk"`
-	ExceptionInstanceId int64
-	ExceptionDataId     int64
+	EventInstanceId int64
+	EventDataId     int64
 	StartTime           time.Time
 	Updated             time.Time
 	TimeInterval        int
@@ -67,8 +67,8 @@ type ExceptionInstancePeriod struct {
 	ProcessedDataHash string `sql:"-"`
 }
 
-type ExceptionData struct {
-	tableName         struct{} `sql:"exception_data,alias:exception_data"`
+type EventData struct {
+	tableName         struct{} `sql:"event_data,alias:event_data"`
 	Id                int64    `sql:"_id,pk"`
 	RawData           string
 	ProcessedData     string
@@ -94,13 +94,13 @@ func (p *PostgresStore) Query(e interface{}) {
 	//v := reflect.ValueOf(e)
 	//var m *orm.Query
 	//switch  t {
-	//case "Exception":
-	//	m = p.db.Model(v.Interface().(Exception))
-	//case "ExceptionInstance":
+	//case "Event":
+	//	m = p.db.Model(v.Interface().(Event))
+	//case "EventInstance":
 	//
-	//case "ExceptionInstancePeriod":
+	//case "EventInstancePeriod":
 	//
-	//case "ExceptionData":
+	//case "EventData":
 	//
 	//default:
 	//
@@ -108,47 +108,47 @@ func (p *PostgresStore) Query(e interface{}) {
 	//fmt.Println(t,v)
 }
 
-func (p *PostgresStore) FindPeriods(excId, dataId int64) ([]ExceptionInstancePeriod, error) {
-	var res []ExceptionInstancePeriod
+func (p *PostgresStore) FindPeriods(excId, dataId int64) ([]EventInstancePeriod, error) {
+	var res []EventInstancePeriod
 	m := p.db.Model(&res)
 	if excId != 0 {
-		m = m.Where("exception_instance_id = ?", excId)
+		m = m.Where("event_instance_id = ?", excId)
 	}
 	if dataId != 0 {
-		m = m.Where("exception_data_id = ?", dataId)
+		m = m.Where("event_data_id = ?", dataId)
 	}
 	err := m.Select()
 	return res, err
 }
 
-func (p *PostgresStore) QueryExceptions(excs []Exception) error {
+func (p *PostgresStore) QueryEvents(excs []EventBase) error {
 	err := p.db.Model(&excs).Select()
 	return err
 }
 
-func (p *PostgresStore) QueryExceptionData(excs ...ExceptionData) (ExceptionData, error) {
+func (p *PostgresStore) QueryEventData(excs ...EventData) (EventData, error) {
 	if len(excs) == 0 {
-		return ExceptionData{}, errors.New("Array length is 0!")
+		return EventData{}, errors.New("Array length is 0!")
 	}
 	err := p.db.Model(&excs).Select()
 	return excs[0], err
 }
 
-func (p *PostgresStore) QueryExceptionInstances(excs ...ExceptionInstance) (ExceptionInstance, error) {
+func (p *PostgresStore) QueryEventInstances(excs ...EventInstance) (EventInstance, error) {
 	if len(excs) == 0 {
-		return ExceptionInstance{}, errors.New("Array length is 0!")
+		return EventInstance{}, errors.New("Array length is 0!")
 	}
 	err := p.db.Model(&excs).Select()
 	return excs[0], err
 }
 
-func (p *PostgresStore) QueryExceptionInstancePeriods(excs []ExceptionInstance) error {
+func (p *PostgresStore) QueryEventInstancePeriods(excs []EventInstance) error {
 	err := p.db.Model(&excs).Select()
 	return err
 }
 
-// Adds new exceptions as long as the stack hash is unique
-func (p *PostgresStore) AddExceptions(excs []Exception) (orm.Result, error) {
+// Adds new events as long as the stack hash is unique
+func (p *PostgresStore) AddEvents(excs []EventBase) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
 		OnConflict("(processed_stack_hash) DO NOTHING").
 		Returning("_id").
@@ -159,7 +159,7 @@ func (p *PostgresStore) AddExceptions(excs []Exception) (orm.Result, error) {
 	return res, err
 }
 
-func (p *PostgresStore) AddExceptionInstances(excs []ExceptionInstance) (orm.Result, error) {
+func (p *PostgresStore) AddEventInstances(excs []EventInstance) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
 		OnConflict("(raw_stack_hash) DO NOTHING").
 		Returning("_id").
@@ -170,10 +170,10 @@ func (p *PostgresStore) AddExceptionInstances(excs []ExceptionInstance) (orm.Res
 	return res, err
 }
 
-func (p *PostgresStore) AddExceptioninstancePeriods(excs []ExceptionInstancePeriod) (orm.Result, error) {
+func (p *PostgresStore) AddEventinstancePeriods(excs []EventInstancePeriod) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
-		OnConflict("(exception_instance_id, exception_data_id, start_time, time_interval) DO UPDATE").
-		Set("count = exception_instance_period.count + EXCLUDED.count").
+		OnConflict("(event_instance_id, event_data_id, start_time, time_interval) DO UPDATE").
+		Set("count = event_instance_period.count + EXCLUDED.count").
 		Returning("_id").
 		Insert()
 	if err != nil {
@@ -182,7 +182,7 @@ func (p *PostgresStore) AddExceptioninstancePeriods(excs []ExceptionInstancePeri
 	return res, err
 }
 
-func (p *PostgresStore) AddExceptionData(excs []ExceptionData) (orm.Result, error) {
+func (p *PostgresStore) AddEventData(excs []EventData) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
 		OnConflict("(processed_data_hash) DO NOTHING").
 		Returning("_id").

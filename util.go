@@ -25,10 +25,6 @@ func PythonUnixToGoUnix(t float64) time.Time {
 	return time.Unix(seconds, nanoseconds)
 }
 
-func ValidateUnaddedException(e UnaddedException) error {
-	return nil
-}
-
 func Hash(s string) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(s))
@@ -73,7 +69,7 @@ func ProcessStack(st StackTrace) string {
 	return string(res)
 }
 
-func ExtractDataFromException(e UnaddedException) map[string]interface{} {
+func ExtractDataFromEvent(e UnaddedEvent) map[string]interface{} {
 	data := make(map[string]interface{})
 
 	// add system arguments

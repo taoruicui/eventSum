@@ -2,9 +2,9 @@
   "postgres_address": "localhost:5433",
   "postgres_user": "postgres",
   "postgres_pass": "password",
-  "postgres_database": "exception_master",
-  "exception_batch_limit": 4,
-  "exception_time_limit": 5,
+  "postgres_database": "event_digest",
+  "event_batch_limit": 4,
+  "event_time_limit": 5,
   "server_port": 8080,
   "args": {},
   "time_interval": 10

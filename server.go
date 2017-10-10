@@ -11,23 +11,23 @@ import (
 	"time"
 )
 
-type ExceptionServer struct {
+type DigestServer struct {
 	logger      *log.Logger
 	route       *http.ServeMux
 	httpHandler httpHandler
 	port        string
 }
 
-func (s *ExceptionServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *DigestServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Server", "example Go server")
 	s.route.ServeHTTP(w, r)
 }
 
 // Creates new HTTP Server given options.
-// Options is a function which will be applied to the new ExceptionServer
-// Returns a pointer to ExceptionServer
-func newExceptionServer(options func(server *ExceptionServer)) *ExceptionServer {
-	s := &ExceptionServer{route: http.NewServeMux()}
+// Options is a function which will be applied to the new DigestServer
+// Returns a pointer to DigestServer
+func newDigestServer(options func(server *DigestServer)) *DigestServer {
+	s := &DigestServer{route: http.NewServeMux()}
 	options(s)
 
 	if s.logger == nil {
@@ -36,19 +36,19 @@ func newExceptionServer(options func(server *ExceptionServer)) *ExceptionServer 
 
 	/* ROUTING */
 	// GET requests
-	s.route.HandleFunc("/", s.httpHandler.recentExceptionsHandler)
-	s.route.HandleFunc("/api/exception/recent", s.httpHandler.recentExceptionsHandler)
-	s.route.HandleFunc("/api/exception/detail", s.httpHandler.detailsExceptionsHandler)
-	s.route.HandleFunc("/api/exception/histogram", s.httpHandler.histogramExceptionsHandler)
+	s.route.HandleFunc("/", s.httpHandler.recentEventsHandler)
+	s.route.HandleFunc("/api/event/recent", s.httpHandler.recentEventsHandler)
+	s.route.HandleFunc("/api/event/detail", s.httpHandler.detailsEventsHandler)
+	s.route.HandleFunc("/api/event/histogram", s.httpHandler.histogramEventsHandler)
 
 	// POST requests
-	s.route.HandleFunc("/api/exception/capture", s.httpHandler.captureExceptionsHandler)
+	s.route.HandleFunc("/api/event/capture", s.httpHandler.captureEventsHandler)
 
 	return s
 }
 
 // Graceful shutdown of the server
-func graceful(hs *http.Server, es *ExceptionServer, logger *log.Logger, timeout time.Duration) {
+func graceful(hs *http.Server, es *DigestServer, logger *log.Logger, timeout time.Duration) {
 	// listen for termination signal
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
@@ -57,12 +57,12 @@ func graceful(hs *http.Server, es *ExceptionServer, logger *log.Logger, timeout 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// make sure we process exceptions inside the queue
+	// make sure we process events inside the queue
 	es.httpHandler.es.Stop()
 	logger.Printf("\nShutdown with timeout: %s\n", timeout)
-	logger.Printf("\nProcessing exceptions still left in the queue")
+	logger.Printf("\nProcessing events still left in the queue")
 	close(es.httpHandler.es.channel._queue)
-	es.httpHandler.es.ProcessBatchException()
+	es.httpHandler.es.ProcessBatchEvent()
 
 	if err := hs.Shutdown(ctx); err != nil {
 		logger.Printf("Error: %v\n", err)
@@ -80,10 +80,10 @@ func main() {
 
 	logger := log.New(os.Stdout, "", log.Lshortfile)
 	ds := newDataStore(config, logger)
-	es := newExceptionStore(ds, config, logger)
+	es := newEventStore(ds, config, logger)
 
 	// create new http server
-	exceptionServer := newExceptionServer(func(s *ExceptionServer) {
+	digestServer := newDigestServer(func(s *DigestServer) {
 		s.logger = logger
 		s.httpHandler = httpHandler{
 			es,
@@ -93,8 +93,8 @@ func main() {
 	})
 
 	httpServer := &http.Server{
-		Addr:    exceptionServer.port,
-		Handler: exceptionServer,
+		Addr:    digestServer.port,
+		Handler: digestServer,
 	}
 
 	// run queue in a goroutine
@@ -108,5 +108,5 @@ func main() {
 		}
 	}()
 
-	graceful(httpServer, exceptionServer, logger, 5*time.Second)
+	graceful(httpServer, digestServer, logger, 5*time.Second)
 }

@@ -8,12 +8,12 @@ import (
 
 /* EXCEPTION STORE MODELS */
 
-type KeyExceptionPeriod struct {
+type KeyEventPeriod struct {
 	RawStackHash, ProcessedDataHash string
 	TimePeriod                      time.Time
 }
 
-type UnaddedException struct {
+type UnaddedEvent struct {
 	EventId    string                 `json:"event_id"`
 	Message    string                 `json:"message"`
 	Level      int                    `json:"level"`
@@ -46,29 +46,29 @@ type Frame struct {
 	Vars        map[string]interface{} `json:"vars"`
 }
 
-// Wrapper struct for Exception Channel
-type ExceptionChannel struct {
-	_queue    chan UnaddedException
+// Wrapper struct for Event Channel
+type EventChannel struct {
+	_queue    chan UnaddedEvent
 	BatchSize int
 	ticker *time.Ticker
 	quit chan int
 }
 
-type ExceptionStore struct {
+type EventStore struct {
 	ds      DataStore         // link to any data store (Postgres, Cassandra, etc.)
-	channel *ExceptionChannel // channel, or queue, for the processing of new exceptions
+	channel *EventChannel // channel, or queue, for the processing of new events
 	log *log.Logger
 	timeInterval int
 }
 
-// create new Exception Store. This 'store' stores necessary information
-// about the exceptions and how they are processed. The exception channel,
+// create new Event Store. This 'store' stores necessary information
+// about the events and how they are processed. The event channel,
 // is the queue, and ds contains the link to the data store, or the DB.
-func newExceptionStore(ds DataStore, config EMConfig, log *log.Logger) *ExceptionStore {
-	return &ExceptionStore{
+func newEventStore(ds DataStore, config EMConfig, log *log.Logger) *EventStore {
+	return &EventStore{
 		ds,
-		&ExceptionChannel{
-			make(chan UnaddedException, config.BatchSize),
+		&EventChannel{
+			make(chan UnaddedEvent, config.BatchSize),
 			config.BatchSize,
 			time.NewTicker(time.Duration(config.TimeLimit)*time.Second),
 			make(chan int),
@@ -79,12 +79,12 @@ func newExceptionStore(ds DataStore, config EMConfig, log *log.Logger) *Exceptio
 }
 
 // Starts the periodic processing of channel
-func (es *ExceptionStore) Start() {
+func (es *EventStore) Start() {
 	for {
 		select{
 		case <- es.channel.ticker.C:
 			fmt.Println("running")
-			es.ProcessBatchException()
+			es.ProcessBatchEvent()
 		case <- es.channel.quit:
 			es.channel.ticker.Stop()
 			return
@@ -92,49 +92,49 @@ func (es *ExceptionStore) Start() {
 	}
 }
 
-func (es *ExceptionStore) Stop() {
+func (es *EventStore) Stop() {
 	es.channel.quit <- 0
 }
 
-// Add new UnaddedException to channel, process if full
-func (es *ExceptionStore) Send(exc UnaddedException) {
+// Add new UnaddedEvent to channel, process if full
+func (es *EventStore) Send(exc UnaddedEvent) {
 	es.channel._queue <- exc
 	if len(es.channel._queue) == es.channel.BatchSize {
-		go es.ProcessBatchException()
+		go es.ProcessBatchEvent()
 	}
 }
 
-func (es *ExceptionStore) FindInstanceById(id int64) {
+func (es *EventStore) FindInstanceById(id int64) {
 
 }
 
 // Process Batch from channel and bulk insert into Db
-func (es *ExceptionStore) ProcessBatchException() {
-	var excsToAdd []UnaddedException
+func (es *EventStore) ProcessBatchEvent() {
+	var excsToAdd []UnaddedEvent
 	for length := len(es.channel._queue); length > 0; length-- {
 		exc := <-es.channel._queue
 		excsToAdd = append(excsToAdd, exc)
 	}
 	if len(excsToAdd) == 0 { return }
 
-	// Match exceptions with each other to find similar ones
+	// Match events with each other to find similar ones
 
 	// Rows to add to Tables
-	var exceptionClasses []Exception
-	var exceptionClassInstances []ExceptionInstance
-	var exceptionClassInstancePeriods []ExceptionInstancePeriod
-	var exceptionData []ExceptionData
+	var eventClasses []EventBase
+	var eventClassInstances []EventInstance
+	var eventClassInstancePeriods []EventInstancePeriod
+	var eventData []EventData
 
 	// Maps the hash to the index of the associated array
-	var exceptionClassesMap = make(map[string]int)
-	var exceptionClassInstancesMap = make(map[string]int)
-	var exceptionClassInstancePeriodsMap = make(map[KeyExceptionPeriod]int)
-	var exceptionDataMap = make(map[string]int)
+	var eventClassesMap = make(map[string]int)
+	var eventClassInstancesMap = make(map[string]int)
+	var eventClassInstancePeriodsMap = make(map[KeyEventPeriod]int)
+	var eventDataMap = make(map[string]int)
 
-	for _, exception := range excsToAdd {
-		rawStack := GenerateRawStack(exception.StackTrace)
-		processedStack := ProcessStack(exception.StackTrace)
-		rawData := ExtractDataFromException(exception)
+	for _, event := range excsToAdd {
+		rawStack := GenerateRawStack(event.StackTrace)
+		processedStack := ProcessStack(event.StackTrace)
+		rawData := ExtractDataFromEvent(event)
 		processedData := ProcessData(rawData)
 
 		rawStackHash := Hash(rawStack)
@@ -143,103 +143,103 @@ func (es *ExceptionStore) ProcessBatchException() {
 
 		// Each hash should be unique in the database, and so we make sure
 		// they are not repeated in the array by checking the associated map.
-		if _, ok := exceptionClassesMap[processedStackHash]; !ok {
-			exceptionClasses = append(exceptionClasses, Exception{
+		if _, ok := eventClassesMap[processedStackHash]; !ok {
+			eventClasses = append(eventClasses, EventBase{
 				ServiceId:          0, // TODO: add proper id
-				ServiceVersion:     exception.ServerName,
-				Name:               exception.Message,
+				ServiceVersion:     event.ServerName,
+				Name:               event.Message,
 				ProcessedStack:     processedStack,
 				ProcessedStackHash: processedStackHash,
 			})
-			exceptionClassesMap[processedStackHash] = len(exceptionClasses) - 1
+			eventClassesMap[processedStackHash] = len(eventClasses) - 1
 		}
 
-		if _, ok := exceptionClassInstancesMap[rawStackHash]; !ok {
-			exceptionClassInstances = append(exceptionClassInstances, ExceptionInstance{
-				ProcessedStackHash: processedStackHash, // Used to reference exception_class_id later
-				ProcessedDataHash:  processedDataHash,  // Used to reference exception_data_id later
+		if _, ok := eventClassInstancesMap[rawStackHash]; !ok {
+			eventClassInstances = append(eventClassInstances, EventInstance{
+				ProcessedStackHash: processedStackHash, // Used to reference event_class_id later
+				ProcessedDataHash:  processedDataHash,  // Used to reference event_data_id later
 				RawStack:           rawStack,
 				RawStackHash:       rawStackHash,
 			})
-			exceptionClassInstancesMap[rawStackHash] = len(exceptionClassInstances) - 1
+			eventClassInstancesMap[rawStackHash] = len(eventClassInstances) - 1
 		}
 
 		// The unique key should be the raw stack, the processed stack, and the time period,
-		// since the count should keep track of an exception instance in a certain time frame.
-		t := PythonUnixToGoUnix(exception.Timestamp).UTC()
-		key := KeyExceptionPeriod{
+		// since the count should keep track of an event instance in a certain time frame.
+		t := PythonUnixToGoUnix(event.Timestamp).UTC()
+		key := KeyEventPeriod{
 			rawStackHash,
 			processedDataHash,
 			FindBoundingTime(t, es.timeInterval),
 		}
-		if _, ok := exceptionClassInstancePeriodsMap[key]; !ok {
-			exceptionClassInstancePeriods = append(exceptionClassInstancePeriods, ExceptionInstancePeriod{
+		if _, ok := eventClassInstancePeriodsMap[key]; !ok {
+			eventClassInstancePeriods = append(eventClassInstancePeriods, EventInstancePeriod{
 				StartTime:         key.TimePeriod,
 				Updated  :         t,
 				TimeInterval:      es.timeInterval,
-				RawStackHash:      rawStackHash,      // Used to reference exception_class_instance_id later
-				ProcessedDataHash: processedDataHash, // Used to reference exception_data_id later
+				RawStackHash:      rawStackHash,      // Used to reference event_class_instance_id later
+				ProcessedDataHash: processedDataHash, // Used to reference event_data_id later
 				Count:             1,
 			})
-			exceptionClassInstancePeriodsMap[key] = len(exceptionClassInstancePeriods) - 1
+			eventClassInstancePeriodsMap[key] = len(eventClassInstancePeriods) - 1
 		} else {
-			exceptionClassInstancePeriods[exceptionClassInstancePeriodsMap[key]].Count++
+			eventClassInstancePeriods[eventClassInstancePeriodsMap[key]].Count++
 		}
 
-		if _, ok := exceptionDataMap[processedDataHash]; !ok {
-			exceptionData = append(exceptionData, ExceptionData{
+		if _, ok := eventDataMap[processedDataHash]; !ok {
+			eventData = append(eventData, EventData{
 				RawData:           processedData,
 				ProcessedData:     processedData,
 				ProcessedDataHash: processedDataHash,
 			})
-			exceptionDataMap[processedDataHash] = len(exceptionData) - 1
+			eventDataMap[processedDataHash] = len(eventData) - 1
 		}
 	}
 
-	if _, err := es.ds.AddExceptions(exceptionClasses); err != nil {
-		es.log.Print("Error while inserting exceptions")
+	if _, err := es.ds.AddEvents(eventClasses); err != nil {
+		es.log.Print("Error while inserting events")
 	}
 
-	if _, err := es.ds.AddExceptionData(exceptionData); err != nil {
-		es.log.Print("Error while inserting exception data")
+	if _, err := es.ds.AddEventData(eventData); err != nil {
+		es.log.Print("Error while inserting event data")
 	}
 	// Query since upsert does not return ids
-	if err := es.ds.QueryExceptions(exceptionClasses); err != nil {
-		es.log.Print("Error while querying exception class")
+	if err := es.ds.QueryEvents(eventClasses); err != nil {
+		es.log.Print("Error while querying event class")
 	}
 	// Query since upsert does not return ids
-	if _, err := es.ds.QueryExceptionData(exceptionData...); err != nil {
-		es.log.Print("Error while querying exception data")
+	if _, err := es.ds.QueryEventData(eventData...); err != nil {
+		es.log.Print("Error while querying event data")
 	}
 
 	// Add the ids generated from above
-	for _, idx := range exceptionClassInstancesMap {
-		stackHash := exceptionClassInstances[idx].ProcessedStackHash
-		dataHash := exceptionClassInstances[idx].ProcessedDataHash
-		exceptionClassInstances[idx].ExceptionId =
-			exceptionClasses[exceptionClassesMap[stackHash]].Id
-		exceptionClassInstances[idx].ExceptionDataId =
-			exceptionData[exceptionDataMap[dataHash]].Id
+	for _, idx := range eventClassInstancesMap {
+		stackHash := eventClassInstances[idx].ProcessedStackHash
+		dataHash := eventClassInstances[idx].ProcessedDataHash
+		eventClassInstances[idx].EventBaseId =
+			eventClasses[eventClassesMap[stackHash]].Id
+		eventClassInstances[idx].EventDataId =
+			eventData[eventDataMap[dataHash]].Id
 	}
 
-	if _, err := es.ds.AddExceptionInstances(exceptionClassInstances); err != nil {
-		es.log.Print("Error while inserting exception instances")
+	if _, err := es.ds.AddEventInstances(eventClassInstances); err != nil {
+		es.log.Print("Error while inserting event instances")
 	}
 
-	if _, err := es.ds.QueryExceptionInstances(exceptionClassInstances...); err != nil {
-		es.log.Print("Error while querying exception instances")
+	if _, err := es.ds.QueryEventInstances(eventClassInstances...); err != nil {
+		es.log.Print("Error while querying event instances")
 	}
 	// Add the ids generated from above
-	for _, idx := range exceptionClassInstancePeriodsMap {
-		stackHash := exceptionClassInstancePeriods[idx].RawStackHash
-		dataHash := exceptionClassInstancePeriods[idx].ProcessedDataHash
-		exceptionClassInstancePeriods[idx].ExceptionInstanceId =
-			exceptionClassInstances[exceptionClassInstancesMap[stackHash]].Id
-		exceptionClassInstancePeriods[idx].ExceptionDataId =
-			exceptionData[exceptionDataMap[dataHash]].Id
+	for _, idx := range eventClassInstancePeriodsMap {
+		stackHash := eventClassInstancePeriods[idx].RawStackHash
+		dataHash := eventClassInstancePeriods[idx].ProcessedDataHash
+		eventClassInstancePeriods[idx].EventInstanceId =
+			eventClassInstances[eventClassInstancesMap[stackHash]].Id
+		eventClassInstancePeriods[idx].EventDataId =
+			eventData[eventDataMap[dataHash]].Id
 	}
 
-	if _, err := es.ds.AddExceptioninstancePeriods(exceptionClassInstancePeriods); err != nil {
-		es.log.Print("Error while inserting exception time periods")
+	if _, err := es.ds.AddEventinstancePeriods(eventClassInstancePeriods); err != nil {
+		es.log.Print("Error while inserting event time periods")
 	}
 }

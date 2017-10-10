@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS exception;
 DROP TABLE IF EXISTS exception_data;
 
 
-CREATE TABLE IF NOT EXISTS exception (
+CREATE TABLE IF NOT EXISTS event_base (
   _id serial8 PRIMARY KEY,
   service_id int8,
   service_version varchar(32),
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS exception (
   UNIQUE (processed_stack_hash)
 );
 
-CREATE TABLE IF NOT EXISTS exception_data (
+CREATE TABLE IF NOT EXISTS event_data (
   _id serial8 PRIMARY KEY,
   raw_data varchar(64000),
   processed_data varchar(64000),
@@ -22,23 +22,23 @@ CREATE TABLE IF NOT EXISTS exception_data (
   UNIQUE (processed_data_hash)
 );
 
-CREATE TABLE IF NOT EXISTS exception_instance (
+CREATE TABLE IF NOT EXISTS event_instance (
   _id serial8 PRIMARY KEY,
-  exception_id int8 REFERENCES exception(_id),
-  exception_data_id int8 REFERENCES exception_data(_id),
+  event_base_id int8 REFERENCES event_base(_id),
+  event_data_id int8 REFERENCES event_data(_id),
   raw_stack varchar(64000),
   raw_stack_hash varchar(64),
   UNIQUE (raw_stack_hash)
 );
 
-CREATE TABLE IF NOT EXISTS exception_instance_period (
+CREATE TABLE IF NOT EXISTS event_instance_period (
   _id serial8 PRIMARY KEY,
-  exception_instance_id int8 REFERENCES exception_instance(_id),
-  exception_data_id int8 REFERENCES exception_data(_id),
+  event_instance_id int8 REFERENCES event_instance(_id),
+  event_data_id int8 REFERENCES event_data(_id),
   start_time timestamp with TIME ZONE,
   updated timestamp with TIME ZONE,
   time_interval SMALLINT,
   count int8,
-  UNIQUE (exception_instance_id, exception_data_id, start_time, time_interval)
+  UNIQUE (event_instance_id, event_data_id, start_time, time_interval)
 );
 
