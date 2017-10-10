@@ -12,13 +12,13 @@ type DataStore interface {
 	FindPeriods(int64, int64) ([]EventInstancePeriod, error)
 	Query(interface{})
 	QueryEvents([]EventBase) error
-	QueryEventData(...EventData) (EventData, error)
+	QueryEventDetails(...EventDetail) (EventDetail, error)
 	QueryEventInstances(...EventInstance) (EventInstance, error)
 	QueryEventInstancePeriods([]EventInstance) error
 	AddEvents([]EventBase) (orm.Result, error)
 	AddEventInstances([]EventInstance) (orm.Result, error)
 	AddEventinstancePeriods([]EventInstancePeriod) (orm.Result, error)
-	AddEventData([]EventData) (orm.Result, error)
+	AddEventDetails([]EventDetail) (orm.Result, error)
 }
 
 type PostgresStore struct {
@@ -33,46 +33,46 @@ type EventBase struct {
 	tableName          struct{} `sql:"event_base,alias:event_base"`
 	Id                 int64    `sql:"_id,pk"`
 	ServiceId          int
-	ServiceVersion     string
-	Name               string
-	ProcessedStack     string
-	ProcessedStackHash string
+	EventType     string
+	EventName               string
+	ProcessedData     string
+	ProcessedDataHash string
 }
 
 type EventInstance struct {
 	tableName       struct{} `sql:"event_instance,alias:event_instance"`
 	Id              int64    `sql:"_id,pk"`
 	EventBaseId     int64
-	EventDataId int64
-	RawStack        string
-	RawStackHash    string
+	EventDetailId int64
+	RawData     string
+	RawDataHash    string
 
 	// ignored fields, used internally
-	ProcessedStackHash string `sql:"-"`
-	ProcessedDataHash  string `sql:"-"`
+	ProcessedDataHash string `sql:"-"`
+	ProcessedDetailHash  string `sql:"-"`
 }
 
 type EventInstancePeriod struct {
 	tableName           struct{} `sql:"event_instance_period,alias:event_instance_period"`
 	Id                  int64    `sql:"_id,pk"`
 	EventInstanceId int64
-	EventDataId     int64
 	StartTime           time.Time
 	Updated             time.Time
 	TimeInterval        int
 	Count               int
+	CounterJson         string
 
 	// ignored fields, used internally
-	RawStackHash      string `sql:"-"`
-	ProcessedDataHash string `sql:"-"`
+	RawDataHash      string `sql:"-"`
+	ProcessedDetailHash string `sql:"-"`
 }
 
-type EventData struct {
-	tableName         struct{} `sql:"event_data,alias:event_data"`
+type EventDetail struct {
+	tableName         struct{} `sql:"event_detail,alias:event_detail"`
 	Id                int64    `sql:"_id,pk"`
-	RawData           string
-	ProcessedData     string
-	ProcessedDataHash string
+	RawDetail           string
+	ProcessedDetail     string
+	ProcessedDetailHash string
 }
 
 // Create a new DataStore
@@ -126,9 +126,9 @@ func (p *PostgresStore) QueryEvents(excs []EventBase) error {
 	return err
 }
 
-func (p *PostgresStore) QueryEventData(excs ...EventData) (EventData, error) {
+func (p *PostgresStore) QueryEventDetails(excs ...EventDetail) (EventDetail, error) {
 	if len(excs) == 0 {
-		return EventData{}, errors.New("Array length is 0!")
+		return EventDetail{}, errors.New("Array length is 0!")
 	}
 	err := p.db.Model(&excs).Select()
 	return excs[0], err
@@ -150,45 +150,45 @@ func (p *PostgresStore) QueryEventInstancePeriods(excs []EventInstance) error {
 // Adds new events as long as the stack hash is unique
 func (p *PostgresStore) AddEvents(excs []EventBase) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
-		OnConflict("(processed_stack_hash) DO NOTHING").
+		OnConflict("(service_id, event_type, processed_data_hash) DO NOTHING").
 		Returning("_id").
 		Insert()
 	if err != nil {
-		p.log.Print("Cannot insert rows into table")
+		p.log.Print(err)
 	}
 	return res, err
 }
 
 func (p *PostgresStore) AddEventInstances(excs []EventInstance) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
-		OnConflict("(raw_stack_hash) DO NOTHING").
+		OnConflict("(raw_data_hash) DO NOTHING").
 		Returning("_id").
 		Insert()
 	if err != nil {
-		p.log.Print("Cannot insert rows into table")
+		p.log.Print(err)
 	}
 	return res, err
 }
 
 func (p *PostgresStore) AddEventinstancePeriods(excs []EventInstancePeriod) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
-		OnConflict("(event_instance_id, event_data_id, start_time, time_interval) DO UPDATE").
+		OnConflict("(event_instance_id, start_time, time_interval) DO UPDATE").
 		Set("count = event_instance_period.count + EXCLUDED.count").
 		Returning("_id").
 		Insert()
 	if err != nil {
-		p.log.Print("Cannot insert rows into table")
+		p.log.Print(err)
 	}
 	return res, err
 }
 
-func (p *PostgresStore) AddEventData(excs []EventData) (orm.Result, error) {
+func (p *PostgresStore) AddEventDetails(excs []EventDetail) (orm.Result, error) {
 	res, err := p.db.Model(&excs).
-		OnConflict("(processed_data_hash) DO NOTHING").
+		OnConflict("(processed_detail_hash) DO NOTHING").
 		Returning("_id").
 		Insert()
 	if err != nil {
-		p.log.Print("Cannot insert rows into table")
+		p.log.Print(err)
 	}
 	return res, err
 }

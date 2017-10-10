@@ -123,52 +123,52 @@ func (es *EventStore) ProcessBatchEvent() {
 	var eventClasses []EventBase
 	var eventClassInstances []EventInstance
 	var eventClassInstancePeriods []EventInstancePeriod
-	var eventData []EventData
+	var eventDetails []EventDetail
 
 	// Maps the hash to the index of the associated array
 	var eventClassesMap = make(map[string]int)
 	var eventClassInstancesMap = make(map[string]int)
 	var eventClassInstancePeriodsMap = make(map[KeyEventPeriod]int)
-	var eventDataMap = make(map[string]int)
+	var eventDetailsMap = make(map[string]int)
 
 	for _, event := range excsToAdd {
-		rawStack := GenerateRawStack(event.StackTrace)
-		processedStack := ProcessStack(event.StackTrace)
-		rawData := ExtractDataFromEvent(event)
-		processedData := ProcessData(rawData)
+		rawData := GenerateRawStack(event.StackTrace)
+		processedData := ProcessStack(event.StackTrace)
+		rawDetail := ExtractDataFromEvent(event)
+		processedDetail := ProcessData(rawDetail)
 
-		rawStackHash := Hash(rawStack)
-		processedStackHash := Hash(processedStack)
+		rawDataHash := Hash(rawData)
 		processedDataHash := Hash(processedData)
+		processedDetailHash := Hash(processedDetail)
 
 		// Each hash should be unique in the database, and so we make sure
 		// they are not repeated in the array by checking the associated map.
-		if _, ok := eventClassesMap[processedStackHash]; !ok {
+		if _, ok := eventClassesMap[processedDataHash]; !ok {
 			eventClasses = append(eventClasses, EventBase{
 				ServiceId:          0, // TODO: add proper id
-				ServiceVersion:     event.ServerName,
-				Name:               event.Message,
-				ProcessedStack:     processedStack,
-				ProcessedStackHash: processedStackHash,
+				EventType:     event.ServerName,
+				EventName:               event.Message,
+				ProcessedData:     processedData,
+				ProcessedDataHash: processedDataHash,
 			})
-			eventClassesMap[processedStackHash] = len(eventClasses) - 1
+			eventClassesMap[processedDataHash] = len(eventClasses) - 1
 		}
 
-		if _, ok := eventClassInstancesMap[rawStackHash]; !ok {
+		if _, ok := eventClassInstancesMap[rawDataHash]; !ok {
 			eventClassInstances = append(eventClassInstances, EventInstance{
-				ProcessedStackHash: processedStackHash, // Used to reference event_class_id later
-				ProcessedDataHash:  processedDataHash,  // Used to reference event_data_id later
-				RawStack:           rawStack,
-				RawStackHash:       rawStackHash,
+				ProcessedDataHash: processedDataHash, // Used to reference event_base_id later
+				ProcessedDetailHash:  processedDetailHash,  // Used to reference event_detail_id later
+				RawData:           rawData,
+				RawDataHash:       rawDataHash,
 			})
-			eventClassInstancesMap[rawStackHash] = len(eventClassInstances) - 1
+			eventClassInstancesMap[rawDataHash] = len(eventClassInstances) - 1
 		}
 
 		// The unique key should be the raw stack, the processed stack, and the time period,
 		// since the count should keep track of an event instance in a certain time frame.
 		t := PythonUnixToGoUnix(event.Timestamp).UTC()
 		key := KeyEventPeriod{
-			rawStackHash,
+			rawDataHash,
 			processedDataHash,
 			FindBoundingTime(t, es.timeInterval),
 		}
@@ -177,8 +177,8 @@ func (es *EventStore) ProcessBatchEvent() {
 				StartTime:         key.TimePeriod,
 				Updated  :         t,
 				TimeInterval:      es.timeInterval,
-				RawStackHash:      rawStackHash,      // Used to reference event_class_instance_id later
-				ProcessedDataHash: processedDataHash, // Used to reference event_data_id later
+				RawDataHash:      rawDataHash,      // Used to reference event_instance_id later
+				ProcessedDetailHash: processedDetailHash, // Used to reference event_detail_id later
 				Count:             1,
 			})
 			eventClassInstancePeriodsMap[key] = len(eventClassInstancePeriods) - 1
@@ -186,13 +186,13 @@ func (es *EventStore) ProcessBatchEvent() {
 			eventClassInstancePeriods[eventClassInstancePeriodsMap[key]].Count++
 		}
 
-		if _, ok := eventDataMap[processedDataHash]; !ok {
-			eventData = append(eventData, EventData{
-				RawData:           processedData,
-				ProcessedData:     processedData,
-				ProcessedDataHash: processedDataHash,
+		if _, ok := eventDetailsMap[processedDataHash]; !ok {
+			eventDetails = append(eventDetails, EventDetail{
+				RawDetail:           processedDetail,
+				ProcessedDetail:     processedDetail,
+				ProcessedDetailHash: processedDetailHash,
 			})
-			eventDataMap[processedDataHash] = len(eventData) - 1
+			eventDetailsMap[processedDataHash] = len(eventDetails) - 1
 		}
 	}
 
@@ -200,7 +200,7 @@ func (es *EventStore) ProcessBatchEvent() {
 		es.log.Print("Error while inserting events")
 	}
 
-	if _, err := es.ds.AddEventData(eventData); err != nil {
+	if _, err := es.ds.AddEventDetails(eventDetails); err != nil {
 		es.log.Print("Error while inserting event data")
 	}
 	// Query since upsert does not return ids
@@ -208,18 +208,18 @@ func (es *EventStore) ProcessBatchEvent() {
 		es.log.Print("Error while querying event class")
 	}
 	// Query since upsert does not return ids
-	if _, err := es.ds.QueryEventData(eventData...); err != nil {
+	if _, err := es.ds.QueryEventDetails(eventDetails...); err != nil {
 		es.log.Print("Error while querying event data")
 	}
 
 	// Add the ids generated from above
 	for _, idx := range eventClassInstancesMap {
-		stackHash := eventClassInstances[idx].ProcessedStackHash
 		dataHash := eventClassInstances[idx].ProcessedDataHash
+		detailHash := eventClassInstances[idx].ProcessedDetailHash
 		eventClassInstances[idx].EventBaseId =
-			eventClasses[eventClassesMap[stackHash]].Id
-		eventClassInstances[idx].EventDataId =
-			eventData[eventDataMap[dataHash]].Id
+			eventClasses[eventClassesMap[dataHash]].Id
+		eventClassInstances[idx].EventDetailId =
+			eventDetails[eventDetailsMap[detailHash]].Id
 	}
 
 	if _, err := es.ds.AddEventInstances(eventClassInstances); err != nil {
@@ -231,12 +231,12 @@ func (es *EventStore) ProcessBatchEvent() {
 	}
 	// Add the ids generated from above
 	for _, idx := range eventClassInstancePeriodsMap {
-		stackHash := eventClassInstancePeriods[idx].RawStackHash
-		dataHash := eventClassInstancePeriods[idx].ProcessedDataHash
+		dataHash := eventClassInstancePeriods[idx].RawDataHash
+		//detailHash := eventClassInstancePeriods[idx].ProcessedDetailHash
 		eventClassInstancePeriods[idx].EventInstanceId =
-			eventClassInstances[eventClassInstancesMap[stackHash]].Id
-		eventClassInstancePeriods[idx].EventDataId =
-			eventData[eventDataMap[dataHash]].Id
+			eventClassInstances[eventClassInstancesMap[dataHash]].Id
+		//eventClassInstancePeriods[idx].EventDetailId =
+		//	eventData[eventDataMap[detailHash]].Id
 	}
 
 	if _, err := es.ds.AddEventinstancePeriods(eventClassInstancePeriods); err != nil {
