@@ -14,16 +14,18 @@ type KeyEventPeriod struct {
 }
 
 type UnaddedEvent struct {
-	EventId    string                 `json:"event_id"`
-	Message    string                 `json:"message"`
-	Level      int                    `json:"level"`
-	StackTrace StackTrace             `json:"stacktrace"`
-	Extra      map[string]interface{} `json:"extra"`
-	Modules    map[string]interface{} `json:"modules"`
-	Platform   string                 `json:"platform"`
-	Sdk        map[string]interface{} `json:"sdk"`
-	ServerName string                 `json:"server_name"`
+	ServiceId    int                 `json:"service_id"`
+	Name    string                 `json:"event_name"`
+	Type      string                    `json:"event_type"`
+	Data EventData             `json:"event_data"`
+	ExtraArgs      map[string]interface{} `json:"extra_args"`
 	Timestamp  float64                `json:"timestamp"`
+	ConfigurableFilters map[string][]string `json:"configurable_filters"`
+}
+
+type EventData struct {
+	Message string `json:"message"`
+	Raw interface{} `json:"raw_data"`
 }
 
 type StackTrace struct {
@@ -84,7 +86,7 @@ func (es *EventStore) Start() {
 		select{
 		case <- es.channel.ticker.C:
 			fmt.Println("running")
-			es.ProcessBatchEvent()
+			es.SummarizeBatchEvents()
 		case <- es.channel.quit:
 			es.channel.ticker.Stop()
 			return
@@ -100,16 +102,12 @@ func (es *EventStore) Stop() {
 func (es *EventStore) Send(exc UnaddedEvent) {
 	es.channel._queue <- exc
 	if len(es.channel._queue) == es.channel.BatchSize {
-		go es.ProcessBatchEvent()
+		go es.SummarizeBatchEvents()
 	}
 }
 
-func (es *EventStore) FindInstanceById(id int64) {
-
-}
-
 // Process Batch from channel and bulk insert into Db
-func (es *EventStore) ProcessBatchEvent() {
+func (es *EventStore) SummarizeBatchEvents() {
 	var excsToAdd []UnaddedEvent
 	for length := len(es.channel._queue); length > 0; length-- {
 		exc := <-es.channel._queue
@@ -117,6 +115,7 @@ func (es *EventStore) ProcessBatchEvent() {
 	}
 	if len(excsToAdd) == 0 { return }
 
+	f := newFilter()
 	// Match events with each other to find similar ones
 
 	// Rows to add to Tables
@@ -132,10 +131,11 @@ func (es *EventStore) ProcessBatchEvent() {
 	var eventDetailsMap = make(map[string]int)
 
 	for _, event := range excsToAdd {
-		rawData := GenerateRawStack(event.StackTrace)
-		processedData := ProcessStack(event.StackTrace)
-		rawDetail := ExtractDataFromEvent(event)
-		processedDetail := ProcessData(rawDetail)
+		rawData := ToJson(event.Data.Raw)
+		rawDetail := ToJson(event.ExtraArgs)
+		// Feed event into filter
+		processedData, _ := f.Process(event, "data")
+		processedDetail, _ := f.Process(event, "detail")
 
 		rawDataHash := Hash(rawData)
 		processedDataHash := Hash(processedData)
@@ -145,9 +145,9 @@ func (es *EventStore) ProcessBatchEvent() {
 		// they are not repeated in the array by checking the associated map.
 		if _, ok := eventClassesMap[processedDataHash]; !ok {
 			eventClasses = append(eventClasses, EventBase{
-				ServiceId:          0, // TODO: add proper id
-				EventType:     event.ServerName,
-				EventName:               event.Message,
+				ServiceId:          event.ServiceId,
+				EventType:     event.Type,
+				EventName:               event.Name,
 				ProcessedData:     processedData,
 				ProcessedDataHash: processedDataHash,
 			})
@@ -188,7 +188,7 @@ func (es *EventStore) ProcessBatchEvent() {
 
 		if _, ok := eventDetailsMap[processedDataHash]; !ok {
 			eventDetails = append(eventDetails, EventDetail{
-				RawDetail:           processedDetail,
+				RawDetail:           rawDetail,
 				ProcessedDetail:     processedDetail,
 				ProcessedDetailHash: processedDetailHash,
 			})

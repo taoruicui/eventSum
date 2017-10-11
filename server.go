@@ -62,7 +62,7 @@ func graceful(hs *http.Server, es *DigestServer, logger *log.Logger, timeout tim
 	logger.Printf("\nShutdown with timeout: %s\n", timeout)
 	logger.Printf("\nProcessing events still left in the queue")
 	close(es.httpHandler.es.channel._queue)
-	es.httpHandler.es.ProcessBatchEvent()
+	es.httpHandler.es.SummarizeBatchEvents()
 
 	if err := hs.Shutdown(ctx); err != nil {
 		logger.Printf("Error: %v\n", err)

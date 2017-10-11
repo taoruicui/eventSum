@@ -69,22 +69,22 @@ func ProcessStack(st StackTrace) string {
 	return string(res)
 }
 
-func ExtractDataFromEvent(e UnaddedEvent) map[string]interface{} {
-	data := make(map[string]interface{})
+//func ExtractDataFromEvent(e UnaddedEvent) map[string]interface{} {
+//	data := make(map[string]interface{})
+//
+//	// add system arguments
+//	sysArgs := make(map[string]interface{})
+//	for key, val := range e.Extra { sysArgs[key] = val }
+//	data["system_args"] = sysArgs
+//
+//	// add stack variables
+//	stackVars := make(map[int]interface{})
+//	for idx, frame := range e.StackTrace.Frames { stackVars[idx] = frame.Vars }
+//	data["stack_vars"] = stackVars
+//	return data
+//}
 
-	// add system arguments
-	sysArgs := make(map[string]interface{})
-	for key, val := range e.Extra { sysArgs[key] = val }
-	data["system_args"] = sysArgs
-
-	// add stack variables
-	stackVars := make(map[int]interface{})
-	for idx, frame := range e.StackTrace.Frames { stackVars[idx] = frame.Vars }
-	data["stack_vars"] = stackVars
-	return data
-}
-
-func ProcessData(data map[string]interface{}) string {
+func ToJson(data interface{}) string {
 	res, _ := json.Marshal(data)
 	return string(res)
 }
