@@ -5,10 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"math"
-	"time"
 	"fmt"
+	"math"
 	"strings"
+	"time"
 )
 
 // returns the start time of the interval bounding time t,
@@ -65,7 +65,7 @@ func ProcessStack(st StackTrace) string {
 		data.Frames[i].Vars = nil
 		data.Frames[i].LineNo = 0
 	}
-	res, _:= json.Marshal(data)
+	res, _ := json.Marshal(data)
 	return string(res)
 }
 

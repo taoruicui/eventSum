@@ -1,9 +1,9 @@
 package main
 
 import (
-	"time"
-	"log"
 	"fmt"
+	"log"
+	"time"
 )
 
 /* EXCEPTION STORE MODELS */
@@ -14,26 +14,26 @@ type KeyEventPeriod struct {
 }
 
 type UnaddedEvent struct {
-	ServiceId    int                 `json:"service_id"`
-	Name    string                 `json:"event_name"`
-	Type      string                    `json:"event_type"`
-	Data EventData             `json:"event_data"`
-	ExtraArgs      map[string]interface{} `json:"extra_args"`
-	Timestamp  float64                `json:"timestamp"`
-	ConfigurableFilters map[string][]string `json:"configurable_filters"`
+	ServiceId           int                    `json:"service_id"`
+	Name                string                 `json:"event_name"`
+	Type                string                 `json:"event_type"`
+	Data                EventData              `json:"event_data"`
+	ExtraArgs           map[string]interface{} `json:"extra_args"`
+	Timestamp           float64                `json:"timestamp"`
+	ConfigurableFilters map[string][]string    `json:"configurable_filters"`
 }
 
 type EventData struct {
-	Message string `json:"message"`
-	Raw interface{} `json:"raw_data"`
+	Message string      `json:"message"`
+	Raw     interface{} `json:"raw_data"`
 }
 
 type StackTrace struct {
-	Module string  `json:"module"`
-	Type   string  `json:"type"`
-	Value  string  `json:"value"`
-	RawStack string `json:"raw_stack"`
-	Frames []Frame `json:"frames"`
+	Module   string  `json:"module"`
+	Type     string  `json:"type"`
+	Value    string  `json:"value"`
+	RawStack string  `json:"raw_stack"`
+	Frames   []Frame `json:"frames"`
 }
 
 type Frame struct {
@@ -52,14 +52,14 @@ type Frame struct {
 type EventChannel struct {
 	_queue    chan UnaddedEvent
 	BatchSize int
-	ticker *time.Ticker
-	quit chan int
+	ticker    *time.Ticker
+	quit      chan int
 }
 
 type EventStore struct {
-	ds      DataStore         // link to any data store (Postgres, Cassandra, etc.)
-	channel *EventChannel // channel, or queue, for the processing of new events
-	log *log.Logger
+	ds           DataStore     // link to any data store (Postgres, Cassandra, etc.)
+	channel      *EventChannel // channel, or queue, for the processing of new events
+	log          *log.Logger
 	timeInterval int
 }
 
@@ -72,7 +72,7 @@ func newEventStore(ds DataStore, config EMConfig, log *log.Logger) *EventStore {
 		&EventChannel{
 			make(chan UnaddedEvent, config.BatchSize),
 			config.BatchSize,
-			time.NewTicker(time.Duration(config.TimeLimit)*time.Second),
+			time.NewTicker(time.Duration(config.TimeLimit) * time.Second),
 			make(chan int),
 		},
 		log,
@@ -83,11 +83,11 @@ func newEventStore(ds DataStore, config EMConfig, log *log.Logger) *EventStore {
 // Starts the periodic processing of channel
 func (es *EventStore) Start() {
 	for {
-		select{
-		case <- es.channel.ticker.C:
+		select {
+		case <-es.channel.ticker.C:
 			fmt.Println("running")
 			es.SummarizeBatchEvents()
-		case <- es.channel.quit:
+		case <-es.channel.quit:
 			es.channel.ticker.Stop()
 			return
 		}
@@ -113,7 +113,9 @@ func (es *EventStore) SummarizeBatchEvents() {
 		exc := <-es.channel._queue
 		excsToAdd = append(excsToAdd, exc)
 	}
-	if len(excsToAdd) == 0 { return }
+	if len(excsToAdd) == 0 {
+		return
+	}
 
 	f := newFilter()
 	// Match events with each other to find similar ones
@@ -134,8 +136,16 @@ func (es *EventStore) SummarizeBatchEvents() {
 		rawData := ToJson(event.Data.Raw)
 		rawDetail := ToJson(event.ExtraArgs)
 		// Feed event into filter
-		processedData, _ := f.Process(event, "data")
-		processedDetail, _ := f.Process(event, "detail")
+		processedData, err := f.Process(event, "data")
+		if err != nil {
+			es.log.Printf("Error when processing data: %v", err)
+			processedData = rawData
+		}
+		processedDetail, err := f.Process(event, "detail")
+		if err != nil {
+			es.log.Printf("Error when processing detail: %v", err)
+			processedDetail = rawDetail
+		}
 
 		rawDataHash := Hash(rawData)
 		processedDataHash := Hash(processedData)
@@ -145,9 +155,9 @@ func (es *EventStore) SummarizeBatchEvents() {
 		// they are not repeated in the array by checking the associated map.
 		if _, ok := eventClassesMap[processedDataHash]; !ok {
 			eventClasses = append(eventClasses, EventBase{
-				ServiceId:          event.ServiceId,
-				EventType:     event.Type,
-				EventName:               event.Name,
+				ServiceId:         event.ServiceId,
+				EventType:         event.Type,
+				EventName:         event.Name,
 				ProcessedData:     processedData,
 				ProcessedDataHash: processedDataHash,
 			})
@@ -156,10 +166,10 @@ func (es *EventStore) SummarizeBatchEvents() {
 
 		if _, ok := eventClassInstancesMap[rawDataHash]; !ok {
 			eventClassInstances = append(eventClassInstances, EventInstance{
-				ProcessedDataHash: processedDataHash, // Used to reference event_base_id later
-				ProcessedDetailHash:  processedDetailHash,  // Used to reference event_detail_id later
-				RawData:           rawData,
-				RawDataHash:       rawDataHash,
+				ProcessedDataHash:   processedDataHash,   // Used to reference event_base_id later
+				ProcessedDetailHash: processedDetailHash, // Used to reference event_detail_id later
+				RawData:             rawData,
+				RawDataHash:         rawDataHash,
 			})
 			eventClassInstancesMap[rawDataHash] = len(eventClassInstances) - 1
 		}
@@ -174,12 +184,12 @@ func (es *EventStore) SummarizeBatchEvents() {
 		}
 		if _, ok := eventClassInstancePeriodsMap[key]; !ok {
 			eventClassInstancePeriods = append(eventClassInstancePeriods, EventInstancePeriod{
-				StartTime:         key.TimePeriod,
-				Updated  :         t,
-				TimeInterval:      es.timeInterval,
-				RawDataHash:      rawDataHash,      // Used to reference event_instance_id later
+				StartTime:           key.TimePeriod,
+				Updated:             t,
+				TimeInterval:        es.timeInterval,
+				RawDataHash:         rawDataHash,         // Used to reference event_instance_id later
 				ProcessedDetailHash: processedDetailHash, // Used to reference event_detail_id later
-				Count:             1,
+				Count:               1,
 			})
 			eventClassInstancePeriodsMap[key] = len(eventClassInstancePeriods) - 1
 		} else {

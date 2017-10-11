@@ -1,14 +1,13 @@
 package main
 
 import (
-	"fmt"
-	"reflect"
-	"github.com/pkg/errors"
 	"encoding/json"
+	"fmt"
+	"github.com/pkg/errors"
+	"reflect"
 )
 
 type Filter map[string]interface{}
-
 
 func (f *Filter) Process(event UnaddedEvent, filterName string) (string, error) {
 	if funcNames, ok := event.ConfigurableFilters[filterName]; ok {
@@ -32,7 +31,7 @@ func (f *Filter) Process(event UnaddedEvent, filterName string) (string, error) 
 	if filterName == "data" {
 		res, err := json.Marshal(event.Data)
 		return string(res), err
-	} else if filterName =="detail" {
+	} else if filterName == "detail" {
 		res, err := json.Marshal(event.ExtraArgs)
 		return string(res), err
 	} else {
@@ -41,7 +40,7 @@ func (f *Filter) Process(event UnaddedEvent, filterName string) (string, error) 
 }
 
 // Calls the Function by name using Reflection
-func (filter Filter) call(name string, params ... interface{}) (result []reflect.Value, err error) {
+func (filter Filter) call(name string, params ...interface{}) (result []reflect.Value, err error) {
 	f := reflect.ValueOf(filter[name])
 	if len(params) != f.Type().NumIn() {
 		err = errors.New("The number of params is not adapted.")
@@ -56,8 +55,8 @@ func (filter Filter) call(name string, params ... interface{}) (result []reflect
 }
 
 func newFilter() Filter {
-	return Filter {
-		"exception_python_remove_line_no": exceptionPythonRemoveLineNo,
+	return Filter{
+		"exception_python_remove_line_no":    exceptionPythonRemoveLineNo,
 		"exception_python_remove_stack_vars": exceptionPythonRemoveStackVars,
 	}
 }

@@ -2,29 +2,29 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"net/http"
 	"errors"
+	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 	"time"
 )
 
 // Base class for handling HTTP Requests
 type httpHandler struct {
-	es *EventStore
+	es  *EventStore
 	log *log.Logger
 }
 
 type EventDetailsResult struct {
-	DateCreated time.Time `json:"date_created"`
-	DateUpdated time.Time`json:"date_updated"`
-	EventType string `json:"event_type"`
-	Message string `json:"message"`
-	Function string `json:"function"`
-	Path string `json:"path"`
-	Stacktrace StackTrace `json:"stacktrace"`
-	Data map[string]interface{} `json:"data"`
+	DateCreated time.Time              `json:"date_created"`
+	DateUpdated time.Time              `json:"date_updated"`
+	EventType   string                 `json:"event_type"`
+	Message     string                 `json:"message"`
+	Function    string                 `json:"function"`
+	Path        string                 `json:"path"`
+	Stacktrace  StackTrace             `json:"stacktrace"`
+	Data        map[string]interface{} `json:"data"`
 }
 
 // Writes an error to ResponseWriter
@@ -90,14 +90,14 @@ func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Reques
 	json.Unmarshal([]byte(detail.RawDetail), &args)
 
 	// Process result
-	response := EventDetailsResult {
+	response := EventDetailsResult{
 		DateCreated: time.Now(),
-		EventType: stack.Type,
-		Message: GenerateFullStack(stack),
-		Function: stack.Value,
-		Path: stack.Module,
-		Stacktrace: stack,
-		Data: args,
+		EventType:   stack.Type,
+		Message:     GenerateFullStack(stack),
+		Function:    stack.Value,
+		Path:        stack.Module,
+		Stacktrace:  stack,
+		Data:        args,
 	}
 	h.sendResp(w, "event_details", response)
 }

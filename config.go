@@ -8,28 +8,28 @@ import (
 
 // EMConfig are settings used ... XXX
 type EMConfig struct {
-	PgAddress  string        `json:"postgres_address"`
-	PgUsername string        `json:"postgres_user"`
-	PgPassword string        `json:"postgres_pass"`
-	PgDatabase string        `json:"postgres_database"`
-	BatchSize  int           `json:"event_batch_limit"`
-	TimeLimit  int `json:"event_time_limit"` // in seconds
-	ServerPort int           `json:"server_port"`
-	TimeInterval int `json:"time_interval"` // in minutes
-	Args       map[string]interface{}   `json:"args"`
+	PgAddress    string                 `json:"postgres_address"`
+	PgUsername   string                 `json:"postgres_user"`
+	PgPassword   string                 `json:"postgres_pass"`
+	PgDatabase   string                 `json:"postgres_database"`
+	BatchSize    int                    `json:"event_batch_limit"`
+	TimeLimit    int                    `json:"event_time_limit"` // in seconds
+	ServerPort   int                    `json:"server_port"`
+	TimeInterval int                    `json:"time_interval"` // in minutes
+	Args         map[string]interface{} `json:"args"`
 }
 
-func DefaultConfig() (EMConfig) {
+func DefaultConfig() EMConfig {
 	return EMConfig{
-		PgAddress: "localhost:5432",
-		PgUsername: "username",
-		PgPassword: "password",
-		PgDatabase: "event_master",
-		BatchSize: 5,
-		TimeLimit: 5,
-		ServerPort: 8080,
+		PgAddress:    "localhost:5432",
+		PgUsername:   "username",
+		PgPassword:   "password",
+		PgDatabase:   "event_master",
+		BatchSize:    5,
+		TimeLimit:    5,
+		ServerPort:   8080,
 		TimeInterval: 15,
-		Args: make(map[string]interface{}),
+		Args:         make(map[string]interface{}),
 	}
 }
 

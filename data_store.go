@@ -3,9 +3,9 @@ package main
 import (
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
-	"time"
-	"log"
 	"github.com/pkg/errors"
+	"log"
+	"time"
 )
 
 type DataStore interface {
@@ -22,54 +22,54 @@ type DataStore interface {
 }
 
 type PostgresStore struct {
-	db *pg.DB
-	log *log.Logger
+	db           *pg.DB
+	log          *log.Logger
 	timeInterval int
 }
 
 /* MODELS CORRESPONDING TO DATABASE TABLES */
 
 type EventBase struct {
-	tableName          struct{} `sql:"event_base,alias:event_base"`
-	Id                 int64    `sql:"_id,pk"`
-	ServiceId          int
-	EventType     string
-	EventName               string
+	tableName         struct{} `sql:"event_base,alias:event_base"`
+	Id                int64    `sql:"_id,pk"`
+	ServiceId         int
+	EventType         string
+	EventName         string
 	ProcessedData     string
 	ProcessedDataHash string
 }
 
 type EventInstance struct {
-	tableName       struct{} `sql:"event_instance,alias:event_instance"`
-	Id              int64    `sql:"_id,pk"`
-	EventBaseId     int64
+	tableName     struct{} `sql:"event_instance,alias:event_instance"`
+	Id            int64    `sql:"_id,pk"`
+	EventBaseId   int64
 	EventDetailId int64
-	RawData     string
-	RawDataHash    string
+	RawData       string
+	RawDataHash   string
 
 	// ignored fields, used internally
-	ProcessedDataHash string `sql:"-"`
-	ProcessedDetailHash  string `sql:"-"`
+	ProcessedDataHash   string `sql:"-"`
+	ProcessedDetailHash string `sql:"-"`
 }
 
 type EventInstancePeriod struct {
-	tableName           struct{} `sql:"event_instance_period,alias:event_instance_period"`
-	Id                  int64    `sql:"_id,pk"`
+	tableName       struct{} `sql:"event_instance_period,alias:event_instance_period"`
+	Id              int64    `sql:"_id,pk"`
 	EventInstanceId int64
-	StartTime           time.Time
-	Updated             time.Time
-	TimeInterval        int
-	Count               int
-	CounterJson         string
+	StartTime       time.Time
+	Updated         time.Time
+	TimeInterval    int
+	Count           int
+	CounterJson     string
 
 	// ignored fields, used internally
-	RawDataHash      string `sql:"-"`
+	RawDataHash         string `sql:"-"`
 	ProcessedDetailHash string `sql:"-"`
 }
 
 type EventDetail struct {
-	tableName         struct{} `sql:"event_detail,alias:event_detail"`
-	Id                int64    `sql:"_id,pk"`
+	tableName           struct{} `sql:"event_detail,alias:event_detail"`
+	Id                  int64    `sql:"_id,pk"`
 	RawDetail           string
 	ProcessedDetail     string
 	ProcessedDetailHash string
