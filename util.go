@@ -49,26 +49,6 @@ func GenerateFullStack(st StackTrace) string {
 	return buffer.String()
 }
 
-func GenerateRawStack(st StackTrace) string {
-	data := st
-	for i := range data.Frames {
-		data.Frames[i].Vars = nil
-	}
-	res, _ := json.Marshal(data)
-	return string(res)
-}
-
-func ProcessStack(st StackTrace) string {
-	// Strip the line numbers
-	data := st
-	for i := range data.Frames {
-		data.Frames[i].Vars = nil
-		data.Frames[i].LineNo = 0
-	}
-	res, _ := json.Marshal(data)
-	return string(res)
-}
-
 //func ExtractDataFromEvent(e UnaddedEvent) map[string]interface{} {
 //	data := make(map[string]interface{})
 //

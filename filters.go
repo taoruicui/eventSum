@@ -69,6 +69,17 @@ and return (UnaddedEvent, error)
 */
 
 func exceptionPythonRemoveLineNo(event UnaddedEvent) (UnaddedEvent, error) {
+	// TODO: figure out a way to type assert interface{} -> struct
+	byteData, _ := json.Marshal(event.Data.Raw)
+	var stacktrace ExceptionData
+	ok := json.Unmarshal(byteData, &stacktrace)
+	if ok != nil {
+		return event, errors.New("Cannot type assert to ExceptionData")
+	}
+	for i := range stacktrace.Frames {
+		stacktrace.Frames[i].LineNo = 0
+	}
+	event.Data.Raw = stacktrace
 	return event, nil
 }
 

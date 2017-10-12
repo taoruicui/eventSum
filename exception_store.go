@@ -36,6 +36,13 @@ type StackTrace struct {
 	Frames   []Frame `json:"frames"`
 }
 
+type ExceptionData struct {
+	Module   string  `json:"module"`
+	Type     string  `json:"type"`
+	Value    string  `json:"value"`
+	Frames   []Frame `json:"frames"`
+}
+
 type Frame struct {
 	AbsPath     string                 `json:"abs_path"`
 	ContextLine string                 `json:"context_line"`
