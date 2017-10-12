@@ -89,23 +89,7 @@ func newDataStore(conf EMConfig, log *log.Logger) DataStore {
 }
 
 func (p *PostgresStore) Query(e interface{}) {
-	// Figure out what model it is
-	//t := reflect.TypeOf(e).Name()
-	//v := reflect.ValueOf(e)
-	//var m *orm.Query
-	//switch  t {
-	//case "Event":
-	//	m = p.db.Model(v.Interface().(Event))
-	//case "EventInstance":
-	//
-	//case "EventInstancePeriod":
-	//
-	//case "EventData":
-	//
-	//default:
-	//
-	//}
-	//fmt.Println(t,v)
+
 }
 
 func (p *PostgresStore) FindPeriods(excId, dataId int64) ([]EventInstancePeriod, error) {
