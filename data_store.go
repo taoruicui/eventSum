@@ -4,30 +4,30 @@ import (
 	"log"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/mitchellh/mapstructure"
+	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/jacksontj/dataman/src/client"
 	"github.com/jacksontj/dataman/src/client/direct"
 	"github.com/jacksontj/dataman/src/query"
 	"github.com/jacksontj/dataman/src/storage_node"
 	"github.com/jacksontj/dataman/src/storage_node/metadata"
+	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 	"io/ioutil"
-	"encoding/json"
-	"context"
-	"fmt"
 )
 
 type DataStore struct {
-	client *datamanclient.Client
-	log *log.Logger
+	client       *datamanclient.Client
+	log          *log.Logger
 	timeInterval int
 }
 
 /* MODELS CORRESPONDING TO DATABASE TABLES */
 
 type EventBase struct {
-	Id                int64    `mapstructure:"_id"`
-	ServiceId         int `mapstructure:"service_id"`
+	Id                int64  `mapstructure:"_id"`
+	ServiceId         int    `mapstructure:"service_id"`
 	EventType         string `mapstructure:"event_type"`
 	EventName         string `mapstructure:"event_name"`
 	ProcessedData     string `mapstructure:"processed_data"`
@@ -35,9 +35,9 @@ type EventBase struct {
 }
 
 type EventInstance struct {
-	Id            int64 `mapstructure:"_id"`
-	EventBaseId   int64 `mapstructure:"event_base_id"`
-	EventDetailId int64 `mapstructure:"event_detail_id"`
+	Id            int64  `mapstructure:"_id"`
+	EventBaseId   int64  `mapstructure:"event_base_id"`
+	EventDetailId int64  `mapstructure:"event_detail_id"`
 	RawData       string `mapstructure:"raw_data"`
 	RawDataHash   string `mapstructure:"raw_data_hash"`
 
@@ -62,7 +62,7 @@ type EventInstancePeriod struct {
 }
 
 type EventDetail struct {
-	Id                  int64 `mapstructure:"_id"`
+	Id                  int64  `mapstructure:"_id"`
 	RawDetail           string `mapstructure:"raw_detail"`
 	ProcessedDetail     string `mapstructure:"processed_detail"`
 	ProcessedDetailHash string `mapstructure:"processed_detail_hash"`
@@ -98,8 +98,8 @@ func newDataStore(conf EMConfig, log *log.Logger) *DataStore {
 
 	client := &datamanclient.Client{Transport: transport}
 	return &DataStore{
-		client: client,
-		log: log,
+		client:       client,
+		log:          log,
 		timeInterval: conf.TimeInterval,
 	}
 }
@@ -157,11 +157,11 @@ func (d *DataStore) AddEvent(evt *EventBase) error {
 			"db":             "event_sum",
 			"collection":     "event_base",
 			"shard_instance": "public",
-			"record":         map[string]interface{}{
-				"service_id": evt.ServiceId,
-				"event_type": evt.EventType,
-				"event_name": evt.EventName,
-				"processed_data": evt.ProcessedData,
+			"record": map[string]interface{}{
+				"service_id":          evt.ServiceId,
+				"event_type":          evt.EventType,
+				"event_name":          evt.EventName,
+				"processed_data":      evt.ProcessedData,
 				"processed_data_hash": evt.ProcessedDataHash,
 			},
 		},
@@ -195,11 +195,11 @@ func (d *DataStore) AddEventInstance(evt *EventInstance) error {
 			"db":             "event_sum",
 			"collection":     "event_instance",
 			"shard_instance": "public",
-			"record":         map[string]interface{}{
-				"event_base_id": evt.EventBaseId,
+			"record": map[string]interface{}{
+				"event_base_id":   evt.EventBaseId,
 				"event_detail_id": evt.EventDetailId,
-				"raw_data": evt.RawData,
-				"raw_data_hash": evt.RawDataHash,
+				"raw_data":        evt.RawData,
+				"raw_data_hash":   evt.RawDataHash,
 			},
 		},
 	}
@@ -213,7 +213,7 @@ func (d *DataStore) AddEventInstance(evt *EventInstance) error {
 	return err
 }
 
-func (d *DataStore) AddEventInstances(evts []EventInstance) (error) {
+func (d *DataStore) AddEventInstances(evts []EventInstance) error {
 	for i := range evts {
 		err := d.AddEventInstance(&evts[i])
 		fmt.Println(evts[i], err)
@@ -231,13 +231,13 @@ func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 			"db":             "event_sum",
 			"collection":     "event_instance_period",
 			"shard_instance": "public",
-			"record":         map[string]interface{}{
+			"record": map[string]interface{}{
 				"event_instance_id": evt.EventInstanceId,
-				"start_time": evt.StartTime,
-				"updated": evt.Updated,
-				"time_interval": evt.TimeInterval,
-				"count": evt.Count,
-				"counter_json": evt.CounterJson,
+				"start_time":        evt.StartTime,
+				"updated":           evt.Updated,
+				"time_interval":     evt.TimeInterval,
+				"count":             evt.Count,
+				"counter_json":      evt.CounterJson,
 			},
 		},
 	}
@@ -269,9 +269,9 @@ func (d *DataStore) AddEventDetail(evt *EventDetail) error {
 			"db":             "event_sum",
 			"collection":     "event_detail",
 			"shard_instance": "public",
-			"record":         map[string]interface{}{
-				"raw_detail": evt.RawDetail,
-				"processed_detail": evt.ProcessedDetail,
+			"record": map[string]interface{}{
+				"raw_detail":            evt.RawDetail,
+				"processed_detail":      evt.ProcessedDetail,
 				"processed_detail_hash": evt.ProcessedDetailHash,
 			},
 		},
@@ -286,7 +286,7 @@ func (d *DataStore) AddEventDetail(evt *EventDetail) error {
 	return err
 }
 
-func (d *DataStore) AddEventDetails(evts []EventDetail) (error) {
+func (d *DataStore) AddEventDetails(evts []EventDetail) error {
 	for i := range evts {
 		err := d.AddEventDetail(&evts[i])
 		fmt.Println(evts[i], err)

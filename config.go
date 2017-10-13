@@ -8,24 +8,24 @@ import (
 
 // EMConfig are settings used ... XXX
 type EMConfig struct {
-	DataSourceInstance string `json:"data_source_instance"`
-	DataSourceSchema string `json:"data_source_schema"`
-	BatchSize    int                    `json:"event_batch_limit"`
-	TimeLimit    int                    `json:"event_time_limit"` // in seconds
-	ServerPort   int                    `json:"server_port"`
-	TimeInterval int                    `json:"time_interval"` // in minutes
-	Args         map[string]interface{} `json:"args"`
+	DataSourceInstance string                 `json:"data_source_instance"`
+	DataSourceSchema   string                 `json:"data_source_schema"`
+	BatchSize          int                    `json:"event_batch_limit"`
+	TimeLimit          int                    `json:"event_time_limit"` // in seconds
+	ServerPort         int                    `json:"server_port"`
+	TimeInterval       int                    `json:"time_interval"` // in minutes
+	Args               map[string]interface{} `json:"args"`
 }
 
 func DefaultConfig() EMConfig {
 	return EMConfig{
 		DataSourceInstance: "config/datasourceinstance.yaml",
-		DataSourceSchema: "config/schema.json",
-		BatchSize:    5,
-		TimeLimit:    5,
-		ServerPort:   8080,
-		TimeInterval: 15,
-		Args:         make(map[string]interface{}),
+		DataSourceSchema:   "config/schema.json",
+		BatchSize:          5,
+		TimeLimit:          5,
+		ServerPort:         8080,
+		TimeInterval:       15,
+		Args:               make(map[string]interface{}),
 	}
 }
 

@@ -37,10 +37,10 @@ type StackTrace struct {
 }
 
 type ExceptionData struct {
-	Module   string  `json:"module"`
-	Type     string  `json:"type"`
-	Value    string  `json:"value"`
-	Frames   []Frame `json:"frames"`
+	Module string  `json:"module"`
+	Type   string  `json:"type"`
+	Value  string  `json:"value"`
+	Frames []Frame `json:"frames"`
 }
 
 type Frame struct {
@@ -64,7 +64,7 @@ type EventChannel struct {
 }
 
 type EventStore struct {
-	ds           *DataStore     // link to any data store (Postgres, Cassandra, etc.)
+	ds           *DataStore    // link to any data store (Postgres, Cassandra, etc.)
 	channel      *EventChannel // channel, or queue, for the processing of new events
 	log          *log.Logger
 	timeInterval int
