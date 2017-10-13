@@ -1,51 +1,45 @@
 package main
 
 import (
-	"github.com/go-pg/pg"
-	"github.com/go-pg/pg/orm"
-	"github.com/pkg/errors"
 	"log"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/mitchellh/mapstructure"
+	"github.com/jacksontj/dataman/src/client"
+	"github.com/jacksontj/dataman/src/client/direct"
+	"github.com/jacksontj/dataman/src/query"
+	"github.com/jacksontj/dataman/src/storage_node"
+	"github.com/jacksontj/dataman/src/storage_node/metadata"
+	"io/ioutil"
+	"encoding/json"
+	"context"
+	"fmt"
 )
 
-type DataStore interface {
-	FindPeriods(int64, int64) ([]EventInstancePeriod, error)
-	Query(interface{})
-	QueryEvents([]EventBase) error
-	QueryEventDetails(...EventDetail) (EventDetail, error)
-	QueryEventInstances(...EventInstance) (EventInstance, error)
-	QueryEventInstancePeriods([]EventInstance) error
-	AddEvents([]EventBase) (orm.Result, error)
-	AddEventInstances([]EventInstance) (orm.Result, error)
-	AddEventinstancePeriods([]EventInstancePeriod) (orm.Result, error)
-	AddEventDetails([]EventDetail) (orm.Result, error)
-}
-
-type PostgresStore struct {
-	db           *pg.DB
-	log          *log.Logger
+type DataStore struct {
+	client *datamanclient.Client
+	log *log.Logger
 	timeInterval int
 }
 
 /* MODELS CORRESPONDING TO DATABASE TABLES */
 
 type EventBase struct {
-	tableName         struct{} `sql:"event_base,alias:event_base"`
-	Id                int64    `sql:"_id,pk"`
-	ServiceId         int
-	EventType         string
-	EventName         string
-	ProcessedData     string
-	ProcessedDataHash string
+	Id                int64    `mapstructure:"_id"`
+	ServiceId         int `mapstructure:"service_id"`
+	EventType         string `mapstructure:"event_type"`
+	EventName         string `mapstructure:"event_name"`
+	ProcessedData     string `mapstructure:"processed_data"`
+	ProcessedDataHash string `mapstructure:"processed_data_hash"`
 }
 
 type EventInstance struct {
-	tableName     struct{} `sql:"event_instance,alias:event_instance"`
-	Id            int64    `sql:"_id,pk"`
-	EventBaseId   int64
-	EventDetailId int64
-	RawData       string
-	RawDataHash   string
+	Id            int64 `mapstructure:"_id"`
+	EventBaseId   int64 `mapstructure:"event_base_id"`
+	EventDetailId int64 `mapstructure:"event_detail_id"`
+	RawData       string `mapstructure:"raw_data"`
+	RawDataHash   string `mapstructure:"raw_data_hash"`
 
 	// ignored fields, used internally
 	ProcessedDataHash   string `sql:"-"`
@@ -68,111 +62,237 @@ type EventInstancePeriod struct {
 }
 
 type EventDetail struct {
-	tableName           struct{} `sql:"event_detail,alias:event_detail"`
-	Id                  int64    `sql:"_id,pk"`
-	RawDetail           string
-	ProcessedDetail     string
-	ProcessedDetailHash string
+	Id                  int64 `mapstructure:"_id"`
+	RawDetail           string `mapstructure:"raw_detail"`
+	ProcessedDetail     string `mapstructure:"processed_detail"`
+	ProcessedDetailHash string `mapstructure:"processed_detail_hash"`
 }
 
 // Create a new DataStore
-func newDataStore(conf EMConfig, log *log.Logger) DataStore {
-	// Create a connection to Postgres Database
-	db := pg.Connect(&pg.Options{
-		Addr:     conf.PgAddress,
-		User:     conf.PgUsername,
-		Password: conf.PgPassword,
-		Database: conf.PgDatabase,
-	})
-	dataStore := PostgresStore{db, log, conf.TimeInterval}
-	return &dataStore
-}
+func newDataStore(conf EMConfig, log *log.Logger) *DataStore {
+	// Create a connection to Postgres Database through Dataman
 
-func (p *PostgresStore) Query(e interface{}) {
-
-}
-
-func (p *PostgresStore) FindPeriods(excId, dataId int64) ([]EventInstancePeriod, error) {
-	var res []EventInstancePeriod
-	m := p.db.Model(&res)
-	if excId != 0 {
-		m = m.Where("event_instance_id = ?", excId)
+	storagenodeConfig, err := storagenode.DatasourceInstanceConfigFromFile(conf.DataSourceInstance)
+	if err != nil {
+		log.Fatalf("Error loading config: %v", err)
 	}
-	if dataId != 0 {
-		m = m.Where("event_data_id = ?", dataId)
+
+	// Load meta
+	meta := &metadata.Meta{}
+	metaBytes, err := ioutil.ReadFile(conf.DataSourceSchema)
+	if err != nil {
+		log.Fatalf("Error loading schema: %v", err)
 	}
-	err := m.Select()
-	return res, err
-}
-
-func (p *PostgresStore) QueryEvents(excs []EventBase) error {
-	err := p.db.Model(&excs).Select()
-	return err
-}
-
-func (p *PostgresStore) QueryEventDetails(excs ...EventDetail) (EventDetail, error) {
-	if len(excs) == 0 {
-		return EventDetail{}, errors.New("Array length is 0!")
+	err = json.Unmarshal([]byte(metaBytes), meta)
+	if err != nil {
+		log.Fatalf("Error loading meta: %v", err)
 	}
-	err := p.db.Model(&excs).Select()
-	return excs[0], err
-}
 
-func (p *PostgresStore) QueryEventInstances(excs ...EventInstance) (EventInstance, error) {
-	if len(excs) == 0 {
-		return EventInstance{}, errors.New("Array length is 0!")
+	// TODO: remove
+	storagenodeConfig.SkipProvisionTrim = true
+
+	transport, err := datamandirect.NewStaticDatasourceInstanceTransport(storagenodeConfig, meta)
+	if err != nil {
+		log.Fatalf("Error NewStaticDatasourceInstanceClient: %v", err)
 	}
-	err := p.db.Model(&excs).Select()
-	return excs[0], err
+
+	client := &datamanclient.Client{Transport: transport}
+	return &DataStore{
+		client: client,
+		log: log,
+		timeInterval: conf.TimeInterval,
+	}
 }
 
-func (p *PostgresStore) QueryEventInstancePeriods(excs []EventInstance) error {
-	err := p.db.Model(&excs).Select()
+func (d *DataStore) Query(e interface{}) {
+
+}
+
+func (d *DataStore) FindPeriods(excId, dataId int64) ([]EventInstancePeriod, error) {
+	return []EventInstancePeriod{}, nil
+}
+
+func (d *DataStore) QueryEvents(excs []EventBase) error {
+	//q := &query.Query{
+	//	query.Filter,
+	//	map[string]interface{}{
+	//		"db":             "event_sum",
+	//		"collection":     "event_base",
+	//		"shard_instance": "public",
+	//		"filter":         map[string]interface{}{},
+	//	},
+	//}
+	//res, err := d.client.DoQuery(context.Background(), q)
+	//return res, err
+	return nil
+}
+
+func (d *DataStore) QueryEventDetails(excs ...EventDetail) (EventDetail, error) {
+	//if len(excs) == 0 {
+	//	return EventDetail{}, errors.New("Array length is 0!")
+	//}
+	//err := p.db.Model(&excs).Select()
+	//return excs[0], err
+	return EventDetail{}, nil
+}
+
+func (d *DataStore) QueryEventInstances(excs ...EventInstance) (EventInstance, error) {
+	//if len(excs) == 0 {
+	//	return EventInstance{}, errors.New("Array length is 0!")
+	//}
+	//err := p.db.Model(&excs).Select()
+	//return excs[0], err
+	return EventInstance{}, nil
+}
+
+func (d *DataStore) QueryEventInstancePeriods(excs []EventInstance) error {
+	//err := p.db.Model(&excs).Select()
+	return nil
+}
+
+func (d *DataStore) AddEvent(evt *EventBase) error {
+	q := &query.Query{
+		Type: query.Set,
+		Args: map[string]interface{}{
+			"db":             "event_sum",
+			"collection":     "event_base",
+			"shard_instance": "public",
+			"record":         map[string]interface{}{
+				"service_id": evt.ServiceId,
+				"event_type": evt.EventType,
+				"event_name": evt.EventName,
+				"processed_data": evt.ProcessedData,
+				"processed_data_hash": evt.ProcessedDataHash,
+			},
+		},
+	}
+	res, err := d.client.DoQuery(context.Background(), q)
+	if err != nil {
+		d.log.Panic(err)
+	} else if res.Error != "" {
+		return errors.New(res.Error)
+	}
+	mapstructure.Decode(res.Return[0], &evt)
 	return err
 }
 
 // Adds new events as long as the stack hash is unique
-func (p *PostgresStore) AddEvents(excs []EventBase) (orm.Result, error) {
-	res, err := p.db.Model(&excs).
-		OnConflict("(service_id, event_type, processed_data_hash) DO NOTHING").
-		Returning("_id").
-		Insert()
-	if err != nil {
-		p.log.Print(err)
+func (d *DataStore) AddEvents(evts []EventBase) error {
+	for i := range evts {
+		err := d.AddEvent(&evts[i])
+		fmt.Println(evts[i], err)
+		if err != nil {
+			return err
+		}
 	}
-	return res, err
+	return nil
 }
 
-func (p *PostgresStore) AddEventInstances(excs []EventInstance) (orm.Result, error) {
-	res, err := p.db.Model(&excs).
-		OnConflict("(raw_data_hash) DO NOTHING").
-		Returning("_id").
-		Insert()
-	if err != nil {
-		p.log.Print(err)
+func (d *DataStore) AddEventInstance(evt *EventInstance) error {
+	q := &query.Query{
+		Type: query.Set,
+		Args: map[string]interface{}{
+			"db":             "event_sum",
+			"collection":     "event_instance",
+			"shard_instance": "public",
+			"record":         map[string]interface{}{
+				"event_base_id": evt.EventBaseId,
+				"event_detail_id": evt.EventDetailId,
+				"raw_data": evt.RawData,
+				"raw_data_hash": evt.RawDataHash,
+			},
+		},
 	}
-	return res, err
+	res, err := d.client.DoQuery(context.Background(), q)
+	if err != nil {
+		d.log.Panic(err)
+	} else if res.Error != "" {
+		return errors.New(res.Error)
+	}
+	mapstructure.Decode(res.Return[0], &evt)
+	return err
 }
 
-func (p *PostgresStore) AddEventinstancePeriods(excs []EventInstancePeriod) (orm.Result, error) {
-	res, err := p.db.Model(&excs).
-		OnConflict("(event_instance_id, start_time, time_interval) DO UPDATE").
-		Set("count = event_instance_period.count + EXCLUDED.count").
-		Returning("_id").
-		Insert()
-	if err != nil {
-		p.log.Print(err)
+func (d *DataStore) AddEventInstances(evts []EventInstance) (error) {
+	for i := range evts {
+		err := d.AddEventInstance(&evts[i])
+		fmt.Println(evts[i], err)
+		if err != nil {
+			return err
+		}
 	}
-	return res, err
+	return nil
 }
 
-func (p *PostgresStore) AddEventDetails(excs []EventDetail) (orm.Result, error) {
-	res, err := p.db.Model(&excs).
-		OnConflict("(processed_detail_hash) DO NOTHING").
-		Returning("_id").
-		Insert()
-	if err != nil {
-		p.log.Print(err)
+func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
+	q := &query.Query{
+		Type: query.Set,
+		Args: map[string]interface{}{
+			"db":             "event_sum",
+			"collection":     "event_instance_period",
+			"shard_instance": "public",
+			"record":         map[string]interface{}{
+				"event_instance_id": evt.EventInstanceId,
+				"start_time": evt.StartTime,
+				"updated": evt.Updated,
+				"time_interval": evt.TimeInterval,
+				"count": evt.Count,
+				"counter_json": evt.CounterJson,
+			},
+		},
 	}
-	return res, err
+	res, err := d.client.DoQuery(context.Background(), q)
+	if err != nil {
+		d.log.Panic(err)
+	} else if res.Error != "" {
+		return errors.New(res.Error)
+	}
+	mapstructure.Decode(res.Return[0], &evt)
+	return err
+}
+
+func (d *DataStore) AddEventinstancePeriods(evts []EventInstancePeriod) error {
+	for i := range evts {
+		err := d.AddEventInstancePeriod(&evts[i])
+		fmt.Println(evts[i], err)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (d *DataStore) AddEventDetail(evt *EventDetail) error {
+	q := &query.Query{
+		Type: query.Set,
+		Args: map[string]interface{}{
+			"db":             "event_sum",
+			"collection":     "event_detail",
+			"shard_instance": "public",
+			"record":         map[string]interface{}{
+				"raw_detail": evt.RawDetail,
+				"processed_detail": evt.ProcessedDetail,
+				"processed_detail_hash": evt.ProcessedDetailHash,
+			},
+		},
+	}
+	res, err := d.client.DoQuery(context.Background(), q)
+	if err != nil {
+		d.log.Panic(err)
+	} else if res.Error != "" {
+		return errors.New(res.Error)
+	}
+	mapstructure.Decode(res.Return[0], &evt)
+	return err
+}
+
+func (d *DataStore) AddEventDetails(evts []EventDetail) (error) {
+	for i := range evts {
+		err := d.AddEventDetail(&evts[i])
+		fmt.Println(evts[i], err)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

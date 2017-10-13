@@ -64,7 +64,7 @@ type EventChannel struct {
 }
 
 type EventStore struct {
-	ds           DataStore     // link to any data store (Postgres, Cassandra, etc.)
+	ds           *DataStore     // link to any data store (Postgres, Cassandra, etc.)
 	channel      *EventChannel // channel, or queue, for the processing of new events
 	log          *log.Logger
 	timeInterval int
@@ -73,7 +73,7 @@ type EventStore struct {
 // create new Event Store. This 'store' stores necessary information
 // about the events and how they are processed. The event channel,
 // is the queue, and ds contains the link to the data store, or the DB.
-func newEventStore(ds DataStore, config EMConfig, log *log.Logger) *EventStore {
+func newEventStore(ds *DataStore, config EMConfig, log *log.Logger) *EventStore {
 	return &EventStore{
 		ds,
 		&EventChannel{
@@ -213,21 +213,21 @@ func (es *EventStore) SummarizeBatchEvents() {
 		}
 	}
 
-	if _, err := es.ds.AddEvents(eventClasses); err != nil {
+	if err := es.ds.AddEvents(eventClasses); err != nil {
 		es.log.Print("Error while inserting events")
 	}
 
-	if _, err := es.ds.AddEventDetails(eventDetails); err != nil {
+	if err := es.ds.AddEventDetails(eventDetails); err != nil {
 		es.log.Print("Error while inserting event data")
 	}
-	// Query since upsert does not return ids
-	if err := es.ds.QueryEvents(eventClasses); err != nil {
-		es.log.Print("Error while querying event class")
-	}
-	// Query since upsert does not return ids
-	if _, err := es.ds.QueryEventDetails(eventDetails...); err != nil {
-		es.log.Print("Error while querying event data")
-	}
+	//// Query since upsert does not return ids
+	//if err := es.ds.QueryEvents(eventClasses); err != nil {
+	//	es.log.Print("Error while querying event class")
+	//}
+	//// Query since upsert does not return ids
+	//if _, err := es.ds.QueryEventDetails(eventDetails...); err != nil {
+	//	es.log.Print("Error while querying event data")
+	//}
 
 	// Add the ids generated from above
 	for _, idx := range eventClassInstancesMap {
@@ -239,13 +239,13 @@ func (es *EventStore) SummarizeBatchEvents() {
 			eventDetails[eventDetailsMap[detailHash]].Id
 	}
 
-	if _, err := es.ds.AddEventInstances(eventClassInstances); err != nil {
+	if err := es.ds.AddEventInstances(eventClassInstances); err != nil {
 		es.log.Print("Error while inserting event instances")
 	}
 
-	if _, err := es.ds.QueryEventInstances(eventClassInstances...); err != nil {
-		es.log.Print("Error while querying event instances")
-	}
+	//if _, err := es.ds.QueryEventInstances(eventClassInstances...); err != nil {
+	//	es.log.Print("Error while querying event instances")
+	//}
 	// Add the ids generated from above
 	for _, idx := range eventClassInstancePeriodsMap {
 		dataHash := eventClassInstancePeriods[idx].RawDataHash
@@ -256,7 +256,7 @@ func (es *EventStore) SummarizeBatchEvents() {
 		//	eventData[eventDataMap[detailHash]].Id
 	}
 
-	if _, err := es.ds.AddEventinstancePeriods(eventClassInstancePeriods); err != nil {
+	if err := es.ds.AddEventinstancePeriods(eventClassInstancePeriods); err != nil {
 		es.log.Print("Error while inserting event time periods")
 	}
 }

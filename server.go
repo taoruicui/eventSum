@@ -73,7 +73,7 @@ func graceful(hs *http.Server, es *DigestServer, logger *log.Logger, timeout tim
 
 func main() {
 	// Get configurations
-	config, err := ParseEMConfig("default.json")
+	config, err := ParseEMConfig("config/default.json")
 	if err != nil {
 		panic(err)
 	}

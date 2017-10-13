@@ -8,10 +8,8 @@ import (
 
 // EMConfig are settings used ... XXX
 type EMConfig struct {
-	PgAddress    string                 `json:"postgres_address"`
-	PgUsername   string                 `json:"postgres_user"`
-	PgPassword   string                 `json:"postgres_pass"`
-	PgDatabase   string                 `json:"postgres_database"`
+	DataSourceInstance string `json:"data_source_instance"`
+	DataSourceSchema string `json:"data_source_schema"`
 	BatchSize    int                    `json:"event_batch_limit"`
 	TimeLimit    int                    `json:"event_time_limit"` // in seconds
 	ServerPort   int                    `json:"server_port"`
@@ -21,10 +19,8 @@ type EMConfig struct {
 
 func DefaultConfig() EMConfig {
 	return EMConfig{
-		PgAddress:    "localhost:5432",
-		PgUsername:   "username",
-		PgPassword:   "password",
-		PgDatabase:   "event_master",
+		DataSourceInstance: "config/datasourceinstance.yaml",
+		DataSourceSchema: "config/schema.json",
 		BatchSize:    5,
 		TimeLimit:    5,
 		ServerPort:   8080,
