@@ -77,15 +77,11 @@ func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Query the DB
-	instance := EventInstance{}
-	detail := EventDetail{}
-	instance.Id = int64(eventId)
-	detail.Id = int64(eventDataId)
 	var stack StackTrace
 	var args map[string]interface{}
 
-	instance, _ = h.es.ds.QueryEventInstances(instance)
-	detail, _ = h.es.ds.QueryEventDetails(detail)
+	instance, _ := h.es.ds.GetInstanceById(int(eventId))
+	detail, _ := h.es.ds.GetDetailById(int(eventDataId))
 	json.Unmarshal([]byte(instance.RawData), &stack)
 	json.Unmarshal([]byte(detail.RawDetail), &args)
 

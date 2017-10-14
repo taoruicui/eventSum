@@ -42,23 +42,22 @@ type EventInstance struct {
 	RawDataHash   string `mapstructure:"raw_data_hash"`
 
 	// ignored fields, used internally
-	ProcessedDataHash   string `sql:"-"`
-	ProcessedDetailHash string `sql:"-"`
+	ProcessedDataHash   string
+	ProcessedDetailHash string
 }
 
 type EventInstancePeriod struct {
-	tableName       struct{} `sql:"event_instance_period,alias:event_instance_period"`
-	Id              int64    `sql:"_id,pk"`
-	EventInstanceId int64
-	StartTime       time.Time
-	Updated         time.Time
-	TimeInterval    int
-	Count           int
-	CounterJson     string
+	Id              int64     `mapstructure:"_id"`
+	EventInstanceId int64     `mapstructure:"event_instance_id"`
+	StartTime       time.Time `mapstructure:"start_time"`
+	Updated         time.Time `mapstructure:"updated"`
+	TimeInterval    int       `mapstructure:"time_interval"`
+	Count           int       `mapstructure:"count"`
+	CounterJson     string    `mapstructure:"counter_json"`
 
 	// ignored fields, used internally
-	RawDataHash         string `sql:"-"`
-	ProcessedDetailHash string `sql:"-"`
+	RawDataHash         string
+	ProcessedDetailHash string
 }
 
 type EventDetail struct {
@@ -104,50 +103,49 @@ func newDataStore(conf EMConfig, log *log.Logger) *DataStore {
 	}
 }
 
-func (d *DataStore) Query(e interface{}) {
-
+func (d *DataStore) GetById(table string, id int) (*query.Result, error) {
+	q := &query.Query{
+		Type: query.Get,
+		Args: map[string]interface{}{
+			"db":             "event_sum",
+			"collection":     table,
+			"shard_instance": "public",
+			"_id":            id,
+		},
+	}
+	res, err := d.client.DoQuery(context.Background(), q)
+	if err != nil {
+		d.log.Panic(err)
+	}
+	return res, err
 }
 
 func (d *DataStore) FindPeriods(excId, dataId int64) ([]EventInstancePeriod, error) {
 	return []EventInstancePeriod{}, nil
 }
 
-func (d *DataStore) QueryEvents(excs []EventBase) error {
-	//q := &query.Query{
-	//	query.Filter,
-	//	map[string]interface{}{
-	//		"db":             "event_sum",
-	//		"collection":     "event_base",
-	//		"shard_instance": "public",
-	//		"filter":         map[string]interface{}{},
-	//	},
-	//}
-	//res, err := d.client.DoQuery(context.Background(), q)
-	//return res, err
+func (d *DataStore) QueryEvents(evts []EventBase) error {
 	return nil
 }
 
-func (d *DataStore) QueryEventDetails(excs ...EventDetail) (EventDetail, error) {
-	//if len(excs) == 0 {
-	//	return EventDetail{}, errors.New("Array length is 0!")
-	//}
-	//err := p.db.Model(&excs).Select()
-	//return excs[0], err
-	return EventDetail{}, nil
+func (d *DataStore) GetInstanceById(id int) (EventInstance, error) {
+	var result EventInstance
+	res, err := d.GetById("event_instance", id)
+	if res.Error != "" {
+		return result, errors.New(res.Error)
+	}
+	mapstructure.Decode(res.Return[0], &result)
+	return result, err
 }
 
-func (d *DataStore) QueryEventInstances(excs ...EventInstance) (EventInstance, error) {
-	//if len(excs) == 0 {
-	//	return EventInstance{}, errors.New("Array length is 0!")
-	//}
-	//err := p.db.Model(&excs).Select()
-	//return excs[0], err
-	return EventInstance{}, nil
-}
-
-func (d *DataStore) QueryEventInstancePeriods(excs []EventInstance) error {
-	//err := p.db.Model(&excs).Select()
-	return nil
+func (d *DataStore) GetDetailById(id int) (EventDetail, error) {
+	var result EventDetail
+	res, err := d.GetById("event_detail", id)
+	if res.Error != "" {
+		return result, errors.New(res.Error)
+	}
+	mapstructure.Decode(res.Return[0], &result)
+	return result, err
 }
 
 func (d *DataStore) AddEvent(evt *EventBase) error {
