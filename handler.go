@@ -23,8 +23,8 @@ type EventDetailsResult struct {
 	Message     string                 `json:"message"`
 	Function    string                 `json:"function"`
 	Path        string                 `json:"path"`
-	Stacktrace  StackTrace             `json:"stacktrace"`
-	Data        map[string]interface{} `json:"data"`
+	Stacktrace  string                 `json:"stacktrace"`
+	Data        string                 `json:"data"`
 }
 
 // Writes an error to ResponseWriter
@@ -77,23 +77,24 @@ func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Query the DB
-	var stack StackTrace
-	var args map[string]interface{}
+	//var stack StackTrace
+	//var args map[string]interface{}
 
 	instance, _ := h.es.ds.GetInstanceById(int(eventId))
 	detail, _ := h.es.ds.GetDetailById(int(eventDataId))
-	json.Unmarshal([]byte(instance.RawData), &stack)
-	json.Unmarshal([]byte(detail.RawDetail), &args)
+	event, _ := h.es.ds.GetEventBaseById(int(instance.EventBaseId))
+	//json.Unmarshal([]byte(instance.RawData), &stack)
+	//json.Unmarshal([]byte(detail.RawDetail), &args)
 
 	// Process result
 	response := EventDetailsResult{
 		DateCreated: time.Now(),
-		EventType:   stack.Type,
-		Message:     GenerateFullStack(stack),
-		Function:    stack.Value,
-		Path:        stack.Module,
-		Stacktrace:  stack,
-		Data:        args,
+		EventType:   event.EventType,
+		Message:     event.EventName,
+		Function:    "",
+		Path:        "",
+		Stacktrace:  ToJson(instance.RawData),
+		Data:        ToJson(detail.RawDetail),
 	}
 	h.sendResp(w, "event_details", response)
 }

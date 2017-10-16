@@ -1,15 +1,35 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	"reflect"
+	"github.com/mitchellh/mapstructure"
 )
+
+type StackTrace struct {
+	Module   string  `json:"module",mapstructure:"module"`
+	Type     string  `json:"type",mapstructure:"type"`
+	Value    string  `json:"value",mapstructure:"value"`
+	RawStack string  `json:"raw_stack",mapstructure:"raw_stack"`
+	Frames   []Frame `json:"frames",mapstructure:"frames"`
+}
+
+type Frame struct {
+	AbsPath     string                 `json:"abs_path",mapstructure:"abs_path"`
+	ContextLine string                 `json:"context_line",mapstructure:"context_line"`
+	Filename    string                 `json:"filename",mapstructure:"filename"`
+	Function    string                 `json:"function",mapstructure:"function"`
+	LineNo      int                    `json:"lineno",mapstructure:"lineno"`
+	Module      string                 `json:"module",mapstructure:"module"`
+	PostContext []string               `json:"post_context",mapstructure:"post_context"`
+	PreContext  []string               `json:"pre_context",mapstructure:"pre_context"`
+	Vars        map[string]interface{} `json:"vars",mapstructure:"vars"`
+}
 
 type Filter map[string]interface{}
 
-func (f *Filter) Process(event UnaddedEvent, filterName string) (string, error) {
+func (f *Filter) Process(event UnaddedEvent, filterName string) (interface{}, error) {
 	if funcNames, ok := event.ConfigurableFilters[filterName]; ok {
 		for _, name := range funcNames {
 			res, err := f.call(name, event)
@@ -17,25 +37,23 @@ func (f *Filter) Process(event UnaddedEvent, filterName string) (string, error) 
 				fmt.Printf("Error: %v", err)
 				continue
 			}
-			// Second Value is the error
+			// Second reflect.Value is the error
 			if err, ok := res[1].Interface().(error); ok {
 				fmt.Printf("Error: %v", err)
 				continue
 			}
-			// First Value is the UnaddedEvent
+			// First reflect.Value is the UnaddedEvent
 			e := res[0].Interface().(UnaddedEvent)
 			event = e
 		}
 	}
 
 	if filterName == "data" {
-		res, err := json.Marshal(event.Data)
-		return string(res), err
+		return event.Data, nil
 	} else if filterName == "detail" {
-		res, err := json.Marshal(event.ExtraArgs)
-		return string(res), err
+		return event.ExtraArgs, nil
 	} else {
-		return "", errors.New("filter name not supported")
+		return event, errors.New("filter name not supported")
 	}
 }
 
@@ -69,11 +87,9 @@ and return (UnaddedEvent, error)
 */
 
 func exceptionPythonRemoveLineNo(event UnaddedEvent) (UnaddedEvent, error) {
-	// TODO: figure out a way to type assert interface{} -> struct
-	byteData, _ := json.Marshal(event.Data.Raw)
-	var stacktrace ExceptionData
-	ok := json.Unmarshal(byteData, &stacktrace)
-	if ok != nil {
+	var stacktrace StackTrace
+	err := mapstructure.Decode(event.Data.Raw, &stacktrace)
+	if err != nil {
 		return event, errors.New("Cannot type assert to ExceptionData")
 	}
 	for i := range stacktrace.Frames {
@@ -84,5 +100,14 @@ func exceptionPythonRemoveLineNo(event UnaddedEvent) (UnaddedEvent, error) {
 }
 
 func exceptionPythonRemoveStackVars(event UnaddedEvent) (UnaddedEvent, error) {
+	var stacktrace StackTrace
+	err := mapstructure.Decode(event.Data.Raw, &stacktrace)
+	if err != nil {
+		return event, errors.New("Cannot type assert to ExceptionData")
+	}
+	for i := range stacktrace.Frames {
+		stacktrace.Frames[i].Vars = nil
+	}
+	event.Data.Raw = stacktrace
 	return event, nil
 }

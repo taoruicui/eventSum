@@ -6,7 +6,6 @@ import (
 
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/jacksontj/dataman/src/client"
 	"github.com/jacksontj/dataman/src/client/direct"
 	"github.com/jacksontj/dataman/src/query"
@@ -30,7 +29,7 @@ type EventBase struct {
 	ServiceId         int    `mapstructure:"service_id"`
 	EventType         string `mapstructure:"event_type"`
 	EventName         string `mapstructure:"event_name"`
-	ProcessedData     string `mapstructure:"processed_data"`
+	ProcessedData     interface{} `mapstructure:"processed_data"`
 	ProcessedDataHash string `mapstructure:"processed_data_hash"`
 }
 
@@ -38,7 +37,7 @@ type EventInstance struct {
 	Id            int64  `mapstructure:"_id"`
 	EventBaseId   int64  `mapstructure:"event_base_id"`
 	EventDetailId int64  `mapstructure:"event_detail_id"`
-	RawData       string `mapstructure:"raw_data"`
+	RawData       interface{} `mapstructure:"raw_data"`
 	RawDataHash   string `mapstructure:"raw_data_hash"`
 
 	// ignored fields, used internally
@@ -62,8 +61,8 @@ type EventInstancePeriod struct {
 
 type EventDetail struct {
 	Id                  int64  `mapstructure:"_id"`
-	RawDetail           string `mapstructure:"raw_detail"`
-	ProcessedDetail     string `mapstructure:"processed_detail"`
+	RawDetail           interface{} `mapstructure:"raw_detail"`
+	ProcessedDetail     interface{} `mapstructure:"processed_detail"`
 	ProcessedDetailHash string `mapstructure:"processed_detail_hash"`
 }
 
@@ -103,14 +102,14 @@ func newDataStore(conf EMConfig, log *log.Logger) *DataStore {
 	}
 }
 
-func (d *DataStore) getById(table string, id int) (*query.Result, error) {
+func (d *DataStore) GetById(table string, id int) (*query.Result, error) {
 	q := &query.Query{
-		Type: query.Get,
+		Type: query.Filter,
 		Args: map[string]interface{}{
 			"db":             "event_sum",
 			"collection":     table,
 			"shard_instance": "public",
-			"_id":            id,
+			"filter":         map[string]interface{}{"_id": []interface{}{"=",id}},
 		},
 	}
 	res, err := d.client.DoQuery(context.Background(), q)
@@ -128,11 +127,25 @@ func (d *DataStore) QueryEvents(evts []EventBase) error {
 	return nil
 }
 
-func (d *DataStore) GetInstanceById(id int) (EventInstance, error) {
-	var result EventInstance
-	res, err := d.getById("event_instance", id)
+func (d *DataStore) GetEventBaseById(id int) (EventBase, error) {
+	var result EventBase
+	res, err := d.GetById("event_base", id)
 	if res.Error != "" {
 		return result, errors.New(res.Error)
+	} else if len(res.Return) == 0 {
+		return result, err
+	}
+	mapstructure.Decode(res.Return[0], &result)
+	return result, err
+}
+
+func (d *DataStore) GetInstanceById(id int) (EventInstance, error) {
+	var result EventInstance
+	res, err := d.GetById("event_instance", id)
+	if res.Error != "" {
+		return result, errors.New(res.Error)
+	} else if len(res.Return) == 0 {
+		return result, err
 	}
 	mapstructure.Decode(res.Return[0], &result)
 	return result, err
@@ -140,9 +153,11 @@ func (d *DataStore) GetInstanceById(id int) (EventInstance, error) {
 
 func (d *DataStore) GetDetailById(id int) (EventDetail, error) {
 	var result EventDetail
-	res, err := d.getById("event_detail", id)
+	res, err := d.GetById("event_detail", id)
 	if res.Error != "" {
 		return result, errors.New(res.Error)
+	} else if len(res.Return) == 0 {
+		return result, err
 	}
 	mapstructure.Decode(res.Return[0], &result)
 	return result, err
@@ -185,7 +200,6 @@ func (d *DataStore) AddEvent(evt *EventBase) error {
 func (d *DataStore) AddEvents(evts []EventBase) error {
 	for i := range evts {
 		err := d.AddEvent(&evts[i])
-		fmt.Println(evts[i], err)
 		if err != nil {
 			return err
 		}
@@ -211,7 +225,6 @@ func (d *DataStore) AddEventInstance(evt *EventInstance) error {
 func (d *DataStore) AddEventInstances(evts []EventInstance) error {
 	for i := range evts {
 		err := d.AddEventInstance(&evts[i])
-		fmt.Println(evts[i], err)
 		if err != nil {
 			return err
 		}
@@ -239,7 +252,6 @@ func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 func (d *DataStore) AddEventinstancePeriods(evts []EventInstancePeriod) error {
 	for i := range evts {
 		err := d.AddEventInstancePeriod(&evts[i])
-		fmt.Println(evts[i], err)
 		if err != nil {
 			return err
 		}
@@ -264,7 +276,6 @@ func (d *DataStore) AddEventDetail(evt *EventDetail) error {
 func (d *DataStore) AddEventDetails(evts []EventDetail) error {
 	for i := range evts {
 		err := d.AddEventDetail(&evts[i])
-		fmt.Println(evts[i], err)
 		if err != nil {
 			return err
 		}

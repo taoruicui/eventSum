@@ -28,33 +28,6 @@ type EventData struct {
 	Raw     interface{} `json:"raw_data"`
 }
 
-type StackTrace struct {
-	Module   string  `json:"module"`
-	Type     string  `json:"type"`
-	Value    string  `json:"value"`
-	RawStack string  `json:"raw_stack"`
-	Frames   []Frame `json:"frames"`
-}
-
-type ExceptionData struct {
-	Module string  `json:"module"`
-	Type   string  `json:"type"`
-	Value  string  `json:"value"`
-	Frames []Frame `json:"frames"`
-}
-
-type Frame struct {
-	AbsPath     string                 `json:"abs_path"`
-	ContextLine string                 `json:"context_line"`
-	Filename    string                 `json:"filename"`
-	Function    string                 `json:"function"`
-	LineNo      int                    `json:"lineno"`
-	Module      string                 `json:"module"`
-	PostContext []string               `json:"post_context"`
-	PreContext  []string               `json:"pre_context"`
-	Vars        map[string]interface{} `json:"vars"`
-}
-
 // Wrapper struct for Event Channel
 type EventChannel struct {
 	_queue    chan UnaddedEvent
@@ -140,8 +113,8 @@ func (es *EventStore) SummarizeBatchEvents() {
 	var eventDetailsMap = make(map[string]int)
 
 	for _, event := range excsToAdd {
-		rawData := ToJson(event.Data.Raw)
-		rawDetail := ToJson(event.ExtraArgs)
+		rawData := event.Data.Raw
+		rawDetail := event.ExtraArgs
 		// Feed event into filter
 		processedData, err := f.Process(event, "data")
 		if err != nil {
@@ -220,14 +193,6 @@ func (es *EventStore) SummarizeBatchEvents() {
 	if err := es.ds.AddEventDetails(eventDetails); err != nil {
 		es.log.Print("Error while inserting event data")
 	}
-	//// Query since upsert does not return ids
-	//if err := es.ds.QueryEvents(eventClasses); err != nil {
-	//	es.log.Print("Error while querying event class")
-	//}
-	//// Query since upsert does not return ids
-	//if _, err := es.ds.QueryEventDetails(eventDetails...); err != nil {
-	//	es.log.Print("Error while querying event data")
-	//}
 
 	// Add the ids generated from above
 	for _, idx := range eventClassInstancesMap {
@@ -243,9 +208,6 @@ func (es *EventStore) SummarizeBatchEvents() {
 		es.log.Print("Error while inserting event instances")
 	}
 
-	//if _, err := es.ds.QueryEventInstances(eventClassInstances...); err != nil {
-	//	es.log.Print("Error while querying event instances")
-	//}
 	// Add the ids generated from above
 	for _, idx := range eventClassInstancePeriodsMap {
 		dataHash := eventClassInstancePeriods[idx].RawDataHash

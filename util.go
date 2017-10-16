@@ -25,9 +25,13 @@ func PythonUnixToGoUnix(t float64) time.Time {
 	return time.Unix(seconds, nanoseconds)
 }
 
-func Hash(s string) string {
+func Hash(i interface{}) string {
+	b, err := json.Marshal(i)
+	if err != nil {
+		fmt.Println("Error", err)
+	}
 	hasher := sha256.New()
-	hasher.Write([]byte(s))
+	hasher.Write(b)
 	return base64.URLEncoding.EncodeToString(hasher.Sum(nil))
 }
 
