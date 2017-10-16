@@ -103,7 +103,7 @@ func newDataStore(conf EMConfig, log *log.Logger) *DataStore {
 	}
 }
 
-func (d *DataStore) GetById(table string, id int) (*query.Result, error) {
+func (d *DataStore) getById(table string, id int) (*query.Result, error) {
 	q := &query.Query{
 		Type: query.Get,
 		Args: map[string]interface{}{
@@ -130,7 +130,7 @@ func (d *DataStore) QueryEvents(evts []EventBase) error {
 
 func (d *DataStore) GetInstanceById(id int) (EventInstance, error) {
 	var result EventInstance
-	res, err := d.GetById("event_instance", id)
+	res, err := d.getById("event_instance", id)
 	if res.Error != "" {
 		return result, errors.New(res.Error)
 	}
@@ -140,7 +140,7 @@ func (d *DataStore) GetInstanceById(id int) (EventInstance, error) {
 
 func (d *DataStore) GetDetailById(id int) (EventDetail, error) {
 	var result EventDetail
-	res, err := d.GetById("event_detail", id)
+	res, err := d.getById("event_detail", id)
 	if res.Error != "" {
 		return result, errors.New(res.Error)
 	}
@@ -148,33 +148,40 @@ func (d *DataStore) GetDetailById(id int) (EventDetail, error) {
 	return result, err
 }
 
-func (d *DataStore) AddEvent(evt *EventBase) error {
+func (d *DataStore) set(table string, record map[string]interface{}) (*query.Result, error) {
 	q := &query.Query{
 		Type: query.Set,
 		Args: map[string]interface{}{
 			"db":             "event_sum",
-			"collection":     "event_base",
+			"collection":     table,
 			"shard_instance": "public",
-			"record": map[string]interface{}{
-				"service_id":          evt.ServiceId,
-				"event_type":          evt.EventType,
-				"event_name":          evt.EventName,
-				"processed_data":      evt.ProcessedData,
-				"processed_data_hash": evt.ProcessedDataHash,
-			},
+			"record": record,
 		},
 	}
 	res, err := d.client.DoQuery(context.Background(), q)
 	if err != nil {
 		d.log.Panic(err)
-	} else if res.Error != "" {
+	}
+	return res, err
+}
+
+func (d *DataStore) AddEvent(evt *EventBase) error {
+	record := map[string]interface{}{
+		"service_id":          evt.ServiceId,
+		"event_type":          evt.EventType,
+		"event_name":          evt.EventName,
+		"processed_data":      evt.ProcessedData,
+		"processed_data_hash": evt.ProcessedDataHash,
+	}
+
+	res, err := d.set("event_base", record)
+	if res.Error != "" {
 		return errors.New(res.Error)
 	}
 	mapstructure.Decode(res.Return[0], &evt)
 	return err
 }
 
-// Adds new events as long as the stack hash is unique
 func (d *DataStore) AddEvents(evts []EventBase) error {
 	for i := range evts {
 		err := d.AddEvent(&evts[i])
@@ -187,24 +194,14 @@ func (d *DataStore) AddEvents(evts []EventBase) error {
 }
 
 func (d *DataStore) AddEventInstance(evt *EventInstance) error {
-	q := &query.Query{
-		Type: query.Set,
-		Args: map[string]interface{}{
-			"db":             "event_sum",
-			"collection":     "event_instance",
-			"shard_instance": "public",
-			"record": map[string]interface{}{
-				"event_base_id":   evt.EventBaseId,
-				"event_detail_id": evt.EventDetailId,
-				"raw_data":        evt.RawData,
-				"raw_data_hash":   evt.RawDataHash,
-			},
-		},
+	record := map[string]interface{}{
+		"event_base_id":   evt.EventBaseId,
+		"event_detail_id": evt.EventDetailId,
+		"raw_data":        evt.RawData,
+		"raw_data_hash":   evt.RawDataHash,
 	}
-	res, err := d.client.DoQuery(context.Background(), q)
-	if err != nil {
-		d.log.Panic(err)
-	} else if res.Error != "" {
+	res, err := d.set("event_instance", record)
+	if res.Error != "" {
 		return errors.New(res.Error)
 	}
 	mapstructure.Decode(res.Return[0], &evt)
@@ -223,26 +220,16 @@ func (d *DataStore) AddEventInstances(evts []EventInstance) error {
 }
 
 func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
-	q := &query.Query{
-		Type: query.Set,
-		Args: map[string]interface{}{
-			"db":             "event_sum",
-			"collection":     "event_instance_period",
-			"shard_instance": "public",
-			"record": map[string]interface{}{
-				"event_instance_id": evt.EventInstanceId,
-				"start_time":        evt.StartTime,
-				"updated":           evt.Updated,
-				"time_interval":     evt.TimeInterval,
-				"count":             evt.Count,
-				"counter_json":      evt.CounterJson,
-			},
-		},
+	record := map[string]interface{}{
+		"event_instance_id": evt.EventInstanceId,
+		"start_time":        evt.StartTime,
+		"updated":           evt.Updated,
+		"time_interval":     evt.TimeInterval,
+		"count":             evt.Count,
+		"counter_json":      evt.CounterJson,
 	}
-	res, err := d.client.DoQuery(context.Background(), q)
-	if err != nil {
-		d.log.Panic(err)
-	} else if res.Error != "" {
+	res, err := d.set("event_instance_period", record)
+	if res.Error != "" {
 		return errors.New(res.Error)
 	}
 	mapstructure.Decode(res.Return[0], &evt)
@@ -261,23 +248,13 @@ func (d *DataStore) AddEventinstancePeriods(evts []EventInstancePeriod) error {
 }
 
 func (d *DataStore) AddEventDetail(evt *EventDetail) error {
-	q := &query.Query{
-		Type: query.Set,
-		Args: map[string]interface{}{
-			"db":             "event_sum",
-			"collection":     "event_detail",
-			"shard_instance": "public",
-			"record": map[string]interface{}{
-				"raw_detail":            evt.RawDetail,
-				"processed_detail":      evt.ProcessedDetail,
-				"processed_detail_hash": evt.ProcessedDetailHash,
-			},
-		},
+	record := map[string]interface{}{
+		"raw_detail":            evt.RawDetail,
+		"processed_detail":      evt.ProcessedDetail,
+		"processed_detail_hash": evt.ProcessedDetailHash,
 	}
-	res, err := d.client.DoQuery(context.Background(), q)
-	if err != nil {
-		d.log.Panic(err)
-	} else if res.Error != "" {
+	res, err := d.set("event_detail", record)
+	if res.Error != "" {
 		return errors.New(res.Error)
 	}
 	mapstructure.Decode(res.Return[0], &evt)
