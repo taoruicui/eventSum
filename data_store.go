@@ -52,7 +52,7 @@ type EventInstancePeriod struct {
 	Updated         time.Time `mapstructure:"updated"`
 	TimeInterval    int       `mapstructure:"time_interval"`
 	Count           int       `mapstructure:"count"`
-	CounterJson     string    `mapstructure:"counter_json"`
+	CounterJson     map[string]int    `mapstructure:"counter_json"`
 
 	// ignored fields, used internally
 	RawDataHash         string
@@ -163,7 +163,10 @@ func (d *DataStore) GetDetailById(id int) (EventDetail, error) {
 	return result, err
 }
 
-func (d *DataStore) set(table string, record map[string]interface{}) (*query.Result, error) {
+func (d *DataStore) set(table string,
+						record map[string]interface{},
+						recordOp map[string]interface{},
+						join []string) (*query.Result, error) {
 	q := &query.Query{
 		Type: query.Set,
 		Args: map[string]interface{}{
@@ -172,6 +175,12 @@ func (d *DataStore) set(table string, record map[string]interface{}) (*query.Res
 			"shard_instance": "public",
 			"record": record,
 		},
+	}
+	if recordOp != nil {
+		q.Args["record_op"] = recordOp
+	}
+	if join != nil {
+		q.Args["join"] = join
 	}
 	res, err := d.client.DoQuery(context.Background(), q)
 	if err != nil {
@@ -189,7 +198,7 @@ func (d *DataStore) AddEvent(evt *EventBase) error {
 		"processed_data_hash": evt.ProcessedDataHash,
 	}
 
-	res, err := d.set("event_base", record)
+	res, err := d.set("event_base", record, nil, nil)
 	if res.Error != "" {
 		return errors.New(res.Error)
 	}
@@ -214,7 +223,7 @@ func (d *DataStore) AddEventInstance(evt *EventInstance) error {
 		"raw_data":        evt.RawData,
 		"raw_data_hash":   evt.RawDataHash,
 	}
-	res, err := d.set("event_instance", record)
+	res, err := d.set("event_instance", record, nil, nil)
 	if res.Error != "" {
 		return errors.New(res.Error)
 	}
@@ -238,10 +247,12 @@ func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 		"start_time":        evt.StartTime,
 		"updated":           evt.Updated,
 		"time_interval":     evt.TimeInterval,
-		"count":             evt.Count,
 		"counter_json":      evt.CounterJson,
 	}
-	res, err := d.set("event_instance_period", record)
+	recordOp := map[string]interface{} {
+		"count": []interface{}{"+", evt.Count},
+	}
+	res, err := d.set("event_instance_period", record, recordOp, nil)
 	if res.Error != "" {
 		return errors.New(res.Error)
 	}
@@ -265,7 +276,7 @@ func (d *DataStore) AddEventDetail(evt *EventDetail) error {
 		"processed_detail":      evt.ProcessedDetail,
 		"processed_detail_hash": evt.ProcessedDetailHash,
 	}
-	res, err := d.set("event_detail", record)
+	res, err := d.set("event_detail", record, nil, nil)
 	if res.Error != "" {
 		return errors.New(res.Error)
 	}

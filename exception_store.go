@@ -170,10 +170,12 @@ func (es *EventStore) SummarizeBatchEvents() {
 				RawDataHash:         rawDataHash,         // Used to reference event_instance_id later
 				ProcessedDetailHash: processedDetailHash, // Used to reference event_detail_id later
 				Count:               1,
+				CounterJson:         make(map[string]int),
 			})
 			eventClassInstancePeriodsMap[key] = len(eventClassInstancePeriods) - 1
 		} else {
 			eventClassInstancePeriods[eventClassInstancePeriodsMap[key]].Count++
+			//eventClassInstancePeriods[eventClassInstancePeriodsMap[key]].CounterJson[something]++
 		}
 
 		if _, ok := eventDetailsMap[processedDataHash]; !ok {
@@ -211,9 +213,9 @@ func (es *EventStore) SummarizeBatchEvents() {
 	// Add the ids generated from above
 	for _, idx := range eventClassInstancePeriodsMap {
 		dataHash := eventClassInstancePeriods[idx].RawDataHash
-		//detailHash := eventClassInstancePeriods[idx].ProcessedDetailHash
 		eventClassInstancePeriods[idx].EventInstanceId =
 			eventClassInstances[eventClassInstancesMap[dataHash]].Id
+		//detailHash := eventClassInstancePeriods[idx].ProcessedDetailHash
 		//eventClassInstancePeriods[idx].EventDetailId =
 		//	eventData[eventDataMap[detailHash]].Id
 	}
