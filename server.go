@@ -9,11 +9,13 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 type DigestServer struct {
 	logger      *log.Logger
-	route       *http.ServeMux
+	route       *httprouter.Router
 	httpHandler httpHandler
 	port        string
 }
@@ -27,7 +29,7 @@ func (s *DigestServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Options is a function which will be applied to the new DigestServer
 // Returns a pointer to DigestServer
 func newDigestServer(options func(server *DigestServer)) *DigestServer {
-	s := &DigestServer{route: http.NewServeMux()}
+	s := &DigestServer{route: httprouter.New()}
 	options(s)
 
 	if s.logger == nil {
@@ -36,13 +38,13 @@ func newDigestServer(options func(server *DigestServer)) *DigestServer {
 
 	/* ROUTING */
 	// GET requests
-	s.route.HandleFunc("/", s.httpHandler.recentEventsHandler)
-	s.route.HandleFunc("/api/event/recent", s.httpHandler.recentEventsHandler)
-	s.route.HandleFunc("/api/event/detail", s.httpHandler.detailsEventsHandler)
-	s.route.HandleFunc("/api/event/histogram", s.httpHandler.histogramEventsHandler)
+	s.route.GET("/", s.httpHandler.recentEventsHandler)
+	s.route.GET("/api/event/recent", s.httpHandler.recentEventsHandler)
+	s.route.GET("/api/event/detail", s.httpHandler.detailsEventsHandler)
+	s.route.GET("/api/event/histogram", s.httpHandler.histogramEventsHandler)
 
 	// POST requests
-	s.route.HandleFunc("/api/event/capture", s.httpHandler.captureEventsHandler)
+	s.route.POST("/api/event/capture", s.httpHandler.captureEventsHandler)
 
 	return s
 }

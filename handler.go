@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"github.com/julienschmidt/httprouter"
 )
 
 // Base class for handling HTTP Requests
@@ -23,8 +24,8 @@ type EventDetailsResult struct {
 	Message     string                 `json:"message"`
 	Function    string                 `json:"function"`
 	Path        string                 `json:"path"`
-	Stacktrace  string                 `json:"stacktrace"`
-	Data        string                 `json:"data"`
+	Stacktrace  interface{}              `json:"stacktrace"`
+	Data        interface{}               `json:"data"`
 }
 
 // Writes an error to ResponseWriter
@@ -54,16 +55,11 @@ func (h *httpHandler) sendResp(w http.ResponseWriter, key string, val interface{
 	w.Write(response)
 }
 
-func (h *httpHandler) recentEventsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "Invalid request type", 405)
-	}
+func (h *httpHandler) recentEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
 }
 
-func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "Invalid request type", 405)
-	}
+func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	query := r.URL.Query()
 	eventId, err := strconv.Atoi(query.Get("event_id"))
 	if err != nil {
@@ -93,23 +89,17 @@ func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Reques
 		Message:     event.EventName,
 		Function:    "",
 		Path:        "",
-		Stacktrace:  ToJson(instance.RawData),
-		Data:        ToJson(detail.RawDetail),
+		Stacktrace:  instance.RawData,
+		Data:        detail.RawDetail,
 	}
 	h.sendResp(w, "event_details", response)
 }
 
-func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "Invalid request type", 405)
-	}
+func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
 }
 
-func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "Invalid request type", 405)
-	}
-
+func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var exc UnaddedEvent
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
