@@ -14,6 +14,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	"fmt"
 )
 
 type DataStore struct {
@@ -49,8 +50,8 @@ type EventInstancePeriod struct {
 	Id              int64     `mapstructure:"_id"`
 	EventInstanceId int64     `mapstructure:"event_instance_id"`
 	StartTime       time.Time `mapstructure:"start_time"`
+	EndTime         time.Time `mapstructure:"end_time"`
 	Updated         time.Time `mapstructure:"updated"`
-	TimeInterval    int       `mapstructure:"time_interval"`
 	Count           int       `mapstructure:"count"`
 	CounterJson     map[string]int    `mapstructure:"counter_json"`
 
@@ -119,12 +120,46 @@ func (d *DataStore) GetById(table string, id int) (*query.Result, error) {
 	return res, err
 }
 
-func (d *DataStore) FindPeriods(excId, dataId int64) ([]EventInstancePeriod, error) {
-	return []EventInstancePeriod{}, nil
-}
-
-func (d *DataStore) QueryEvents(evts []EventBase) error {
-	return nil
+func (d *DataStore) GetEventPeriods(start, end time.Time, eventId int) ([]EventInstancePeriod, error) {
+	//filter := fmt.Sprintf(`
+	//	[ {“event_instance_id”: [“=”, %v]}, “AND”, [{“start_time”: [“<”, "%v"]}, “AND”, {“start_time”: [“>”, "%v"]}]`,
+	//	eventId, end, start)
+	var hist []EventInstancePeriod
+	var bin EventInstancePeriod
+	q := &query.Query{
+		Type: query.Filter,
+		Args: map[string]interface{}{
+			"db":             "event_sum",
+			"collection":     "event_instance_period",
+			"shard_instance": "public",
+			"sort": []string{"start_time"},
+			"filter":         []interface{}{
+				[]interface{}{
+					map[string]interface{}{
+						"start_time": []interface{}{">", start},
+					},
+					"AND",
+					map[string]interface{}{
+						"end_time": []interface{}{"<", end},
+					},
+				},
+				"AND",
+				map[string]interface{}{
+					"event_instance_id": eventId,
+				}},
+		},
+	}
+	res, err := d.client.DoQuery(context.Background(), q)
+	if err != nil {
+		d.log.Panic(err)
+	} else if res.Error != "" {
+		return hist, errors.New(res.Error)
+	}
+	for _, v := range res.Return {
+		mapstructure.Decode(v, &bin)
+		hist = append(hist, bin)
+	}
+	return hist, nil
 }
 
 func (d *DataStore) GetEventBaseById(id int) (EventBase, error) {
@@ -246,7 +281,7 @@ func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 		"event_instance_id": evt.EventInstanceId,
 		"start_time":        evt.StartTime,
 		"updated":           evt.Updated,
-		"time_interval":     evt.TimeInterval,
+		"end_time":          evt.EndTime,
 		"counter_json":      evt.CounterJson,
 	}
 	recordOp := map[string]interface{} {

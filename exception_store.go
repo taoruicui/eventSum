@@ -40,7 +40,7 @@ type EventStore struct {
 	ds           *DataStore    // link to any data store (Postgres, Cassandra, etc.)
 	channel      *EventChannel // channel, or queue, for the processing of new events
 	log          *log.Logger
-	timeInterval int
+	timeInterval int // interval time for event_instance_period
 }
 
 // create new Event Store. This 'store' stores necessary information
@@ -157,16 +157,17 @@ func (es *EventStore) SummarizeBatchEvents() {
 		// The unique key should be the raw stack, the processed stack, and the time period,
 		// since the count should keep track of an event instance in a certain time frame.
 		t := PythonUnixToGoUnix(event.Timestamp).UTC()
+		startTime, endTime := FindBoundingTime(t, es.timeInterval)
 		key := KeyEventPeriod{
 			rawDataHash,
 			processedDataHash,
-			FindBoundingTime(t, es.timeInterval),
+			startTime,
 		}
 		if _, ok := eventClassInstancePeriodsMap[key]; !ok {
 			eventClassInstancePeriods = append(eventClassInstancePeriods, EventInstancePeriod{
-				StartTime:           key.TimePeriod,
+				StartTime:           startTime,
 				Updated:             t,
-				TimeInterval:        es.timeInterval,
+				EndTime:             endTime,
 				RawDataHash:         rawDataHash,         // Used to reference event_instance_id later
 				ProcessedDetailHash: processedDetailHash, // Used to reference event_detail_id later
 				Count:               1,

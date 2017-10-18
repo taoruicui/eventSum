@@ -17,15 +17,27 @@ type httpHandler struct {
 	log *log.Logger
 }
 
+type EventIncreasedResult struct {
+	Id int `json:"id"`
+	EventType string `json:"event_type"`
+	EventName string `json:"event_name"`
+	Count int `json:"count"`
+	LastUpdated time.Time `json:"last_updated"`
+	ProcessedData interface{} `json:"processed_data"`
+}
+
+type EventHistogramResult struct {
+	StartTime time.Time `json:"start_time"`
+	EndTime time.Time `json:"end_time"`
+	Count int `json:"count"`
+	CounterJson map[string]int `json:"count_json"`
+}
+
 type EventDetailsResult struct {
-	DateCreated time.Time              `json:"date_created"`
-	DateUpdated time.Time              `json:"date_updated"`
 	EventType   string                 `json:"event_type"`
-	Message     string                 `json:"message"`
-	Function    string                 `json:"function"`
-	Path        string                 `json:"path"`
-	Stacktrace  interface{}              `json:"stacktrace"`
-	Data        interface{}               `json:"data"`
+	EventName string                 `json:"event_name"`
+	RawData  interface{}              `json:"raw_data"`
+	RawDetails        interface{}               `json:"raw_details"`
 }
 
 // Writes an error to ResponseWriter
@@ -66,36 +78,58 @@ func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Reques
 		h.sendError(w, http.StatusBadRequest, errors.New("Event ID is missing or not an int"), "Error")
 		return
 	}
-	eventDataId, err := strconv.Atoi(query.Get("event_data_id"))
-	if err != nil {
-		h.sendError(w, http.StatusBadRequest, errors.New("Event Data ID is missing or not an int"), "Error")
-		return
-	}
-
-	// Query the DB
-	//var stack StackTrace
-	//var args map[string]interface{}
+	//eventDataId, err := strconv.Atoi(query.Get("event_data_id"))
+	//if err != nil {
+	//	h.sendError(w, http.StatusBadRequest, errors.New("Event Data ID is missing or not an int"), "Error")
+	//	return
+	//}
 
 	instance, _ := h.es.ds.GetInstanceById(int(eventId))
-	detail, _ := h.es.ds.GetDetailById(int(eventDataId))
+	detail, _ := h.es.ds.GetDetailById(int(instance.EventDetailId))
 	event, _ := h.es.ds.GetEventBaseById(int(instance.EventBaseId))
-	//json.Unmarshal([]byte(instance.RawData), &stack)
-	//json.Unmarshal([]byte(detail.RawDetail), &args)
 
 	// Process result
 	response := EventDetailsResult{
-		DateCreated: time.Now(),
 		EventType:   event.EventType,
-		Message:     event.EventName,
-		Function:    "",
-		Path:        "",
-		Stacktrace:  instance.RawData,
-		Data:        detail.RawDetail,
+		EventName:     event.EventName,
+		RawData:  instance.RawData,
+		RawDetails:        detail.RawDetail,
 	}
 	h.sendResp(w, "event_details", response)
 }
 
 func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	query := r.URL.Query()
+	serviceId, err := strconv.Atoi(query.Get("service_id"))
+	if err != nil {
+		h.sendError(w, http.StatusBadRequest, errors.New("Event ID is missing or not an int"), "Error")
+		return
+	}
+	time_period, ok := query["time_period"]
+	if !ok {
+		h.sendError(w, http.StatusBadRequest, errors.New("time_period is missing or not an int"), "Error")
+		return
+	}
+	if len(time_period) != 2 {
+		h.sendError(w, http.StatusBadRequest, errors.New("Event ID is missing or not an int"), "Error")
+		return
+	}
+	startTime, err := time.Parse(time.RFC3339, time_period[0])
+	if len(time_period) != 2 {
+		h.sendError(w, http.StatusBadRequest, err, "Ensure time format is in RFC339")
+		return
+	}
+	endTime, err := time.Parse(time.RFC3339, time_period[1])
+	if len(time_period) != 2 {
+		h.sendError(w, http.StatusBadRequest, err, "Ensure time format is in RFC339")
+		return
+	}
+	eventInstanceId, _ := strconv.Atoi(query.Get("event_instance_id"))
+	hist, err := h.es.ds.GetEventPeriods(startTime, endTime, eventInstanceId)
+	if err != nil {
+		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
+		return
+	}
 
 }
 
