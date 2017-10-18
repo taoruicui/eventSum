@@ -14,7 +14,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"io/ioutil"
-	"fmt"
 )
 
 type DataStore struct {

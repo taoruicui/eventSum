@@ -190,11 +190,11 @@ func (es *EventStore) SummarizeBatchEvents() {
 	}
 
 	if err := es.ds.AddEvents(eventClasses); err != nil {
-		es.log.Print("Error while inserting events")
+		es.log.Printf("Error while inserting events: %v", err)
 	}
 
 	if err := es.ds.AddEventDetails(eventDetails); err != nil {
-		es.log.Print("Error while inserting event data")
+		es.log.Printf("Error while inserting event data: %v", err)
 	}
 
 	// Add the ids generated from above
@@ -208,7 +208,7 @@ func (es *EventStore) SummarizeBatchEvents() {
 	}
 
 	if err := es.ds.AddEventInstances(eventClassInstances); err != nil {
-		es.log.Print("Error while inserting event instances")
+		es.log.Printf("Error while inserting event instances: %v", err)
 	}
 
 	// Add the ids generated from above
@@ -222,6 +222,6 @@ func (es *EventStore) SummarizeBatchEvents() {
 	}
 
 	if err := es.ds.AddEventinstancePeriods(eventClassInstancePeriods); err != nil {
-		es.log.Print("Error while inserting event time periods")
+		es.log.Printf("Error while inserting event time periods: %v", err)
 	}
 }
