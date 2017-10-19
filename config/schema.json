@@ -193,7 +193,15 @@
                 },
                 "counter_json": {
                   "name": "counter_json",
-                  "field_type": "_json",
+                  "subfields": {
+                    "a": {
+                      "name": "a",
+                      "field_type": "_int",
+                      "default": 0,
+                      "provision_state": 3
+                    }
+                  },
+                  "field_type": "_document",
                   "provision_state": 3
                 },
                 "end_time": {

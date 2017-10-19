@@ -27,12 +27,36 @@ type Frame struct {
 	Vars        map[string]interface{} `json:"vars",mapstructure:"vars"`
 }
 
-type Filter map[string]interface{}
+type Rule struct {
+	Filter map[string]interface{}
+	Grouping map[string]interface{}
+}
 
-func (f *Filter) Process(event UnaddedEvent, filterName string) (interface{}, error) {
-	if funcNames, ok := event.ConfigurableFilters[filterName]; ok {
+// Process user defined groupings. A grouping is how the user wants to map some data to a
+// group, or a key. Currently, only counter_json is supported
+func (r *Rule) ProcessGrouping(event UnaddedEvent, eip *EventInstancePeriod, groupName string) error {
+	if _, ok := event.ConfigurableFilters["groupings"]; !ok {
+		// default is do not group
+		return errors.New("No grouping found, using default")
+	} else if funcNames, ok := event.ConfigurableFilters["groupings"][groupName]; ok {
 		for _, name := range funcNames {
-			res, err := f.call(name, event)
+			_, err := r.call("group", name, event, eip)
+			if err != nil {
+				fmt.Printf("Error: %v", err)
+				continue
+			}
+		}
+	}
+	return nil
+}
+
+// Process user defined filters. Make sure that if there is an error, do not do that processing.
+func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}, error) {
+	if _, ok := event.ConfigurableFilters["filters"]; !ok {
+		return event, errors.New("No filters found, using default")
+	} else if funcNames, ok := event.ConfigurableFilters["filters"][filterName]; ok {
+		for _, name := range funcNames {
+			res, err := r.call("filter", name, event)
 			if err != nil {
 				fmt.Printf("Error: %v", err)
 				continue
@@ -58,8 +82,19 @@ func (f *Filter) Process(event UnaddedEvent, filterName string) (interface{}, er
 }
 
 // Calls the Function by name using Reflection
-func (filter Filter) call(name string, params ...interface{}) (result []reflect.Value, err error) {
-	f := reflect.ValueOf(filter[name])
+func (r Rule) call(typ string, name string, params ...interface{}) (result []reflect.Value, err error) {
+	var f reflect.Value
+	if typ == "group" {
+		if _, ok := r.Grouping[name]; !ok {
+			return result, errors.New("Function name not supported")
+		}
+		f = reflect.ValueOf(r.Grouping[name])
+	} else if typ == "filter" {
+		if _, ok := r.Filter[name]; !ok {
+			return result, errors.New("Function name not supported")
+		}
+		f = reflect.ValueOf(r.Filter[name])
+	}
 	if len(params) != f.Type().NumIn() {
 		err = errors.New("The number of params is not adapted.")
 		return
@@ -72,10 +107,15 @@ func (filter Filter) call(name string, params ...interface{}) (result []reflect.
 	return
 }
 
-func newFilter() Filter {
-	return Filter{
-		"exception_python_remove_line_no":    exceptionPythonRemoveLineNo,
-		"exception_python_remove_stack_vars": exceptionPythonRemoveStackVars,
+func newRule() Rule {
+	return Rule{
+		Filter: map[string]interface{}{
+			"exception_python_remove_line_no":    exceptionPythonRemoveLineNo,
+			"exception_python_remove_stack_vars": exceptionPythonRemoveStackVars,
+		},
+		Grouping: map[string]interface{} {
+			"query_perf_trace_grouping": queryPerfTraceGrouping,
+		},
 	}
 }
 
@@ -110,4 +150,15 @@ func exceptionPythonRemoveStackVars(event UnaddedEvent) (UnaddedEvent, error) {
 	}
 	event.Data.Raw = stacktrace
 	return event, nil
+}
+
+/*
+GROUPING FUNCTIONS
+
+In order to implement a grouping, the function must accept an UnaddedEvent
+and a *EventInstancePeriod, and modify it in place.
+ */
+
+func queryPerfTraceGrouping(ue UnaddedEvent, evt *EventInstancePeriod) {
+
 }

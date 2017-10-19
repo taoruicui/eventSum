@@ -281,10 +281,13 @@ func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 		"start_time":        evt.StartTime,
 		"updated":           evt.Updated,
 		"end_time":          evt.EndTime,
-		"counter_json":      evt.CounterJson,
 	}
 	recordOp := map[string]interface{} {
 		"count": []interface{}{"+", evt.Count},
+	}
+	// Add all the counter_json keys
+	for k, v := range evt.CounterJson {
+		recordOp[k] = []interface{}{"+", v}
 	}
 	res, err := d.set("event_instance_period", record, recordOp, nil)
 	if res.Error != "" {

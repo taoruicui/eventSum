@@ -9,7 +9,7 @@ import (
 /* EXCEPTION STORE MODELS */
 
 type KeyEventPeriod struct {
-	RawStackHash, ProcessedDataHash string
+	RawDataHash, ProcessedDataHash string
 	TimePeriod                      time.Time
 }
 
@@ -20,7 +20,7 @@ type UnaddedEvent struct {
 	Data                EventData              `json:"event_data"`
 	ExtraArgs           map[string]interface{} `json:"extra_args"`
 	Timestamp           float64                `json:"timestamp"`
-	ConfigurableFilters map[string][]string    `json:"configurable_filters"`
+	ConfigurableFilters map[string]map[string][]string    `json:"configurable_filters"`
 }
 
 type EventData struct {
@@ -97,7 +97,7 @@ func (es *EventStore) SummarizeBatchEvents() {
 		return
 	}
 
-	f := newFilter()
+	r := newRule()
 	// Match events with each other to find similar ones
 
 	// Rows to add to Tables
@@ -116,12 +116,12 @@ func (es *EventStore) SummarizeBatchEvents() {
 		rawData := event.Data.Raw
 		rawDetail := event.ExtraArgs
 		// Feed event into filter
-		processedData, err := f.Process(event, "data")
+		processedData, err := r.ProcessFilter(event, "data")
 		if err != nil {
 			es.log.Printf("Error when processing data: %v", err)
 			processedData = rawData
 		}
-		processedDetail, err := f.Process(event, "detail")
+		processedDetail, err := r.ProcessFilter(event, "detail")
 		if err != nil {
 			es.log.Printf("Error when processing detail: %v", err)
 			processedDetail = rawDetail
@@ -154,7 +154,7 @@ func (es *EventStore) SummarizeBatchEvents() {
 			eventClassInstancesMap[rawDataHash] = len(eventClassInstances) - 1
 		}
 
-		// The unique key should be the raw stack, the processed stack, and the time period,
+		// The unique key should be the raw data, the processed data, and the time period,
 		// since the count should keep track of an event instance in a certain time frame.
 		t := PythonUnixToGoUnix(event.Timestamp).UTC()
 		startTime, endTime := FindBoundingTime(t, es.timeInterval)
@@ -175,8 +175,10 @@ func (es *EventStore) SummarizeBatchEvents() {
 			})
 			eventClassInstancePeriodsMap[key] = len(eventClassInstancePeriods) - 1
 		} else {
-			eventClassInstancePeriods[eventClassInstancePeriodsMap[key]].Count++
-			//eventClassInstancePeriods[eventClassInstancePeriodsMap[key]].CounterJson[something]++
+			e := eventClassInstancePeriods[eventClassInstancePeriodsMap[key]]
+			e.Count++
+			// TODO: For counter_json, user specifies update
+			r.ProcessGrouping(event, &e, "counter_json")
 		}
 
 		if _, ok := eventDetailsMap[processedDataHash]; !ok {
