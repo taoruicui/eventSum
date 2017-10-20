@@ -68,6 +68,12 @@ func (h *httpHandler) sendResp(w http.ResponseWriter, key string, val interface{
 }
 
 func (h *httpHandler) recentEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	query := r.URL.Query()
+	eventId, err := strconv.Atoi(query.Get("event_id"))
+	if err != nil {
+		h.sendError(w, http.StatusBadRequest, errors.New("Event ID is missing or not an int"), "Error")
+		return
+	}
 
 }
 
@@ -78,11 +84,6 @@ func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Reques
 		h.sendError(w, http.StatusBadRequest, errors.New("Event ID is missing or not an int"), "Error")
 		return
 	}
-	//eventDataId, err := strconv.Atoi(query.Get("event_data_id"))
-	//if err != nil {
-	//	h.sendError(w, http.StatusBadRequest, errors.New("Event Data ID is missing or not an int"), "Error")
-	//	return
-	//}
 
 	instance, _ := h.es.ds.GetInstanceById(int(eventId))
 	detail, _ := h.es.ds.GetDetailById(int(instance.EventDetailId))
@@ -100,37 +101,38 @@ func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Reques
 
 func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	query := r.URL.Query()
-	serviceId, err := strconv.Atoi(query.Get("service_id"))
+	eventInstanceId, err := strconv.Atoi(query.Get("event_instance_id"))
 	if err != nil {
-		h.sendError(w, http.StatusBadRequest, errors.New("Event ID is missing or not an int"), "Error")
+		h.sendError(w, http.StatusBadRequest, errors.New("event instance ID is missing or not an int"), "Error")
 		return
 	}
-	time_period, ok := query["time_period"]
-	if !ok {
-		h.sendError(w, http.StatusBadRequest, errors.New("time_period is missing or not an int"), "Error")
-		return
+	endTime, err := time.Parse("2006-01-02 15:04:05", query.Get("end_time"))
+	if err != nil {
+		h.log.Printf("Error decoding end time, using default: %v", err)
+		endTime = time.Now()
 	}
-	if len(time_period) != 2 {
-		h.sendError(w, http.StatusBadRequest, errors.New("Event ID is missing or not an int"), "Error")
-		return
+
+	startTime, err := time.Parse("2006-01-02 15:04:05", query.Get("start_time"))
+	if err != nil {
+		h.log.Printf("Error decoding start time, using default: %v", err)
+		startTime = endTime.Add(-1 * time.Hour)
 	}
-	startTime, err := time.Parse(time.RFC3339, time_period[0])
-	if len(time_period) != 2 {
-		h.sendError(w, http.StatusBadRequest, err, "Ensure time format is in RFC339")
-		return
-	}
-	endTime, err := time.Parse(time.RFC3339, time_period[1])
-	if len(time_period) != 2 {
-		h.sendError(w, http.StatusBadRequest, err, "Ensure time format is in RFC339")
-		return
-	}
-	eventInstanceId, _ := strconv.Atoi(query.Get("event_instance_id"))
+
 	hist, err := h.es.ds.GetEventPeriods(startTime, endTime, eventInstanceId)
 	if err != nil {
 		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
 		return
 	}
-
+	var response []EventHistogramResult
+	for _, h := range hist {
+		response = append(response, EventHistogramResult{
+			StartTime: h.StartTime,
+			EndTime: h.EndTime,
+			Count: h.Count,
+			CounterJson: h.CounterJson,
+		})
+	}
+	h.sendResp(w, "histogram", response)
 }
 
 func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

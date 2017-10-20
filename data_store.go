@@ -119,6 +119,10 @@ func (d *DataStore) GetById(table string, id int) (*query.Result, error) {
 	return res, err
 }
 
+func (d DataStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) ([]EventBase, error) {
+
+}
+
 func (d *DataStore) GetEventPeriods(start, end time.Time, eventId int) ([]EventInstancePeriod, error) {
 	//filter := fmt.Sprintf(`
 	//	[ {“event_instance_id”: [“=”, %v]}, “AND”, [{“start_time”: [“<”, "%v"]}, “AND”, {“start_time”: [“>”, "%v"]}]`,
@@ -144,7 +148,7 @@ func (d *DataStore) GetEventPeriods(start, end time.Time, eventId int) ([]EventI
 				},
 				"AND",
 				map[string]interface{}{
-					"event_instance_id": eventId,
+					"event_instance_id": []interface{}{"=", eventId},
 				}},
 		},
 	}
@@ -152,6 +156,7 @@ func (d *DataStore) GetEventPeriods(start, end time.Time, eventId int) ([]EventI
 	if err != nil {
 		d.log.Panic(err)
 	} else if res.Error != "" {
+		d.log.Print(res.Error)
 		return hist, errors.New(res.Error)
 	}
 	for _, v := range res.Return {
