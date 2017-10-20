@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"reflect"
 	"github.com/mitchellh/mapstructure"
+	"log"
 )
 
 type StackTrace struct {
@@ -30,21 +30,21 @@ type Frame struct {
 type Rule struct {
 	Filter map[string]interface{}
 	Grouping map[string]interface{}
+	log *log.Logger
 }
 
 // Process user defined groupings. A grouping is how the user wants to map some data to a
 // group, or a key. Currently, only counter_json is supported
-func (r *Rule) ProcessGrouping(event UnaddedEvent, eip *EventInstancePeriod, groupName string) error {
-	if _, ok := event.ConfigurableFilters["groupings"]; !ok {
-		// default is do not group
-		return errors.New("No grouping found, using default")
-	} else if funcNames, ok := event.ConfigurableFilters["groupings"][groupName]; ok {
-		for _, name := range funcNames {
-			_, err := r.call("group", name, event, eip)
-			if err != nil {
-				fmt.Printf("Error: %v", err)
-				continue
-			}
+func (r *Rule) ProcessGrouping(event UnaddedEvent, eip *EventInstancePeriod) error {
+	for _, name := range event.ConfigurableGroupings {
+		if _, ok := r.Grouping[name]; !ok {
+			r.log.Print("Function name not supported")
+			continue
+		}
+		_, err := r.call("group", name, event, eip)
+		if err != nil {
+			r.log.Printf("Error: %v", err)
+			continue
 		}
 	}
 	return nil
@@ -52,18 +52,20 @@ func (r *Rule) ProcessGrouping(event UnaddedEvent, eip *EventInstancePeriod, gro
 
 // Process user defined filters. Make sure that if there is an error, do not do that processing.
 func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}, error) {
-	if _, ok := event.ConfigurableFilters["filters"]; !ok {
-		return event, errors.New("No filters found, using default")
-	} else if funcNames, ok := event.ConfigurableFilters["filters"][filterName]; ok {
+	if funcNames, ok := event.ConfigurableFilters[filterName]; ok {
 		for _, name := range funcNames {
+			if _, ok := r.Filter[name]; !ok {
+				r.log.Print("Function name not supported")
+				continue
+			}
 			res, err := r.call("filter", name, event)
 			if err != nil {
-				fmt.Printf("Error: %v", err)
+				r.log.Printf("Error: %v", err)
 				continue
 			}
 			// Second reflect.Value is the error
 			if err, ok := res[1].Interface().(error); ok {
-				fmt.Printf("Error: %v", err)
+				r.log.Printf("Error: %v", err)
 				continue
 			}
 			// First reflect.Value is the UnaddedEvent
@@ -85,14 +87,8 @@ func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}
 func (r Rule) call(typ string, name string, params ...interface{}) (result []reflect.Value, err error) {
 	var f reflect.Value
 	if typ == "group" {
-		if _, ok := r.Grouping[name]; !ok {
-			return result, errors.New("Function name not supported")
-		}
 		f = reflect.ValueOf(r.Grouping[name])
 	} else if typ == "filter" {
-		if _, ok := r.Filter[name]; !ok {
-			return result, errors.New("Function name not supported")
-		}
 		f = reflect.ValueOf(r.Filter[name])
 	}
 	if len(params) != f.Type().NumIn() {
@@ -107,7 +103,7 @@ func (r Rule) call(typ string, name string, params ...interface{}) (result []ref
 	return
 }
 
-func newRule() Rule {
+func newRule(l *log.Logger) Rule {
 	return Rule{
 		Filter: map[string]interface{}{
 			"exception_python_remove_line_no":    exceptionPythonRemoveLineNo,
@@ -116,6 +112,7 @@ func newRule() Rule {
 		Grouping: map[string]interface{} {
 			"query_perf_trace_grouping": queryPerfTraceGrouping,
 		},
+		log: l,
 	}
 }
 

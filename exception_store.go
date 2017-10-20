@@ -20,7 +20,8 @@ type UnaddedEvent struct {
 	Data                EventData              `json:"event_data"`
 	ExtraArgs           map[string]interface{} `json:"extra_args"`
 	Timestamp           float64                `json:"timestamp"`
-	ConfigurableFilters map[string]map[string][]string    `json:"configurable_filters"`
+	ConfigurableFilters map[string][]string    `json:"configurable_filters"`
+	ConfigurableGroupings []string    `json:"configurable_groupings"`
 }
 
 type EventData struct {
@@ -41,6 +42,7 @@ type EventStore struct {
 	channel      *EventChannel // channel, or queue, for the processing of new events
 	log          *log.Logger
 	timeInterval int // interval time for event_instance_period
+	rule Rule
 }
 
 // create new Event Store. This 'store' stores necessary information
@@ -57,6 +59,7 @@ func newEventStore(ds *DataStore, config EMConfig, log *log.Logger) *EventStore 
 		},
 		log,
 		config.TimeInterval,
+		newRule(log),
 	}
 }
 
@@ -97,7 +100,6 @@ func (es *EventStore) SummarizeBatchEvents() {
 		return
 	}
 
-	r := newRule()
 	// Match events with each other to find similar ones
 
 	// Rows to add to Tables
@@ -116,12 +118,12 @@ func (es *EventStore) SummarizeBatchEvents() {
 		rawData := event.Data.Raw
 		rawDetail := event.ExtraArgs
 		// Feed event into filter
-		processedData, err := r.ProcessFilter(event, "data")
+		processedData, err := es.rule.ProcessFilter(event, "data")
 		if err != nil {
 			es.log.Printf("Error when processing data: %v", err)
 			processedData = rawData
 		}
-		processedDetail, err := r.ProcessFilter(event, "detail")
+		processedDetail, err := es.rule.ProcessFilter(event, "detail")
 		if err != nil {
 			es.log.Printf("Error when processing detail: %v", err)
 			processedDetail = rawDetail
@@ -178,7 +180,7 @@ func (es *EventStore) SummarizeBatchEvents() {
 			e := eventClassInstancePeriods[eventClassInstancePeriodsMap[key]]
 			e.Count++
 			// TODO: For counter_json, user specifies update
-			r.ProcessGrouping(event, &e, "counter_json")
+			es.rule.ProcessGrouping(event, &e)
 		}
 
 		if _, ok := eventDetailsMap[processedDataHash]; !ok {
