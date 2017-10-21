@@ -17,7 +17,7 @@ type httpHandler struct {
 	log *log.Logger
 }
 
-type EventIncreasedResult struct {
+type EventRecentResult struct {
 	Id int `json:"id"`
 	EventType string `json:"event_type"`
 	EventName string `json:"event_name"`
@@ -69,19 +69,51 @@ func (h *httpHandler) sendResp(w http.ResponseWriter, key string, val interface{
 
 func (h *httpHandler) recentEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	query := r.URL.Query()
-	eventId, err := strconv.Atoi(query.Get("event_id"))
+	serviceId, err := strconv.Atoi(query.Get("service_id"))
 	if err != nil {
-		h.sendError(w, http.StatusBadRequest, errors.New("Event ID is missing or not an int"), "Error")
+		h.sendError(w, http.StatusBadRequest, errors.New("service ID is missing or not an int"), "Error")
 		return
 	}
 
+	endTime, err := time.Parse("2006-01-02 15:04:05", query.Get("end_time"))
+	if err != nil {
+		h.log.Printf("Error decoding end time, using default: %v", err)
+		endTime = time.Now()
+	}
+
+	startTime, err := time.Parse("2006-01-02 15:04:05", query.Get("start_time"))
+	if err != nil {
+		h.log.Printf("Error decoding start time, using default: %v", err)
+		startTime = endTime.Add(-1 * time.Hour)
+	}
+
+	limit, err := strconv.Atoi(query.Get("limit"))
+	if err != nil {
+		limit = 100
+	}
+
+	events, err := h.es.ds.GetRecentEvents(startTime, endTime, serviceId, limit)
+	if err != nil {
+		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
+		return
+	}
+	var response []EventRecentResult
+	for _, e := range events {
+		response = append(response, EventRecentResult{
+			Id: int(e.Id),
+			EventType: e.EventType,
+			EventName: e.EventName,
+			ProcessedData: e.ProcessedData,
+		})
+	}
+	h.sendResp(w, "recent_events", response)
 }
 
 func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	query := r.URL.Query()
 	eventId, err := strconv.Atoi(query.Get("event_id"))
 	if err != nil {
-		h.sendError(w, http.StatusBadRequest, errors.New("Event ID is missing or not an int"), "Error")
+		h.sendError(w, http.StatusBadRequest, errors.New("event ID is missing or not an int"), "Error")
 		return
 	}
 
@@ -106,6 +138,7 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 		h.sendError(w, http.StatusBadRequest, errors.New("event instance ID is missing or not an int"), "Error")
 		return
 	}
+
 	endTime, err := time.Parse("2006-01-02 15:04:05", query.Get("end_time"))
 	if err != nil {
 		h.log.Printf("Error decoding end time, using default: %v", err)

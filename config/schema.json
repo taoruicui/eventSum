@@ -25,7 +25,6 @@
                 "event_type": {
                   "name": "event_type",
                   "field_type": "_string",
-                  "not_null": true,
                   "provision_state": 3
                 },
                 "processed_data": {
@@ -36,34 +35,32 @@
                 "processed_data_hash": {
                   "name": "processed_data_hash",
                   "field_type": "_string",
-                  "not_null": true,
                   "provision_state": 3
                 },
                 "service_id": {
                   "name": "service_id",
                   "field_type": "_int",
-                  "not_null": true,
                   "provision_state": 3
                 }
               },
               "indexes": {
-                "event_base__id_key": {
-                  "name": "event_base__id_key",
+                "event_base_pkey": {
+                  "name": "event_base_pkey",
                   "fields": [
                     "_id"
                   ],
                   "unique": true,
+                  "primary": true,
                   "provision_state": 3
                 },
-                "event_base_pkey": {
-                  "name": "event_base_pkey",
+                "event_base_service_id_event_type_processed_data_hash_key": {
+                  "name": "event_base_service_id_event_type_processed_data_hash_key",
                   "fields": [
                     "service_id",
                     "event_type",
                     "processed_data_hash"
                   ],
                   "unique": true,
-                  "primary": true,
                   "provision_state": 3
                 }
               },
@@ -86,7 +83,6 @@
                 "processed_detail_hash": {
                   "name": "processed_detail_hash",
                   "field_type": "_string",
-                  "not_null": true,
                   "provision_state": 3
                 },
                 "raw_detail": {
@@ -96,21 +92,21 @@
                 }
               },
               "indexes": {
-                "event_detail__id_key": {
-                  "name": "event_detail__id_key",
+                "event_detail_pkey": {
+                  "name": "event_detail_pkey",
                   "fields": [
                     "_id"
                   ],
                   "unique": true,
+                  "primary": true,
                   "provision_state": 3
                 },
-                "event_detail_pkey": {
-                  "name": "event_detail_pkey",
+                "event_detail_processed_detail_hash_key": {
+                  "name": "event_detail_processed_detail_hash_key",
                   "fields": [
                     "processed_detail_hash"
                   ],
                   "unique": true,
-                  "primary": true,
                   "provision_state": 3
                 }
               },
@@ -151,26 +147,25 @@
                 "raw_data_hash": {
                   "name": "raw_data_hash",
                   "field_type": "_string",
-                  "not_null": true,
                   "provision_state": 3
                 }
               },
               "indexes": {
-                "event_instance__id_key": {
-                  "name": "event_instance__id_key",
+                "event_instance_pkey": {
+                  "name": "event_instance_pkey",
                   "fields": [
                     "_id"
                   ],
                   "unique": true,
+                  "primary": true,
                   "provision_state": 3
                 },
-                "event_instance_pkey": {
-                  "name": "event_instance_pkey",
+                "event_instance_raw_data_hash_key": {
+                  "name": "event_instance_raw_data_hash_key",
                   "fields": [
                     "raw_data_hash"
                   ],
                   "unique": true,
-                  "primary": true,
                   "provision_state": 3
                 }
               },
@@ -207,13 +202,11 @@
                 "end_time": {
                   "name": "end_time",
                   "field_type": "_datetime",
-                  "not_null": true,
                   "provision_state": 3
                 },
                 "event_instance_id": {
                   "name": "event_instance_id",
                   "field_type": "_int",
-                  "not_null": true,
                   "relation": {
                     "collection": "event_instance",
                     "field": "_id"
@@ -223,7 +216,6 @@
                 "start_time": {
                   "name": "start_time",
                   "field_type": "_datetime",
-                  "not_null": true,
                   "provision_state": 3
                 },
                 "updated": {
@@ -233,10 +225,12 @@
                 }
               },
               "indexes": {
-                "event_instance_period__id_key": {
-                  "name": "event_instance_period__id_key",
+                "event_instance_period_event_instance_id_start_time_end_time_key": {
+                  "name": "event_instance_period_event_instance_id_start_time_end_time_key",
                   "fields": [
-                    "_id"
+                    "event_instance_id",
+                    "start_time",
+                    "end_time"
                   ],
                   "unique": true,
                   "provision_state": 3
@@ -244,9 +238,7 @@
                 "event_instance_period_pkey": {
                   "name": "event_instance_period_pkey",
                   "fields": [
-                    "event_instance_id",
-                    "start_time",
-                    "end_time"
+                    "_id"
                   ],
                   "unique": true,
                   "primary": true,

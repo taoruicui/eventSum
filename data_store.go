@@ -16,6 +16,9 @@ import (
 	"io/ioutil"
 )
 
+type AI []interface{} // (A)rray of (I)nterface
+type MI map[string]interface{} // (M)ap of (I)nterface
+
 type DataStore struct {
 	client       *datamanclient.Client
 	log          *log.Logger
@@ -120,44 +123,56 @@ func (d *DataStore) GetById(table string, id int) (*query.Result, error) {
 }
 
 func (d DataStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) ([]EventBase, error) {
+	var evts []EventBase
+	//var evt EventBase
 
+	return evts, nil
 }
 
-func (d *DataStore) GetEventPeriods(start, end time.Time, eventId int) ([]EventInstancePeriod, error) {
-	//filter := fmt.Sprintf(`
-	//	[ {“event_instance_id”: [“=”, %v]}, “AND”, [{“start_time”: [“<”, "%v"]}, “AND”, {“start_time”: [“>”, "%v"]}]`,
-	//	eventId, end, start)
-	var hist []EventInstancePeriod
-	var bin EventInstancePeriod
+func (d *DataStore) Filter(filter interface{}, collection string, limit int, sort []string, join []interface{}) (*query.Result, error) {
+	var res *query.Result
 	q := &query.Query{
 		Type: query.Filter,
 		Args: map[string]interface{}{
 			"db":             "event_sum",
-			"collection":     "event_instance_period",
+			"collection":     collection,
 			"shard_instance": "public",
-			"sort": []string{"start_time"},
-			"filter":         []interface{}{
-				[]interface{}{
-					map[string]interface{}{
-						"start_time": []interface{}{">", start},
-					},
-					"AND",
-					map[string]interface{}{
-						"end_time": []interface{}{"<", end},
-					},
-				},
-				"AND",
-				map[string]interface{}{
-					"event_instance_id": []interface{}{"=", eventId},
-				}},
+			"filter": filter,
 		},
+	}
+	if limit != -1 {
+		q.Args["limit"] = limit
+	}
+	if sort != nil {
+		q.Args["sort"] = sort
+	}
+	if join != nil {
+		q.Args["join"] = join
 	}
 	res, err := d.client.DoQuery(context.Background(), q)
 	if err != nil {
 		d.log.Panic(err)
 	} else if res.Error != "" {
+		return res, errors.New(res.Error)
+	}
+	return res, err
+}
+
+func (d *DataStore) GetEventPeriods(start, end time.Time, eventId int) ([]EventInstancePeriod, error) {
+	// TODO: Change to use filter function
+	var hist []EventInstancePeriod
+	var bin EventInstancePeriod
+	filter := []interface{}{
+		[]interface{}{
+			map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
+			map[string]interface{}{"end_time": []interface{}{"<", end}},
+		}, "AND",
+		map[string]interface{}{"event_instance_id": []interface{}{"=", eventId}}}
+
+	res, err := d.Filter(filter, "event_instance_period", -1, []string{"start_time"}, nil)
+	if err != nil {
 		d.log.Print(res.Error)
-		return hist, errors.New(res.Error)
+		return hist, err
 	}
 	for _, v := range res.Return {
 		mapstructure.Decode(v, &bin)
@@ -239,7 +254,16 @@ func (d *DataStore) AddEvent(evt *EventBase) error {
 
 	res, err := d.set("event_base", record, nil, nil)
 	if res.Error != "" {
-		return errors.New(res.Error)
+		//TODO: fix uniqueness constraint
+		filter := map[string]interface{}{
+			"service_id": []interface{}{"=", evt.ServiceId},
+			"event_type": []interface{}{"=", evt.EventType},
+			"processed_data_hash": []interface{}{"=", evt.ProcessedDataHash},
+		}
+		res, err = d.Filter(filter, "event_base", 1, nil, nil)
+		if err != nil {
+			return errors.New(res.Error)
+		}
 	}
 	mapstructure.Decode(res.Return[0], &evt)
 	return err
@@ -264,7 +288,14 @@ func (d *DataStore) AddEventInstance(evt *EventInstance) error {
 	}
 	res, err := d.set("event_instance", record, nil, nil)
 	if res.Error != "" {
-		return errors.New(res.Error)
+		//TODO: fix uniqueness constraint
+		filter := map[string]interface{}{
+			"raw_data_hash": []interface{}{"=", evt.RawDataHash},
+		}
+		res, err = d.Filter(filter, "event_instance", 1, nil, nil)
+		if err != nil {
+			return errors.New(res.Error)
+		}
 	}
 	mapstructure.Decode(res.Return[0], &evt)
 	return err
@@ -296,7 +327,15 @@ func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 	}
 	res, err := d.set("event_instance_period", record, recordOp, nil)
 	if res.Error != "" {
-		return errors.New(res.Error)
+		filter := map[string]interface{}{
+			"event_instance_id": []interface{}{"=", evt.EventInstanceId},
+			"start_time": []interface{}{"=", evt.StartTime},
+			"end_time": []interface{}{"=", evt.EndTime},
+		}
+		res, err = d.Filter(filter, "event_instance_period", 1, nil, nil)
+		if err != nil {
+			return errors.New(res.Error)
+		}
 	}
 	mapstructure.Decode(res.Return[0], &evt)
 	return err
@@ -320,7 +359,14 @@ func (d *DataStore) AddEventDetail(evt *EventDetail) error {
 	}
 	res, err := d.set("event_detail", record, nil, nil)
 	if res.Error != "" {
-		return errors.New(res.Error)
+		//TODO: fix uniqueness constraint
+		filter := map[string]interface{}{
+			"processed_detail_hash": []interface{}{"=", evt.ProcessedDetailHash},
+		}
+		res, err = d.Filter(filter, "event_detail", 1, nil, nil)
+		if err != nil {
+			return errors.New(res.Error)
+		}
 	}
 	mapstructure.Decode(res.Return[0], &evt)
 	return err
