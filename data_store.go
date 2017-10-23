@@ -225,29 +225,31 @@ func (d *DataStore) GetDetailById(id int) (EventDetail, error) {
 }
 
 func (d *DataStore) AddEvent(evt *EventBase) error {
-	record := map[string]interface{}{
-		"service_id":          evt.ServiceId,
-		"event_type":          evt.EventType,
-		"event_name":          evt.EventName,
-		"processed_data":      evt.ProcessedData,
-		"processed_data_hash": evt.ProcessedDataHash,
+	filter := map[string]interface{}{
+		"service_id": []interface{}{"=", evt.ServiceId},
+		"event_type": []interface{}{"=", evt.EventType},
+		"processed_data_hash": []interface{}{"=", evt.ProcessedDataHash},
 	}
-
-	res, err := d.Query(query.Set, "event_base", nil, record, nil,nil,-1, nil, nil)
-	if res.Error != "" {
+	res, err := d.Query(query.Filter, "event_base", filter, nil, nil,nil,1, nil, nil)
+	if err != nil {
+		return err
+	} else if len(res.Return) == 0 {
 		//TODO: fix uniqueness constraint
-		filter := map[string]interface{}{
-			"service_id": []interface{}{"=", evt.ServiceId},
-			"event_type": []interface{}{"=", evt.EventType},
-			"processed_data_hash": []interface{}{"=", evt.ProcessedDataHash},
+		record := map[string]interface{}{
+			"service_id":          evt.ServiceId,
+			"event_type":          evt.EventType,
+			"event_name":          evt.EventName,
+			"processed_data":      evt.ProcessedData,
+			"processed_data_hash": evt.ProcessedDataHash,
 		}
-		res, err = d.Query(query.Filter, "event_base", filter, nil, nil,nil,1, nil, nil)
+
+		res, err = d.Query(query.Set, "event_base", nil, record, nil,nil,-1, nil, nil)
 		if err != nil {
-			return errors.New(res.Error)
+			return err
 		}
 	}
 	mapstructure.Decode(res.Return[0], &evt)
-	return err
+	return nil
 }
 
 func (d *DataStore) AddEvents(evts []EventBase) error {
@@ -261,25 +263,27 @@ func (d *DataStore) AddEvents(evts []EventBase) error {
 }
 
 func (d *DataStore) AddEventInstance(evt *EventInstance) error {
-	record := map[string]interface{}{
-		"event_base_id":   evt.EventBaseId,
-		"event_detail_id": evt.EventDetailId,
-		"raw_data":        evt.RawData,
-		"raw_data_hash":   evt.RawDataHash,
+	filter := map[string]interface{}{
+		"raw_data_hash": []interface{}{"=", evt.RawDataHash},
 	}
-	res, err := d.Query(query.Set, "event_instance", nil, record, nil,nil,-1, nil, nil)
-	if res.Error != "" {
+	res, err := d.Query(query.Filter, "event_instance", filter, nil, nil,nil,1, nil, nil)
+	if err != nil {
+		return err
+	} else if len(res.Return) == 0 {
 		//TODO: fix uniqueness constraint
-		filter := map[string]interface{}{
-			"raw_data_hash": []interface{}{"=", evt.RawDataHash},
+		record := map[string]interface{}{
+			"event_base_id":   evt.EventBaseId,
+			"event_detail_id": evt.EventDetailId,
+			"raw_data":        evt.RawData,
+			"raw_data_hash":   evt.RawDataHash,
 		}
-		res, err = d.Query(query.Filter, "event_instance", filter, nil, nil,nil,1, nil, nil)
+		res, err = d.Query(query.Set, "event_instance", nil, record, nil,nil,-1, nil, nil)
 		if err != nil {
-			return errors.New(res.Error)
+			return err
 		}
 	}
 	mapstructure.Decode(res.Return[0], &evt)
-	return err
+	return nil
 }
 
 func (d *DataStore) AddEventInstances(evts []EventInstance) error {
@@ -293,6 +297,11 @@ func (d *DataStore) AddEventInstances(evts []EventInstance) error {
 }
 
 func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
+	filter := map[string]interface{}{
+		"event_instance_id": []interface{}{"=", evt.EventInstanceId},
+		"start_time": []interface{}{"=", evt.StartTime},
+		"end_time": []interface{}{"=", evt.EndTime},
+	}
 	record := map[string]interface{}{
 		"event_instance_id": evt.EventInstanceId,
 		"start_time":        evt.StartTime,
@@ -306,16 +315,15 @@ func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 	for k, v := range evt.CounterJson {
 		recordOp[k] = []interface{}{"+", v}
 	}
-	res, err := d.Query(query.Set, "event_instance_period", nil, record, recordOp,nil,-1, nil, nil)
-	if res.Error != "" {
-		filter := map[string]interface{}{
-			"event_instance_id": []interface{}{"=", evt.EventInstanceId},
-			"start_time": []interface{}{"=", evt.StartTime},
-			"end_time": []interface{}{"=", evt.EndTime},
-		}
-		res, err = d.Query(query.Filter, "event_instance_period", filter, nil, nil,nil,1, nil, nil)
+	res, err := d.Query(query.Update, "event_instance_period", filter, record, recordOp,nil,-1, nil, nil)
+	if err != nil {
+		return err
+	} else if len(res.Return) == 0 {
+		//TODO: fix uniqueness constraint
+		record["count"] = evt.Count
+		res, err = d.Query(query.Set, "event_instance_period", nil, record, nil,nil,-1, nil, nil)
 		if err != nil {
-			return errors.New(res.Error)
+			return err
 		}
 	}
 	mapstructure.Decode(res.Return[0], &evt)
@@ -333,20 +341,22 @@ func (d *DataStore) AddEventinstancePeriods(evts []EventInstancePeriod) error {
 }
 
 func (d *DataStore) AddEventDetail(evt *EventDetail) error {
-	record := map[string]interface{}{
-		"raw_detail":            evt.RawDetail,
-		"processed_detail":      evt.ProcessedDetail,
-		"processed_detail_hash": evt.ProcessedDetailHash,
+	filter := map[string]interface{}{
+		"processed_detail_hash": []interface{}{"=", evt.ProcessedDetailHash},
 	}
-	res, err := d.Query(query.Set, "event_detail", nil, record, nil,nil,-1, nil, nil)
-	if res.Error != "" {
+	res, err := d.Query(query.Filter, "event_detail", filter, nil, nil,nil,1, nil, nil)
+	if err != nil {
+		return err
+	} else if len(res.Return) == 0 {
 		//TODO: fix uniqueness constraint
-		filter := map[string]interface{}{
-			"processed_detail_hash": []interface{}{"=", evt.ProcessedDetailHash},
+		record := map[string]interface{}{
+			"raw_detail":            evt.RawDetail,
+			"processed_detail":      evt.ProcessedDetail,
+			"processed_detail_hash": evt.ProcessedDetailHash,
 		}
-		res, err = d.Query(query.Filter, "event_detail", filter, nil, nil,nil,1, nil, nil)
+		res, err = d.Query(query.Set, "event_detail", nil, record, nil,nil,-1, nil, nil)
 		if err != nil {
-			return errors.New(res.Error)
+			return err
 		}
 	}
 	mapstructure.Decode(res.Return[0], &evt)

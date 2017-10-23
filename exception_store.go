@@ -177,10 +177,10 @@ func (es *EventStore) SummarizeBatchEvents() {
 			})
 			eventClassInstancePeriodsMap[key] = len(eventClassInstancePeriods) - 1
 		} else {
-			e := eventClassInstancePeriods[eventClassInstancePeriodsMap[key]]
+			e := &eventClassInstancePeriods[eventClassInstancePeriodsMap[key]]
 			e.Count++
 			// TODO: For counter_json, user specifies update
-			es.rule.ProcessGrouping(event, &e)
+			es.rule.ProcessGrouping(event, e)
 		}
 
 		if _, ok := eventDetailsMap[processedDataHash]; !ok {
