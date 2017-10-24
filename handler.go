@@ -30,7 +30,7 @@ type EventHistogramResult struct {
 	StartTime time.Time `json:"start_time"`
 	EndTime time.Time `json:"end_time"`
 	Count int `json:"count"`
-	CounterJson map[string]int `json:"count_json"`
+	CounterJson map[string]interface{} `json:"count_json"`
 }
 
 type EventDetailsResult struct {

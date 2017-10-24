@@ -55,7 +55,7 @@ type EventInstancePeriod struct {
 	EndTime         time.Time `mapstructure:"end_time"`
 	Updated         time.Time `mapstructure:"updated"`
 	Count           int       `mapstructure:"count"`
-	CounterJson     map[string]int    `mapstructure:"counter_json"`
+	CounterJson     map[string]interface{}    `mapstructure:"counter_json"`
 
 	// ignored fields, used internally
 	RawDataHash         string
@@ -329,15 +329,8 @@ func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 	} else {
 		var tmp EventInstancePeriod
 		mapstructure.Decode(res.Return[0], &tmp)
-		tmp.Count += evt.Count
-		for k, v := range evt.CounterJson {
-			if _, ok := tmp.CounterJson[k]; !ok {
-				tmp.CounterJson[k] = 0
-			}
-			tmp.CounterJson[k] += v
-		}
-		record["count"] = tmp.Count
-		record["counter_json"] = tmp.CounterJson
+		record["count"] = tmp.Count + evt.Count
+		record["counter_json"] = consolidateGroups(tmp.CounterJson, evt.CounterJson)
 		res, err = d.Query(query.Update, "event_instance_period", filter, record,nil,nil,-1,nil,nil)
 	}
 	mapstructure.Decode(res.Return[0], &evt)

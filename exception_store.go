@@ -173,14 +173,13 @@ func (es *EventStore) SummarizeBatchEvents() {
 				RawDataHash:         rawDataHash,         // Used to reference event_instance_id later
 				ProcessedDetailHash: processedDetailHash, // Used to reference event_detail_id later
 				Count:               0,
-				CounterJson:         make(map[string]int),
+				CounterJson:         make(map[string]interface{}),
 			})
 			eventClassInstancePeriodsMap[key] = len(eventClassInstancePeriods) - 1
 		}
 		e := &eventClassInstancePeriods[eventClassInstancePeriodsMap[key]]
 		e.Count++
-		// TODO: For counter_json, user specifies update
-		es.rule.ProcessGrouping(event, e)
+		e.CounterJson, _ = es.rule.ProcessGrouping(event, e.CounterJson)
 
 		if _, ok := eventDetailsMap[processedDataHash]; !ok {
 			eventDetails = append(eventDetails, EventDetail{

@@ -35,19 +35,21 @@ type Rule struct {
 
 // Process user defined groupings. A grouping is how the user wants to map some data to a
 // group, or a key. Currently, only counter_json is supported
-func (r *Rule) ProcessGrouping(event UnaddedEvent, eip *EventInstancePeriod) error {
+func (r *Rule) ProcessGrouping(event UnaddedEvent, group map[string]interface{}) (map[string]interface{}, error) {
 	for _, name := range event.ConfigurableGroupings {
 		if _, ok := r.Grouping[name]; !ok {
 			r.log.Print("Function name not supported")
 			continue
 		}
-		_, err := r.call("group", name, event, eip)
+		res, err := r.call("group", name, event.Data, group)
 		if err != nil {
 			r.log.Printf("Error: %v", err)
 			continue
 		}
+		d := res[0].Interface().(map[string]interface{})
+		group = d
 	}
-	return nil
+	return group, nil
 }
 
 // Process user defined filters. Make sure that if there is an error, do not do that processing.
@@ -58,7 +60,7 @@ func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}
 				r.log.Print("Function name not supported")
 				continue
 			}
-			res, err := r.call("filter", name, event)
+			res, err := r.call("filter", name, event.Data)
 			if err != nil {
 				r.log.Printf("Error: %v", err)
 				continue
@@ -68,9 +70,9 @@ func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}
 				r.log.Printf("Error: %v", err)
 				continue
 			}
-			// First reflect.Value is the UnaddedEvent
-			e := res[0].Interface().(UnaddedEvent)
-			event = e
+			// First reflect.Value is the EventData
+			d := res[0].Interface().(EventData)
+			event.Data = d
 		}
 	}
 
@@ -119,43 +121,58 @@ func newRule(l *log.Logger) Rule {
 /*
 FILTER FUNCTIONS
 
-In order to implement a configurable filter, the function must accept an UnaddedEvent
-and return (UnaddedEvent, error)
+In order to implement a configurable filter, the function must accept an EventData
+and return (EventData, error)
 */
 
-func exceptionPythonRemoveLineNo(event UnaddedEvent) (UnaddedEvent, error) {
+func exceptionPythonRemoveLineNo(data EventData) (EventData, error) {
 	var stacktrace StackTrace
-	err := mapstructure.Decode(event.Data.Raw, &stacktrace)
+	err := mapstructure.Decode(data.Raw, &stacktrace)
 	if err != nil {
-		return event, errors.New("Cannot type assert to ExceptionData")
+		return data, errors.New("Cannot type assert to ExceptionData")
 	}
 	for i := range stacktrace.Frames {
 		stacktrace.Frames[i].LineNo = 0
 	}
-	event.Data.Raw = stacktrace
-	return event, nil
+	data.Raw = stacktrace
+	return data, nil
 }
 
-func exceptionPythonRemoveStackVars(event UnaddedEvent) (UnaddedEvent, error) {
+func exceptionPythonRemoveStackVars(data EventData) (EventData, error) {
 	var stacktrace StackTrace
-	err := mapstructure.Decode(event.Data.Raw, &stacktrace)
+	err := mapstructure.Decode(data.Raw, &stacktrace)
 	if err != nil {
-		return event, errors.New("Cannot type assert to ExceptionData")
+		return data, errors.New("Cannot type assert to ExceptionData")
 	}
 	for i := range stacktrace.Frames {
 		stacktrace.Frames[i].Vars = nil
 	}
-	event.Data.Raw = stacktrace
-	return event, nil
+	data.Raw = stacktrace
+	return data, nil
 }
 
 /*
 GROUPING FUNCTIONS
 
-In order to implement a grouping, the function must accept an UnaddedEvent
-and a *EventInstancePeriod, and modify it in place.
+In order to implement a grouping, the function must accept an eventData
+and a , and modify it in place.
  */
 
-func queryPerfTraceGrouping(ue UnaddedEvent, evt *EventInstancePeriod) {
+func queryPerfTraceGrouping(data EventData, group map[string]interface{}) map[string]interface{} {
+	if _, ok := group["b"]; !ok {
+		group["b"] = 0.0
+	}
+	i := group["b"].(float64)
+	group["b"] = i + 1.0
+	return group
+}
 
+func consolidateGroups(g1 map[string]interface{}, g2 map[string]interface{}) map[string]interface{} {
+	for k, i := range g1 {
+		if _, ok := g2[k]; !ok {
+			g2[k] = 0.0
+		}
+		g2[k] = g2[k].(float64) + i.(float64)
+	}
+	return g2
 }
