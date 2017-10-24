@@ -7,15 +7,15 @@ import (
 	"log"
 )
 
-type StackTrace struct {
+type stackTrace struct {
 	Module   string  `json:"module",mapstructure:"module"`
 	Type     string  `json:"type",mapstructure:"type"`
 	Value    string  `json:"value",mapstructure:"value"`
 	RawStack string  `json:"raw_stack",mapstructure:"raw_stack"`
-	Frames   []Frame `json:"frames",mapstructure:"frames"`
+	Frames   []frame `json:"frames",mapstructure:"frames"`
 }
 
-type Frame struct {
+type frame struct {
 	AbsPath     string                 `json:"abs_path",mapstructure:"abs_path"`
 	ContextLine string                 `json:"context_line",mapstructure:"context_line"`
 	Filename    string                 `json:"filename",mapstructure:"filename"`
@@ -27,7 +27,7 @@ type Frame struct {
 	Vars        map[string]interface{} `json:"vars",mapstructure:"vars"`
 }
 
-type Rule struct {
+type rule struct {
 	Filter map[string]interface{}
 	Grouping map[string]interface{}
 	log *log.Logger
@@ -35,7 +35,7 @@ type Rule struct {
 
 // Process user defined groupings. A grouping is how the user wants to map some data to a
 // group, or a key. Currently, only counter_json is supported
-func (r *Rule) ProcessGrouping(event UnaddedEvent, group map[string]interface{}) (map[string]interface{}, error) {
+func (r *rule) ProcessGrouping(event unaddedEvent, group map[string]interface{}) (map[string]interface{}, error) {
 	for _, name := range event.ConfigurableGroupings {
 		if _, ok := r.Grouping[name]; !ok {
 			r.log.Print("Function name not supported")
@@ -53,7 +53,7 @@ func (r *Rule) ProcessGrouping(event UnaddedEvent, group map[string]interface{})
 }
 
 // Process user defined filters. Make sure that if there is an error, do not do that processing.
-func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}, error) {
+func (r *rule) ProcessFilter(event unaddedEvent, filterName string) (interface{}, error) {
 	if funcNames, ok := event.ConfigurableFilters[filterName]; ok {
 		for _, name := range funcNames {
 			if _, ok := r.Filter[name]; !ok {
@@ -71,7 +71,7 @@ func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}
 				continue
 			}
 			// First reflect.Value is the EventData
-			d := res[0].Interface().(EventData)
+			d := res[0].Interface().(eventData)
 			event.Data = d
 		}
 	}
@@ -86,7 +86,7 @@ func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}
 }
 
 // Calls the Function by name using Reflection
-func (r Rule) call(typ string, name string, params ...interface{}) (result []reflect.Value, err error) {
+func (r rule) call(typ string, name string, params ...interface{}) (result []reflect.Value, err error) {
 	var f reflect.Value
 	if typ == "group" {
 		f = reflect.ValueOf(r.Grouping[name])
@@ -105,8 +105,8 @@ func (r Rule) call(typ string, name string, params ...interface{}) (result []ref
 	return
 }
 
-func newRule(l *log.Logger) Rule {
-	return Rule{
+func newRule(l *log.Logger) rule {
+	return rule{
 		Filter: map[string]interface{}{
 			"exception_python_remove_line_no":    exceptionPythonRemoveLineNo,
 			"exception_python_remove_stack_vars": exceptionPythonRemoveStackVars,
@@ -125,8 +125,8 @@ In order to implement a configurable filter, the function must accept an EventDa
 and return (EventData, error)
 */
 
-func exceptionPythonRemoveLineNo(data EventData) (EventData, error) {
-	var stacktrace StackTrace
+func exceptionPythonRemoveLineNo(data eventData) (eventData, error) {
+	var stacktrace stackTrace
 	err := mapstructure.Decode(data.Raw, &stacktrace)
 	if err != nil {
 		return data, errors.New("Cannot type assert to ExceptionData")
@@ -138,8 +138,8 @@ func exceptionPythonRemoveLineNo(data EventData) (EventData, error) {
 	return data, nil
 }
 
-func exceptionPythonRemoveStackVars(data EventData) (EventData, error) {
-	var stacktrace StackTrace
+func exceptionPythonRemoveStackVars(data eventData) (eventData, error) {
+	var stacktrace stackTrace
 	err := mapstructure.Decode(data.Raw, &stacktrace)
 	if err != nil {
 		return data, errors.New("Cannot type assert to ExceptionData")
@@ -158,7 +158,7 @@ In order to implement a grouping, the function must accept an eventData
 and a , and modify it in place.
  */
 
-func queryPerfTraceGrouping(data EventData, group map[string]interface{}) map[string]interface{} {
+func queryPerfTraceGrouping(data eventData, group map[string]interface{}) map[string]interface{} {
 	if _, ok := group["b"]; !ok {
 		group["b"] = 0.0
 	}

@@ -13,11 +13,11 @@ import (
 
 // Base class for handling HTTP Requests
 type httpHandler struct {
-	es  *EventStore
+	es  *eventStore
 	log *log.Logger
 }
 
-type EventRecentResult struct {
+type eventRecentResult struct {
 	Id int `json:"id"`
 	EventType string `json:"event_type"`
 	EventName string `json:"event_name"`
@@ -26,14 +26,14 @@ type EventRecentResult struct {
 	ProcessedData interface{} `json:"processed_data"`
 }
 
-type EventHistogramResult struct {
+type eventHistogramResult struct {
 	StartTime time.Time `json:"start_time"`
 	EndTime time.Time `json:"end_time"`
 	Count int `json:"count"`
 	CounterJson map[string]interface{} `json:"count_json"`
 }
 
-type EventDetailsResult struct {
+type eventDetailsResult struct {
 	EventType   string                 `json:"event_type"`
 	EventName string                 `json:"event_name"`
 	RawData  interface{}              `json:"raw_data"`
@@ -97,9 +97,9 @@ func (h *httpHandler) recentEventsHandler(w http.ResponseWriter, r *http.Request
 		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
 		return
 	}
-	var response []EventRecentResult
+	var response []eventRecentResult
 	for _, e := range events {
-		response = append(response, EventRecentResult{
+		response = append(response, eventRecentResult{
 			Id: int(e.Id),
 			EventType: e.EventType,
 			EventName: e.EventName,
@@ -122,7 +122,7 @@ func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Reques
 	event, _ := h.es.ds.GetEventBaseById(int(instance.EventBaseId))
 
 	// Process result
-	response := EventDetailsResult{
+	response := eventDetailsResult{
 		EventType:   event.EventType,
 		EventName:     event.EventName,
 		RawData:  instance.RawData,
@@ -156,9 +156,9 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
 		return
 	}
-	var response []EventHistogramResult
+	var response []eventHistogramResult
 	for _, h := range hist {
-		response = append(response, EventHistogramResult{
+		response = append(response, eventHistogramResult{
 			StartTime: h.StartTime,
 			EndTime: h.EndTime,
 			Count: h.Count,
@@ -169,7 +169,7 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	var exc UnaddedEvent
+	var exc unaddedEvent
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&exc); err != nil {

@@ -8,51 +8,51 @@ import (
 
 /* EXCEPTION STORE MODELS */
 
-type KeyEventPeriod struct {
+type keyEventPeriod struct {
 	RawDataHash, ProcessedDataHash string
 	TimePeriod                      time.Time
 }
 
-type UnaddedEvent struct {
+type unaddedEvent struct {
 	ServiceId           int                    `json:"service_id"`
 	Name                string                 `json:"event_name"`
 	Type                string                 `json:"event_type"`
-	Data                EventData              `json:"event_data"`
+	Data                eventData              `json:"event_data"`
 	ExtraArgs           map[string]interface{} `json:"extra_args"`
 	Timestamp           float64                `json:"timestamp"`
 	ConfigurableFilters map[string][]string    `json:"configurable_filters"`
 	ConfigurableGroupings []string    `json:"configurable_groupings"`
 }
 
-type EventData struct {
+type eventData struct {
 	Message string      `json:"message"`
 	Raw     interface{} `json:"raw_data"`
 }
 
 // Wrapper struct for Event Channel
-type EventChannel struct {
-	_queue    chan UnaddedEvent
+type eventChannel struct {
+	_queue    chan unaddedEvent
 	BatchSize int
 	ticker    *time.Ticker
 	quit      chan int
 }
 
-type EventStore struct {
-	ds           *DataStore    // link to any data store (Postgres, Cassandra, etc.)
-	channel      *EventChannel // channel, or queue, for the processing of new events
+type eventStore struct {
+	ds           *dataStore    // link to any data store (Postgres, Cassandra, etc.)
+	channel      *eventChannel // channel, or queue, for the processing of new events
 	log          *log.Logger
 	timeInterval int // interval time for event_instance_period
-	rule Rule
+	rule rule
 }
 
 // create new Event Store. This 'store' stores necessary information
 // about the events and how they are processed. The event channel,
 // is the queue, and ds contains the link to the data store, or the DB.
-func newEventStore(ds *DataStore, config EMConfig, log *log.Logger) *EventStore {
-	return &EventStore{
+func newEventStore(ds *dataStore, config eventsumConfig, log *log.Logger) *eventStore {
+	return &eventStore{
 		ds,
-		&EventChannel{
-			make(chan UnaddedEvent, config.BatchSize),
+		&eventChannel{
+			make(chan unaddedEvent, config.BatchSize),
 			config.BatchSize,
 			time.NewTicker(time.Duration(config.TimeLimit) * time.Second),
 			make(chan int),
@@ -64,7 +64,7 @@ func newEventStore(ds *DataStore, config EMConfig, log *log.Logger) *EventStore 
 }
 
 // Starts the periodic processing of channel
-func (es *EventStore) Start() {
+func (es *eventStore) Start() {
 	for {
 		select {
 		case <-es.channel.ticker.C:
@@ -77,12 +77,12 @@ func (es *EventStore) Start() {
 	}
 }
 
-func (es *EventStore) Stop() {
+func (es *eventStore) Stop() {
 	es.channel.quit <- 0
 }
 
-// Add new UnaddedEvent to channel, process if full
-func (es *EventStore) Send(exc UnaddedEvent) {
+// Add new unaddedEvent to channel, process if full
+func (es *eventStore) Send(exc unaddedEvent) {
 	es.channel._queue <- exc
 	if len(es.channel._queue) == es.channel.BatchSize {
 		go es.SummarizeBatchEvents()
@@ -90,8 +90,8 @@ func (es *EventStore) Send(exc UnaddedEvent) {
 }
 
 // Process Batch from channel and bulk insert into Db
-func (es *EventStore) SummarizeBatchEvents() {
-	var excsToAdd []UnaddedEvent
+func (es *eventStore) SummarizeBatchEvents() {
+	var excsToAdd []unaddedEvent
 	for length := len(es.channel._queue); length > 0; length-- {
 		exc := <-es.channel._queue
 		excsToAdd = append(excsToAdd, exc)
@@ -103,15 +103,15 @@ func (es *EventStore) SummarizeBatchEvents() {
 	// Match events with each other to find similar ones
 
 	// Rows to add to Tables
-	var eventClasses []EventBase
-	var eventClassInstances []EventInstance
-	var eventClassInstancePeriods []EventInstancePeriod
-	var eventDetails []EventDetail
+	var eventClasses []eventBase
+	var eventClassInstances []eventInstance
+	var eventClassInstancePeriods []eventInstancePeriod
+	var eventDetails []eventDetail
 
 	// Maps the hash to the index of the associated array
 	var eventClassesMap = make(map[string]int)
 	var eventClassInstancesMap = make(map[string]int)
-	var eventClassInstancePeriodsMap = make(map[KeyEventPeriod]int)
+	var eventClassInstancePeriodsMap = make(map[keyEventPeriod]int)
 	var eventDetailsMap = make(map[string]int)
 
 	for _, event := range excsToAdd {
@@ -129,14 +129,14 @@ func (es *EventStore) SummarizeBatchEvents() {
 			processedDetail = rawDetail
 		}
 
-		rawDataHash := Hash(rawData)
-		processedDataHash := Hash(processedData)
-		processedDetailHash := Hash(processedDetail)
+		rawDataHash := hash(rawData)
+		processedDataHash := hash(processedData)
+		processedDetailHash := hash(processedDetail)
 
 		// Each hash should be unique in the database, and so we make sure
 		// they are not repeated in the array by checking the associated map.
 		if _, ok := eventClassesMap[processedDataHash]; !ok {
-			eventClasses = append(eventClasses, EventBase{
+			eventClasses = append(eventClasses, eventBase{
 				ServiceId:         event.ServiceId,
 				EventType:         event.Type,
 				EventName:         event.Name,
@@ -147,7 +147,7 @@ func (es *EventStore) SummarizeBatchEvents() {
 		}
 
 		if _, ok := eventClassInstancesMap[rawDataHash]; !ok {
-			eventClassInstances = append(eventClassInstances, EventInstance{
+			eventClassInstances = append(eventClassInstances, eventInstance{
 				ProcessedDataHash:   processedDataHash,   // Used to reference event_base_id later
 				ProcessedDetailHash: processedDetailHash, // Used to reference event_detail_id later
 				RawData:             rawData,
@@ -158,15 +158,15 @@ func (es *EventStore) SummarizeBatchEvents() {
 
 		// The unique key should be the raw data, the processed data, and the time period,
 		// since the count should keep track of an event instance in a certain time frame.
-		t := PythonUnixToGoUnix(event.Timestamp).UTC()
-		startTime, endTime := FindBoundingTime(t, es.timeInterval)
-		key := KeyEventPeriod{
+		t := pythonUnixToGoUnix(event.Timestamp).UTC()
+		startTime, endTime := findBoundingTime(t, es.timeInterval)
+		key := keyEventPeriod{
 			rawDataHash,
 			processedDataHash,
 			startTime,
 		}
 		if _, ok := eventClassInstancePeriodsMap[key]; !ok {
-			eventClassInstancePeriods = append(eventClassInstancePeriods, EventInstancePeriod{
+			eventClassInstancePeriods = append(eventClassInstancePeriods, eventInstancePeriod{
 				StartTime:           startTime,
 				Updated:             t,
 				EndTime:             endTime,
@@ -182,7 +182,7 @@ func (es *EventStore) SummarizeBatchEvents() {
 		e.CounterJson, _ = es.rule.ProcessGrouping(event, e.CounterJson)
 
 		if _, ok := eventDetailsMap[processedDataHash]; !ok {
-			eventDetails = append(eventDetails, EventDetail{
+			eventDetails = append(eventDetails, eventDetail{
 				RawDetail:           rawDetail,
 				ProcessedDetail:     processedDetail,
 				ProcessedDetailHash: processedDetailHash,

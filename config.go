@@ -6,8 +6,8 @@ import (
 	"os"
 )
 
-// EMConfig are settings used ... XXX
-type EMConfig struct {
+// config are settings used ... XXX
+type eventsumConfig struct {
 	DataSourceInstance string                 `json:"data_source_instance"`
 	DataSourceSchema   string                 `json:"data_source_schema"`
 	BatchSize          int                    `json:"event_batch_limit"`
@@ -17,8 +17,8 @@ type EMConfig struct {
 	Args               map[string]interface{} `json:"args"`
 }
 
-func DefaultConfig() EMConfig {
-	return EMConfig{
+func defaultConfig() eventsumConfig {
+	return eventsumConfig{
 		DataSourceInstance: "config/datasourceinstance.yaml",
 		DataSourceSchema:   "config/schema.json",
 		BatchSize:          5,
@@ -30,9 +30,9 @@ func DefaultConfig() EMConfig {
 }
 
 // ParseEMConfig parses configuration out of a json file
-func ParseEMConfig(file string) (EMConfig, error) {
+func parseEventsumConfig(file string) (eventsumConfig, error) {
 
-	configuration := DefaultConfig()
+	configuration := defaultConfig()
 	f, err := os.Open(file)
 	if err != nil {
 		return configuration, fmt.Errorf("Error", err)

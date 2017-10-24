@@ -16,10 +16,7 @@ import (
 	"io/ioutil"
 )
 
-type AI []interface{} // (A)rray of (I)nterface
-type MI map[string]interface{} // (M)ap of (I)nterface
-
-type DataStore struct {
+type dataStore struct {
 	client       *datamanclient.Client
 	log          *log.Logger
 	timeInterval int
@@ -27,7 +24,7 @@ type DataStore struct {
 
 /* MODELS CORRESPONDING TO DATABASE TABLES */
 
-type EventBase struct {
+type eventBase struct {
 	Id                int64  `mapstructure:"_id"`
 	ServiceId         int    `mapstructure:"service_id"`
 	EventType         string `mapstructure:"event_type"`
@@ -36,7 +33,7 @@ type EventBase struct {
 	ProcessedDataHash string `mapstructure:"processed_data_hash"`
 }
 
-type EventInstance struct {
+type eventInstance struct {
 	Id            int64  `mapstructure:"_id"`
 	EventBaseId   int64  `mapstructure:"event_base_id"`
 	EventDetailId int64  `mapstructure:"event_detail_id"`
@@ -48,7 +45,7 @@ type EventInstance struct {
 	ProcessedDetailHash string
 }
 
-type EventInstancePeriod struct {
+type eventInstancePeriod struct {
 	Id              int64     `mapstructure:"_id"`
 	EventInstanceId int64     `mapstructure:"event_instance_id"`
 	StartTime       time.Time `mapstructure:"start_time"`
@@ -62,15 +59,15 @@ type EventInstancePeriod struct {
 	ProcessedDetailHash string
 }
 
-type EventDetail struct {
+type eventDetail struct {
 	Id                  int64  `mapstructure:"_id"`
 	RawDetail           interface{} `mapstructure:"raw_detail"`
 	ProcessedDetail     interface{} `mapstructure:"processed_detail"`
 	ProcessedDetailHash string `mapstructure:"processed_detail_hash"`
 }
 
-// Create a new DataStore
-func newDataStore(conf EMConfig, log *log.Logger) *DataStore {
+// Create a new dataStore
+func newDataStore(conf eventsumConfig, log *log.Logger) *dataStore {
 	// Create a connection to Postgres Database through Dataman
 
 	storagenodeConfig, err := storagenode.DatasourceInstanceConfigFromFile(conf.DataSourceInstance)
@@ -98,26 +95,26 @@ func newDataStore(conf EMConfig, log *log.Logger) *DataStore {
 	}
 
 	client := &datamanclient.Client{Transport: transport}
-	return &DataStore{
+	return &dataStore{
 		client:       client,
 		log:          log,
 		timeInterval: conf.TimeInterval,
 	}
 }
 
-func (d *DataStore) GetById(table string, id int) (*query.Result, error) {
+func (d *dataStore) GetById(table string, id int) (*query.Result, error) {
 	filter := map[string]interface{}{"_id": []interface{}{"=",id}}
 	return d.Query(query.Filter, table, filter, nil,nil,nil,1,nil,nil)
 }
 
-func (d DataStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) ([]EventBase, error) {
-	var evts []EventBase
-	//var evt EventBase
+func (d dataStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) ([]eventBase, error) {
+	var evts []eventBase
+	//var evt eventBase
 
 	return evts, nil
 }
 
-func (d *DataStore) Query(  typ query.QueryType,
+func (d *dataStore) Query(  typ query.QueryType,
 							collection string,
 							filter interface{},
 							record map[string]interface{},
@@ -165,10 +162,10 @@ func (d *DataStore) Query(  typ query.QueryType,
 	return res, err
 }
 
-func (d *DataStore) GetEventPeriods(start, end time.Time, eventId int) ([]EventInstancePeriod, error) {
+func (d *dataStore) GetEventPeriods(start, end time.Time, eventId int) ([]eventInstancePeriod, error) {
 	// TODO: Change to use filter function
-	var hist []EventInstancePeriod
-	var bin EventInstancePeriod
+	var hist []eventInstancePeriod
+	var bin eventInstancePeriod
 	filter := []interface{}{
 		[]interface{}{
 			map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
@@ -188,8 +185,8 @@ func (d *DataStore) GetEventPeriods(start, end time.Time, eventId int) ([]EventI
 	return hist, nil
 }
 
-func (d *DataStore) GetEventBaseById(id int) (EventBase, error) {
-	var result EventBase
+func (d *dataStore) GetEventBaseById(id int) (eventBase, error) {
+	var result eventBase
 	res, err := d.GetById("event_base", id)
 	if res.Error != "" {
 		return result, errors.New(res.Error)
@@ -200,8 +197,8 @@ func (d *DataStore) GetEventBaseById(id int) (EventBase, error) {
 	return result, err
 }
 
-func (d *DataStore) GetInstanceById(id int) (EventInstance, error) {
-	var result EventInstance
+func (d *dataStore) GetInstanceById(id int) (eventInstance, error) {
+	var result eventInstance
 	res, err := d.GetById("event_instance", id)
 	if res.Error != "" {
 		return result, errors.New(res.Error)
@@ -212,8 +209,8 @@ func (d *DataStore) GetInstanceById(id int) (EventInstance, error) {
 	return result, err
 }
 
-func (d *DataStore) GetDetailById(id int) (EventDetail, error) {
-	var result EventDetail
+func (d *dataStore) GetDetailById(id int) (eventDetail, error) {
+	var result eventDetail
 	res, err := d.GetById("event_detail", id)
 	if res.Error != "" {
 		return result, errors.New(res.Error)
@@ -224,7 +221,7 @@ func (d *DataStore) GetDetailById(id int) (EventDetail, error) {
 	return result, err
 }
 
-func (d *DataStore) AddEvent(evt *EventBase) error {
+func (d *dataStore) AddEvent(evt *eventBase) error {
 	filter := map[string]interface{}{
 		"service_id": []interface{}{"=", evt.ServiceId},
 		"event_type": []interface{}{"=", evt.EventType},
@@ -252,7 +249,7 @@ func (d *DataStore) AddEvent(evt *EventBase) error {
 	return nil
 }
 
-func (d *DataStore) AddEvents(evts []EventBase) error {
+func (d *dataStore) AddEvents(evts []eventBase) error {
 	for i := range evts {
 		err := d.AddEvent(&evts[i])
 		if err != nil {
@@ -262,7 +259,7 @@ func (d *DataStore) AddEvents(evts []EventBase) error {
 	return nil
 }
 
-func (d *DataStore) AddEventInstance(evt *EventInstance) error {
+func (d *dataStore) AddEventInstance(evt *eventInstance) error {
 	filter := map[string]interface{}{
 		"raw_data_hash": []interface{}{"=", evt.RawDataHash},
 	}
@@ -286,7 +283,7 @@ func (d *DataStore) AddEventInstance(evt *EventInstance) error {
 	return nil
 }
 
-func (d *DataStore) AddEventInstances(evts []EventInstance) error {
+func (d *dataStore) AddEventInstances(evts []eventInstance) error {
 	for i := range evts {
 		err := d.AddEventInstance(&evts[i])
 		if err != nil {
@@ -296,7 +293,7 @@ func (d *DataStore) AddEventInstances(evts []EventInstance) error {
 	return nil
 }
 
-func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
+func (d *dataStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 	filter := map[string]interface{}{
 		"event_instance_id": []interface{}{"=", evt.EventInstanceId},
 		"start_time": []interface{}{"=", evt.StartTime},
@@ -327,7 +324,7 @@ func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 			return err
 		}
 	} else {
-		var tmp EventInstancePeriod
+		var tmp eventInstancePeriod
 		mapstructure.Decode(res.Return[0], &tmp)
 		record["count"] = tmp.Count + evt.Count
 		record["counter_json"] = consolidateGroups(tmp.CounterJson, evt.CounterJson)
@@ -337,7 +334,7 @@ func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 	return err
 }
 
-func (d *DataStore) AddEventinstancePeriods(evts []EventInstancePeriod) error {
+func (d *dataStore) AddEventinstancePeriods(evts []eventInstancePeriod) error {
 	for i := range evts {
 		err := d.AddEventInstancePeriod(&evts[i])
 		if err != nil {
@@ -347,7 +344,7 @@ func (d *DataStore) AddEventinstancePeriods(evts []EventInstancePeriod) error {
 	return nil
 }
 
-func (d *DataStore) AddEventDetail(evt *EventDetail) error {
+func (d *dataStore) AddEventDetail(evt *eventDetail) error {
 	filter := map[string]interface{}{
 		"processed_detail_hash": []interface{}{"=", evt.ProcessedDetailHash},
 	}
@@ -370,7 +367,7 @@ func (d *DataStore) AddEventDetail(evt *EventDetail) error {
 	return err
 }
 
-func (d *DataStore) AddEventDetails(evts []EventDetail) error {
+func (d *dataStore) AddEventDetails(evts []eventDetail) error {
 	for i := range evts {
 		err := d.AddEventDetail(&evts[i])
 		if err != nil {

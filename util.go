@@ -1,32 +1,30 @@
 package eventsum
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math"
-	"strings"
 	"time"
 )
 
 // returns the start and end times of the interval bounding time t,
 // interval specific as minutes
-func FindBoundingTime(t time.Time, interval int) (time.Time, time.Time) {
+func findBoundingTime(t time.Time, interval int) (time.Time, time.Time) {
 	duration := time.Duration(interval) * time.Minute
 	s := t.Truncate(duration)
 	return s, s.Add(duration)
 }
 
 // convert Python unix time.time to Go unix time.Time
-func PythonUnixToGoUnix(t float64) time.Time {
+func pythonUnixToGoUnix(t float64) time.Time {
 	seconds := int64(t)
 	nanoseconds := int64(t-math.Floor(t)) * int64(time.Second)
 	return time.Unix(seconds, nanoseconds)
 }
 
-func Hash(i interface{}) string {
+func hash(i interface{}) string {
 	b, err := json.Marshal(i)
 	if err != nil {
 		fmt.Println("Error", err)
@@ -37,24 +35,24 @@ func Hash(i interface{}) string {
 }
 
 // Turns the raw stack into a string file
-func GenerateFullStack(st StackTrace) string {
-	// buffer to resolve string concat issues
-	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("%s: %s\n", st.Type, st.Value))
-	for _, frame := range st.Frames {
-		str := fmt.Sprintf("File\"%s\", line %d, in %v\n  %s\n",
-			frame.Filename,
-			frame.LineNo,
-			frame.Function,
-			strings.TrimSpace(frame.ContextLine),
-		)
-		buffer.WriteString(str)
-	}
-	fmt.Print(buffer.String())
-	return buffer.String()
-}
+//func generateFullStack(st StackTrace) string {
+//	// buffer to resolve string concat issues
+//	var buffer bytes.Buffer
+//	buffer.WriteString(fmt.Sprintf("%s: %s\n", st.Type, st.Value))
+//	for _, frame := range st.Frames {
+//		str := fmt.Sprintf("File\"%s\", line %d, in %v\n  %s\n",
+//			frame.Filename,
+//			frame.LineNo,
+//			frame.Function,
+//			strings.TrimSpace(frame.ContextLine),
+//		)
+//		buffer.WriteString(str)
+//	}
+//	fmt.Print(buffer.String())
+//	return buffer.String()
+//}
 
-//func ExtractDataFromEvent(e UnaddedEvent) map[string]interface{} {
+//func extractDataFromEvent(e UnaddedEvent) map[string]interface{} {
 //	data := make(map[string]interface{})
 //
 //	// add system arguments
@@ -69,7 +67,7 @@ func GenerateFullStack(st StackTrace) string {
 //	return data
 //}
 
-func ToJson(data interface{}) string {
-	res, _ := json.Marshal(data)
-	return string(res)
-}
+//func toJson(data interface{}) string {
+//	res, _ := json.Marshal(data)
+//	return string(res)
+//}
