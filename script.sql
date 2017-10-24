@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS event_instance_period (
   start_time timestamp,
   end_time timestamp,
   updated timestamp,
-  count int8 DEFAULT 1,
+  count int8 DEFAULT 0,
   counter_json jsonb,
   UNIQUE (event_instance_id, start_time, end_time)
 );

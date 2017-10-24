@@ -172,16 +172,15 @@ func (es *EventStore) SummarizeBatchEvents() {
 				EndTime:             endTime,
 				RawDataHash:         rawDataHash,         // Used to reference event_instance_id later
 				ProcessedDetailHash: processedDetailHash, // Used to reference event_detail_id later
-				Count:               1,
+				Count:               0,
 				CounterJson:         make(map[string]int),
 			})
 			eventClassInstancePeriodsMap[key] = len(eventClassInstancePeriods) - 1
-		} else {
-			e := &eventClassInstancePeriods[eventClassInstancePeriodsMap[key]]
-			e.Count++
-			// TODO: For counter_json, user specifies update
-			es.rule.ProcessGrouping(event, e)
 		}
+		e := &eventClassInstancePeriods[eventClassInstancePeriodsMap[key]]
+		e.Count++
+		// TODO: For counter_json, user specifies update
+		es.rule.ProcessGrouping(event, e)
 
 		if _, ok := eventDetailsMap[processedDataHash]; !ok {
 			eventDetails = append(eventDetails, EventDetail{

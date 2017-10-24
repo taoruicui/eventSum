@@ -307,24 +307,38 @@ func (d *DataStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 		"start_time":        evt.StartTime,
 		"updated":           evt.Updated,
 		"end_time":          evt.EndTime,
+		"count":             evt.Count,
+		"counter_json":      evt.CounterJson,
 	}
 	recordOp := map[string]interface{} {
 		"count": []interface{}{"+", evt.Count},
 	}
 	// Add all the counter_json keys
 	for k, v := range evt.CounterJson {
-		recordOp[k] = []interface{}{"+", v}
+		recordOp["counter_json."+k] = []interface{}{"+", v}
 	}
-	res, err := d.Query(query.Update, "event_instance_period", filter, record, recordOp,nil,-1, nil, nil)
+	res, err := d.Query(query.Filter, "event_instance_period", filter,nil, nil,nil,-1, nil, nil)
 	if err != nil {
 		return err
 	} else if len(res.Return) == 0 {
 		//TODO: fix uniqueness constraint
-		record["count"] = evt.Count
 		res, err = d.Query(query.Set, "event_instance_period", nil, record, nil,nil,-1, nil, nil)
 		if err != nil {
 			return err
 		}
+	} else {
+		var tmp EventInstancePeriod
+		mapstructure.Decode(res.Return[0], &tmp)
+		tmp.Count += evt.Count
+		for k, v := range evt.CounterJson {
+			if _, ok := tmp.CounterJson[k]; !ok {
+				tmp.CounterJson[k] = 0
+			}
+			tmp.CounterJson[k] += v
+		}
+		record["count"] = tmp.Count
+		record["counter_json"] = tmp.CounterJson
+		res, err = d.Query(query.Update, "event_instance_period", filter, record,nil,nil,-1,nil,nil)
 	}
 	mapstructure.Decode(res.Return[0], &evt)
 	return err
