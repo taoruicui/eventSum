@@ -3,33 +3,14 @@ package eventsum
 import (
 	"github.com/pkg/errors"
 	"reflect"
-	"github.com/mitchellh/mapstructure"
 	"log"
 )
 
-type stackTrace struct {
-	Module   string  `json:"module",mapstructure:"module"`
-	Type     string  `json:"type",mapstructure:"type"`
-	Value    string  `json:"value",mapstructure:"value"`
-	RawStack string  `json:"raw_stack",mapstructure:"raw_stack"`
-	Frames   []frame `json:"frames",mapstructure:"frames"`
-}
-
-type frame struct {
-	AbsPath     string                 `json:"abs_path",mapstructure:"abs_path"`
-	ContextLine string                 `json:"context_line",mapstructure:"context_line"`
-	Filename    string                 `json:"filename",mapstructure:"filename"`
-	Function    string                 `json:"function",mapstructure:"function"`
-	LineNo      int                    `json:"lineno",mapstructure:"lineno"`
-	Module      string                 `json:"module",mapstructure:"module"`
-	PostContext []string               `json:"post_context",mapstructure:"post_context"`
-	PreContext  []string               `json:"pre_context",mapstructure:"pre_context"`
-	Vars        map[string]interface{} `json:"vars",mapstructure:"vars"`
-}
 
 type rule struct {
-	Filter map[string]interface{}
-	Grouping map[string]interface{}
+	Filter map[string]interface{} // filtering data
+	Grouping map[string]interface{} // merge one event to a group
+	ConsolidateFunc interface{} // merge two groups together
 	log *log.Logger
 }
 
@@ -85,6 +66,15 @@ func (r *rule) ProcessFilter(event unaddedEvent, filterName string) (interface{}
 	}
 }
 
+func (r *rule) Consolidate(g1 map[string]interface{}, g2 map[string]interface{}) (map[string]interface{}, error) {
+	res, err := r.call("consolidate", "", g1, g2)
+	if err != nil {
+		r.log.Printf("Error: %v", err)
+		return g1, err
+	}
+	return res[0].Interface().(map[string]interface{}), nil
+}
+
 // Calls the Function by name using Reflection
 func (r *rule) call(typ string, name string, params ...interface{}) (result []reflect.Value, err error) {
 	var f reflect.Value
@@ -92,6 +82,8 @@ func (r *rule) call(typ string, name string, params ...interface{}) (result []re
 		f = reflect.ValueOf(r.Grouping[name])
 	} else if typ == "filter" {
 		f = reflect.ValueOf(r.Filter[name])
+	} else if typ == "consolidate" {
+		f = reflect.ValueOf(r.ConsolidateFunc)
 	}
 	if len(params) != f.Type().NumIn() {
 		err = errors.New("The number of params is not adapted.")
@@ -115,6 +107,11 @@ func (r *rule) addGrouping(name string, grouping func(EventData, map[string]inte
 	return nil
 }
 
+func (r *rule) addConsolidateFunc(f func(map[string]interface{}, map[string]interface{}) map[string]interface{}) error {
+	r.ConsolidateFunc = f
+	return nil
+}
+
 func newRule(l *log.Logger) rule {
 	return rule{
 		Filter: map[string]interface{}{
@@ -124,60 +121,14 @@ func newRule(l *log.Logger) rule {
 		Grouping: map[string]interface{} {
 			//"query_perf_trace_grouping": queryPerfTraceGrouping,
 		},
+		ConsolidateFunc: defaultConsolidate,
 		log: l,
 	}
 }
 
-/*
-FILTER FUNCTIONS
-
-In order to implement a configurable filter, the function must accept an EventData
-and return (EventData, error)
-*/
-
-func exceptionPythonRemoveLineNo(data EventData) (EventData, error) {
-	var stacktrace stackTrace
-	err := mapstructure.Decode(data.Raw, &stacktrace)
-	if err != nil {
-		return data, errors.New("Cannot type assert to ExceptionData")
-	}
-	for i := range stacktrace.Frames {
-		stacktrace.Frames[i].LineNo = 0
-	}
-	data.Raw = stacktrace
-	return data, nil
-}
-
-func exceptionPythonRemoveStackVars(data EventData) (EventData, error) {
-	var stacktrace stackTrace
-	err := mapstructure.Decode(data.Raw, &stacktrace)
-	if err != nil {
-		return data, errors.New("Cannot type assert to ExceptionData")
-	}
-	for i := range stacktrace.Frames {
-		stacktrace.Frames[i].Vars = nil
-	}
-	data.Raw = stacktrace
-	return data, nil
-}
-
-/*
-GROUPING FUNCTIONS
-
-In order to implement a grouping, the function must accept an eventData
-and a , and modify it in place.
- */
-
-func queryPerfTraceGrouping(data EventData, group map[string]interface{}) map[string]interface{} {
-	if _, ok := group["b"]; !ok {
-		group["b"] = 0.0
-	}
-	i := group["b"].(float64)
-	group["b"] = i + 1.0
-	return group
-}
-
-func consolidateGroups(g1 map[string]interface{}, g2 map[string]interface{}) map[string]interface{} {
+// Default consolidation function. This function takes two dicts and merges
+// them together additively. Returns a single group
+func defaultConsolidate(g1 map[string]interface{}, g2 map[string]interface{}) map[string]interface{} {
 	for k, i := range g1 {
 		if _, ok := g2[k]; !ok {
 			g2[k] = 0.0

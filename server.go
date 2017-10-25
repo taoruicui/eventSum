@@ -14,6 +14,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+/* GLOBAL VARIABLES */
+var globalRule rule
+
 type EventSumServer struct {
 	logger      *log.Logger
 	route       *httprouter.Router
@@ -75,7 +78,7 @@ func (s *EventSumServer) AddFilter(name string, filter func(EventData) (EventDat
 	if name == "" {
 		return errors.New("Name must be a valid string")
 	}
-	return s.httpHandler.es.rule.addFilter(name, filter)
+	return globalRule.addFilter(name, filter)
 }
 
 // User Defined configurable groupings
@@ -83,7 +86,7 @@ func (s *EventSumServer) AddGrouping(name string, grouping func(EventData, map[s
 	if name == "" {
 		return errors.New("Name must be a valid string")
 	}
-	return s.httpHandler.es.rule.addGrouping(name, grouping)
+	return globalRule.addGrouping(name, grouping)
 }
 
 // Creates new HTTP Server given options.
@@ -118,6 +121,7 @@ func New(configFilename string) *EventSumServer {
 	}
 
 	logger := log.New(os.Stdout, "", log.Lshortfile)
+	globalRule = newRule(logger)
 	ds := newDataStore(config, logger)
 	es := newEventStore(ds, config, logger)
 

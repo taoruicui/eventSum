@@ -33,6 +33,13 @@ func main() {
 	e.Start()
 }
 
+/*
+FILTER FUNCTIONS
+
+In order to implement a configurable filter, the function must accept an EventData
+and return (EventData, error)
+*/
+
 func exceptionPythonRemoveLineNo(data eventsum.EventData) (eventsum.EventData, error) {
 	var stacktrace stackTrace
 	err := mapstructure.Decode(data.Raw, &stacktrace)
@@ -58,6 +65,14 @@ func exceptionPythonRemoveStackVars(data eventsum.EventData) (eventsum.EventData
 	data.Raw = stacktrace
 	return data, nil
 }
+
+
+/*
+GROUPING FUNCTIONS
+
+In order to implement a grouping, the function must accept an eventData
+and a , and modify it in place.
+ */
 
 func queryPerfTraceGrouping(data eventsum.EventData, group map[string]interface{}) map[string]interface{} {
 	if _, ok := group["b"]; !ok {

@@ -327,7 +327,7 @@ func (d *dataStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 		var tmp eventInstancePeriod
 		mapstructure.Decode(res.Return[0], &tmp)
 		record["count"] = tmp.Count + evt.Count
-		record["counter_json"] = consolidateGroups(tmp.CounterJson, evt.CounterJson)
+		record["counter_json"], _ = globalRule.Consolidate(tmp.CounterJson, evt.CounterJson)
 		res, err = d.Query(query.Update, "event_instance_period", filter, record,nil,nil,-1,nil,nil)
 	}
 	mapstructure.Decode(res.Return[0], &evt)

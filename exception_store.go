@@ -43,7 +43,6 @@ type eventStore struct {
 	channel      *eventChannel // channel, or queue, for the processing of new events
 	log          *log.Logger
 	timeInterval int // interval time for event_instance_period
-	rule rule
 }
 
 // create new Event Store. This 'store' stores necessary information
@@ -60,7 +59,6 @@ func newEventStore(ds *dataStore, config eventsumConfig, log *log.Logger) *event
 		},
 		log,
 		config.TimeInterval,
-		newRule(log),
 	}
 }
 
@@ -119,12 +117,12 @@ func (es *eventStore) SummarizeBatchEvents() {
 		rawData := event.Data.Raw
 		rawDetail := event.ExtraArgs
 		// Feed event into filter
-		processedData, err := es.rule.ProcessFilter(event, "data")
+		processedData, err := globalRule.ProcessFilter(event, "data")
 		if err != nil {
 			es.log.Printf("Error when processing data: %v", err)
 			processedData = rawData
 		}
-		processedDetail, err := es.rule.ProcessFilter(event, "detail")
+		processedDetail, err := globalRule.ProcessFilter(event, "detail")
 		if err != nil {
 			es.log.Printf("Error when processing detail: %v", err)
 			processedDetail = rawDetail
@@ -180,7 +178,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 		}
 		e := &eventClassInstancePeriods[eventClassInstancePeriodsMap[key]]
 		e.Count++
-		e.CounterJson, _ = es.rule.ProcessGrouping(event, e.CounterJson)
+		e.CounterJson, _ = globalRule.ProcessGrouping(event, e.CounterJson)
 
 		if _, ok := eventDetailsMap[processedDataHash]; !ok {
 			eventDetails = append(eventDetails, eventDetail{
