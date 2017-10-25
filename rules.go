@@ -71,7 +71,7 @@ func (r *rule) ProcessFilter(event unaddedEvent, filterName string) (interface{}
 				continue
 			}
 			// First reflect.Value is the EventData
-			d := res[0].Interface().(eventData)
+			d := res[0].Interface().(EventData)
 			event.Data = d
 		}
 	}
@@ -86,7 +86,7 @@ func (r *rule) ProcessFilter(event unaddedEvent, filterName string) (interface{}
 }
 
 // Calls the Function by name using Reflection
-func (r rule) call(typ string, name string, params ...interface{}) (result []reflect.Value, err error) {
+func (r *rule) call(typ string, name string, params ...interface{}) (result []reflect.Value, err error) {
 	var f reflect.Value
 	if typ == "group" {
 		f = reflect.ValueOf(r.Grouping[name])
@@ -105,14 +105,24 @@ func (r rule) call(typ string, name string, params ...interface{}) (result []ref
 	return
 }
 
+func (r *rule) addFilter(name string, filter func(EventData) (EventData, error)) error {
+	r.Filter[name] = filter
+	return nil
+}
+
+func (r *rule) addGrouping(name string, grouping func(EventData, map[string]interface{}) map[string]interface{}) error {
+	r.Grouping[name] = grouping
+	return nil
+}
+
 func newRule(l *log.Logger) rule {
 	return rule{
 		Filter: map[string]interface{}{
-			"exception_python_remove_line_no":    exceptionPythonRemoveLineNo,
-			"exception_python_remove_stack_vars": exceptionPythonRemoveStackVars,
+			//"exception_python_remove_line_no":    exceptionPythonRemoveLineNo,
+			//"exception_python_remove_stack_vars": exceptionPythonRemoveStackVars,
 		},
 		Grouping: map[string]interface{} {
-			"query_perf_trace_grouping": queryPerfTraceGrouping,
+			//"query_perf_trace_grouping": queryPerfTraceGrouping,
 		},
 		log: l,
 	}
@@ -125,7 +135,7 @@ In order to implement a configurable filter, the function must accept an EventDa
 and return (EventData, error)
 */
 
-func exceptionPythonRemoveLineNo(data eventData) (eventData, error) {
+func exceptionPythonRemoveLineNo(data EventData) (EventData, error) {
 	var stacktrace stackTrace
 	err := mapstructure.Decode(data.Raw, &stacktrace)
 	if err != nil {
@@ -138,7 +148,7 @@ func exceptionPythonRemoveLineNo(data eventData) (eventData, error) {
 	return data, nil
 }
 
-func exceptionPythonRemoveStackVars(data eventData) (eventData, error) {
+func exceptionPythonRemoveStackVars(data EventData) (EventData, error) {
 	var stacktrace stackTrace
 	err := mapstructure.Decode(data.Raw, &stacktrace)
 	if err != nil {
@@ -158,7 +168,7 @@ In order to implement a grouping, the function must accept an eventData
 and a , and modify it in place.
  */
 
-func queryPerfTraceGrouping(data eventData, group map[string]interface{}) map[string]interface{} {
+func queryPerfTraceGrouping(data EventData, group map[string]interface{}) map[string]interface{} {
 	if _, ok := group["b"]; !ok {
 		group["b"] = 0.0
 	}

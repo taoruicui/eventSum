@@ -17,14 +17,15 @@ type unaddedEvent struct {
 	ServiceId           int                    `json:"service_id"`
 	Name                string                 `json:"event_name"`
 	Type                string                 `json:"event_type"`
-	Data                eventData              `json:"event_data"`
+	Data                EventData              `json:"event_data"`
 	ExtraArgs           map[string]interface{} `json:"extra_args"`
 	Timestamp           float64                `json:"timestamp"`
 	ConfigurableFilters map[string][]string    `json:"configurable_filters"`
 	ConfigurableGroupings []string    `json:"configurable_groupings"`
 }
 
-type eventData struct {
+// Exported struct
+type EventData struct {
 	Message string      `json:"message"`
 	Raw     interface{} `json:"raw_data"`
 }
