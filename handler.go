@@ -18,30 +18,6 @@ type httpHandler struct {
 	log *log.Logger
 }
 
-type eventRecentResult struct {
-	Id int64 `json:"id"`
-	EventType string `json:"event_type"`
-	EventName string `json:"event_name"`
-	Count int `json:"count"`
-	LastUpdated time.Time `json:"last_updated"`
-	ProcessedData interface{} `json:"processed_data"`
-	InstanceIds []int64 `json:"instance_ids"`
-}
-
-type eventHistogramResult struct {
-	StartTime time.Time `json:"start_time"`
-	EndTime time.Time `json:"end_time"`
-	Count int `json:"count"`
-	CounterJson map[string]interface{} `json:"count_json"`
-}
-
-type eventDetailsResult struct {
-	EventType   string                 `json:"event_type"`
-	EventName string                 `json:"event_name"`
-	RawData  interface{}              `json:"raw_data"`
-	RawDetails        interface{}               `json:"raw_details"`
-}
-
 // Writes an error to ResponseWriter
 func (h *httpHandler) sendError(w http.ResponseWriter, code int, err error, message string) {
 	errMsg := fmt.Sprintf("%s: %s", message, err.Error())
@@ -94,7 +70,7 @@ func (h *httpHandler) recentEventsHandler(w http.ResponseWriter, r *http.Request
 		limit = 100
 	}
 
-	response, err := h.es.ds.GetRecentEvents(startTime, endTime, serviceId, limit)
+	response, err := h.es.GetRecentEvents(startTime, endTime, serviceId, limit)
 	if err != nil {
 		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
 		return
@@ -110,7 +86,7 @@ func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	response, err := h.es.ds.GetEventDetailsbyId(int(eventId))
+	response, err := h.es.GetEventDetailsbyId(int(eventId))
 	if err != nil {
 		h.sendError(w, http.StatusInternalServerError, err, "Could not get event details")
 		return
@@ -138,19 +114,10 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 		startTime = endTime.Add(-1 * time.Hour)
 	}
 
-	hist, err := h.es.ds.GetEventPeriods(startTime, endTime, eventInstanceId)
+	response, err := h.es.GetEventHistogram(startTime, endTime, eventInstanceId)
 	if err != nil {
 		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
 		return
-	}
-	var response []eventHistogramResult
-	for _, h := range hist {
-		response = append(response, eventHistogramResult{
-			StartTime: h.StartTime,
-			EndTime: h.EndTime,
-			Count: h.Count,
-			CounterJson: h.CounterJson,
-		})
 	}
 	h.sendResp(w, "histogram", response)
 }

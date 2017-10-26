@@ -4,7 +4,33 @@ import (
 	"fmt"
 	"log"
 	"time"
+	"github.com/jacksontj/dataman/src/query"
+	"github.com/pkg/errors"
 )
+
+type eventRecentResult struct {
+	Id int64 `json:"id"`
+	EventType string `json:"event_type"`
+	EventName string `json:"event_name"`
+	Count int `json:"count"`
+	LastUpdated time.Time `json:"last_updated"`
+	ProcessedData interface{} `json:"processed_data"`
+	InstanceIds []int64 `json:"instance_ids"`
+}
+
+type eventHistogramResult struct {
+	StartTime time.Time `json:"start_time"`
+	EndTime time.Time `json:"end_time"`
+	Count int `json:"count"`
+	CounterJson map[string]interface{} `json:"count_json"`
+}
+
+type eventDetailsResult struct {
+	EventType   string                 `json:"event_type"`
+	EventName string                 `json:"event_name"`
+	RawData  interface{}              `json:"raw_data"`
+	RawDetails        interface{}               `json:"raw_details"`
+}
 
 /* EXCEPTION STORE MODELS */
 
@@ -225,4 +251,115 @@ func (es *eventStore) SummarizeBatchEvents() {
 	if err := es.ds.AddEventinstancePeriods(eventClassInstancePeriods); err != nil {
 		es.log.Printf("Error while inserting event time periods: %v", err)
 	}
+}
+
+// Get all events within a time period, including their count
+func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) ([]eventRecentResult, error) {
+	// TODO: use the limit!!
+	var evts []eventRecentResult
+	var evtsMap = make(map[int64]int)
+	var evtPeriod eventInstancePeriod
+	var evtInstance eventInstance
+	var evtBase eventBase
+	join := []interface{}{"event_instance_id", "event_instance_id.event_base_id"}
+	filter := []interface{}{
+		map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
+		map[string]interface{}{"end_time": []interface{}{"<", end}},
+	}
+	res, err := es.ds.Query(query.Filter, "event_instance_period", filter,nil, nil,nil, -1, []string{"start_time"}, join)
+	if err != nil {
+		return evts, err
+	}
+	for _, t1 := range res.Return {
+		err = mapDecode(t1, &evtPeriod)
+		t2, ok := t1["event_instance_id"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		err = mapDecode(t2, &evtInstance)
+		t3, ok := t2["event_base_id"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		err = mapDecode(t3, &evtBase)
+		if evtBase.ServiceId != serviceId {
+			continue
+		}
+		// TODO: implement grouping
+		if _, ok = evtsMap[evtBase.Id]; !ok {
+			evts = append(evts, eventRecentResult{
+				Id: evtBase.Id,
+				EventType: evtBase.EventType,
+				EventName: evtBase.EventName,
+				ProcessedData: evtBase.ProcessedData,
+				Count: 0,
+				LastUpdated: evtPeriod.Updated,
+				InstanceIds: []int64{},
+			})
+			evtsMap[evtBase.Id] = len(evts) - 1
+		}
+		evt := &evts[evtsMap[evtBase.Id]]
+		evt.Count += evtPeriod.Count
+		evt.InstanceIds = append(evt.InstanceIds, evtInstance.Id)
+		if evt.LastUpdated.Before(evtPeriod.Updated) {
+			evt.LastUpdated = evtPeriod.Updated
+		}
+	}
+	return evts, nil
+}
+
+func (es *eventStore) GetEventHistogram(start, end time.Time, eventId int) ([]eventHistogramResult, error) {
+	// TODO: Change to use filter function
+	var hist []eventHistogramResult
+	var bin eventInstancePeriod
+	filter := []interface{}{
+		[]interface{}{
+			map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
+			map[string]interface{}{"end_time": []interface{}{"<", end}},
+		}, "AND",
+		   map[string]interface{}{"event_instance_id": []interface{}{"=", eventId}}}
+
+	res, err := es.ds.Query(query.Filter, "event_instance_period", filter,nil, nil,nil, -1, []string{"start_time"}, nil)
+	if err != nil {
+		return hist, err
+	}
+	for _, v := range res.Return {
+		mapDecode(v, &bin)
+		hist = append(hist, eventHistogramResult{
+			StartTime: bin.StartTime,
+			EndTime: bin.EndTime,
+			Count: bin.Count,
+			CounterJson: bin.CounterJson,
+		})
+	}
+	return hist, nil
+}
+
+func (es *eventStore) GetEventDetailsbyId(id int) (eventDetailsResult, error) {
+	var result eventDetailsResult
+	var instance eventInstance
+	var detail eventDetail
+	var base eventBase
+	join := []interface{}{"event_base_id", "event_detail_id"}
+	pkey := map[string]interface{}{"_id": id}
+	r, err := es.ds.Query(query.Get, "event_instance", nil, nil, nil, pkey, -1, nil, join)
+	if r.Error != "" {
+		return result, errors.New(r.Error)
+	} else if len(r.Return) == 0 {
+		return result, err
+	}
+	mapDecode(r.Return[0], &instance)
+	if t1, ok := r.Return[0]["event_base_id"].(map[string]interface{}); ok {
+		mapDecode(t1, &base)
+		if t2, ok := t1["event_detail_id"].(map[string]interface{}); ok{
+			mapDecode(t2, &detail)
+		}
+	}
+	result = eventDetailsResult{
+		EventType:   base.EventType,
+		EventName:     base.EventName,
+		RawData:  instance.RawData,
+		RawDetails:        detail.RawDetail,
+	}
+	return result, nil
 }
