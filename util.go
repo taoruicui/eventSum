@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"math"
 	"time"
+	"reflect"
+	"github.com/jacksontj/dataman/src/datamantype"
+	"github.com/mitchellh/mapstructure"
 )
 
 // returns the start and end times of the interval bounding time t,
@@ -32,6 +35,28 @@ func hash(i interface{}) string {
 	hasher := sha256.New()
 	hasher.Write(b)
 	return base64.URLEncoding.EncodeToString(hasher.Sum(nil))
+}
+
+// Converts string to time, used for mapstructure.NewDecoder()
+func stringToDateTimeHook(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+
+	if t == reflect.TypeOf(time.Time{}) && f == reflect.TypeOf("") {
+		return time.Parse(datamantype.DateTimeFormatStr, data.(string))
+	}
+	return data, nil
+}
+
+// mapstructure decode
+func mapDecode(source, target interface{}) error {
+	config :=  mapstructure.DecoderConfig{
+		DecodeHook: stringToDateTimeHook,
+		Result: target,
+	}
+	decoder, err := mapstructure.NewDecoder(&config)
+	if err != nil {
+		return err
+	}
+	return decoder.Decode(source)
 }
 
 // Turns the raw stack into a string file

@@ -11,7 +11,6 @@ import (
 	"github.com/jacksontj/dataman/src/query"
 	"github.com/jacksontj/dataman/src/storage_node"
 	"github.com/jacksontj/dataman/src/storage_node/metadata"
-	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"io/ioutil"
 )
@@ -107,10 +106,57 @@ func (d *dataStore) GetById(table string, id int) (*query.Result, error) {
 	return d.Query(query.Filter, table, filter, nil,nil,nil,1,nil,nil)
 }
 
-func (d dataStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) ([]eventBase, error) {
-	var evts []eventBase
-	//var evt eventBase
-
+func (d dataStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) ([]eventRecentResult, error) {
+	var evts []eventRecentResult
+	var evtsMap = make(map[int64]int)
+	var evtPeriod eventInstancePeriod
+	var evtInstance eventInstance
+	var evtBase eventBase
+	join := []interface{}{"event_instance_id", "event_instance_id.event_base_id"}
+	filter := []interface{}{
+			map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
+			map[string]interface{}{"end_time": []interface{}{"<", end}},
+		}
+	res, err := d.Query(query.Filter, "event_instance_period", filter,nil, nil,nil, -1, []string{"start_time"}, join)
+	d.log.Print(res, err)
+	if err != nil {
+		return evts, err
+	}
+	for _, t1 := range res.Return {
+		err = mapDecode(t1, &evtPeriod)
+		t2, ok := t1["event_instance_id"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		err = mapDecode(t2, &evtInstance)
+		t3, ok := t2["event_base_id"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		err = mapDecode(t3, &evtBase)
+		if evtBase.ServiceId != serviceId {
+			continue
+		}
+		// TODO: implement grouping
+		if _, ok = evtsMap[evtBase.Id]; !ok {
+			evts = append(evts, eventRecentResult{
+				Id: evtBase.Id,
+				EventType: evtBase.EventType,
+				EventName: evtBase.EventName,
+				ProcessedData: evtBase.ProcessedData,
+				Count: 0,
+				LastUpdated: evtPeriod.Updated,
+				InstanceIds: []int64{},
+			})
+			evtsMap[evtBase.Id] = len(evts) - 1
+		}
+		evt := &evts[evtsMap[evtBase.Id]]
+		evt.Count += evtPeriod.Count
+		evt.InstanceIds = append(evt.InstanceIds, evtInstance.Id)
+		if evt.LastUpdated.Before(evtPeriod.Updated) {
+			evt.LastUpdated = evtPeriod.Updated
+		}
+	}
 	return evts, nil
 }
 
@@ -174,12 +220,13 @@ func (d *dataStore) GetEventPeriods(start, end time.Time, eventId int) ([]eventI
 		map[string]interface{}{"event_instance_id": []interface{}{"=", eventId}}}
 
 	res, err := d.Query(query.Filter, "event_instance_period", filter,nil, nil,nil, -1, []string{"start_time"}, nil)
+	d.log.Print(res)
 	if err != nil {
 		d.log.Print(res.Error)
 		return hist, err
 	}
 	for _, v := range res.Return {
-		mapstructure.Decode(v, &bin)
+		mapDecode(v, &bin)
 		hist = append(hist, bin)
 	}
 	return hist, nil
@@ -193,7 +240,7 @@ func (d *dataStore) GetEventBaseById(id int) (eventBase, error) {
 	} else if len(res.Return) == 0 {
 		return result, err
 	}
-	mapstructure.Decode(res.Return[0], &result)
+	mapDecode(res.Return[0], &result)
 	return result, err
 }
 
@@ -205,7 +252,7 @@ func (d *dataStore) GetInstanceById(id int) (eventInstance, error) {
 	} else if len(res.Return) == 0 {
 		return result, err
 	}
-	mapstructure.Decode(res.Return[0], &result)
+	mapDecode(res.Return[0], &result)
 	return result, err
 }
 
@@ -217,7 +264,7 @@ func (d *dataStore) GetDetailById(id int) (eventDetail, error) {
 	} else if len(res.Return) == 0 {
 		return result, err
 	}
-	mapstructure.Decode(res.Return[0], &result)
+	mapDecode(res.Return[0], &result)
 	return result, err
 }
 
@@ -245,7 +292,7 @@ func (d *dataStore) AddEvent(evt *eventBase) error {
 			return err
 		}
 	}
-	mapstructure.Decode(res.Return[0], &evt)
+	mapDecode(res.Return[0], &evt)
 	return nil
 }
 
@@ -279,7 +326,7 @@ func (d *dataStore) AddEventInstance(evt *eventInstance) error {
 			return err
 		}
 	}
-	mapstructure.Decode(res.Return[0], &evt)
+	mapDecode(res.Return[0], &evt)
 	return nil
 }
 
@@ -325,12 +372,12 @@ func (d *dataStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 		}
 	} else {
 		var tmp eventInstancePeriod
-		mapstructure.Decode(res.Return[0], &tmp)
+		mapDecode(res.Return[0], &tmp)
 		record["count"] = tmp.Count + evt.Count
 		record["counter_json"], _ = globalRule.Consolidate(tmp.CounterJson, evt.CounterJson)
 		res, err = d.Query(query.Update, "event_instance_period", filter, record,nil,nil,-1,nil,nil)
 	}
-	mapstructure.Decode(res.Return[0], &evt)
+	mapDecode(res.Return[0], &evt)
 	return err
 }
 
@@ -363,7 +410,7 @@ func (d *dataStore) AddEventDetail(evt *eventDetail) error {
 			return err
 		}
 	}
-	mapstructure.Decode(res.Return[0], &evt)
+	mapDecode(res.Return[0], &evt)
 	return err
 }
 

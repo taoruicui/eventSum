@@ -89,6 +89,11 @@ func (s *EventSumServer) AddGrouping(name string, grouping func(EventData, map[s
 	return globalRule.addGrouping(name, grouping)
 }
 
+// User Defined configurable groupings
+func (s *EventSumServer) AddConsolidation(f func(map[string]interface{}, map[string]interface{}) map[string]interface{}) error {
+	return globalRule.addConsolidateFunc(f)
+}
+
 // Creates new HTTP Server given options.
 // Options is a function which will be applied to the new Server
 // Returns a pointer to Server

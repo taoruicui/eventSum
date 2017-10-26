@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 	"github.com/julienschmidt/httprouter"
+	"github.com/jacksontj/dataman/src/datamantype"
 )
 
 // Base class for handling HTTP Requests
@@ -18,12 +19,13 @@ type httpHandler struct {
 }
 
 type eventRecentResult struct {
-	Id int `json:"id"`
+	Id int64 `json:"id"`
 	EventType string `json:"event_type"`
 	EventName string `json:"event_name"`
 	Count int `json:"count"`
 	LastUpdated time.Time `json:"last_updated"`
 	ProcessedData interface{} `json:"processed_data"`
+	InstanceIds []int64 `json:"instance_ids"`
 }
 
 type eventHistogramResult struct {
@@ -75,13 +77,13 @@ func (h *httpHandler) recentEventsHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	endTime, err := time.Parse("2006-01-02 15:04:05", query.Get("end_time"))
+	endTime, err := time.Parse(datamantype.DateTimeFormatStr, query.Get("end_time"))
 	if err != nil {
 		h.log.Printf("Error decoding end time, using default: %v", err)
 		endTime = time.Now()
 	}
 
-	startTime, err := time.Parse("2006-01-02 15:04:05", query.Get("start_time"))
+	startTime, err := time.Parse(datamantype.DateTimeFormatStr, query.Get("start_time"))
 	if err != nil {
 		h.log.Printf("Error decoding start time, using default: %v", err)
 		startTime = endTime.Add(-1 * time.Hour)
@@ -92,19 +94,10 @@ func (h *httpHandler) recentEventsHandler(w http.ResponseWriter, r *http.Request
 		limit = 100
 	}
 
-	events, err := h.es.ds.GetRecentEvents(startTime, endTime, serviceId, limit)
+	response, err := h.es.ds.GetRecentEvents(startTime, endTime, serviceId, limit)
 	if err != nil {
 		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
 		return
-	}
-	var response []eventRecentResult
-	for _, e := range events {
-		response = append(response, eventRecentResult{
-			Id: int(e.Id),
-			EventType: e.EventType,
-			EventName: e.EventName,
-			ProcessedData: e.ProcessedData,
-		})
 	}
 	h.sendResp(w, "recent_events", response)
 }
@@ -139,13 +132,13 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	endTime, err := time.Parse("2006-01-02 15:04:05", query.Get("end_time"))
+	endTime, err := time.Parse(datamantype.DateTimeFormatStr, query.Get("end_time"))
 	if err != nil {
 		h.log.Printf("Error decoding end time, using default: %v", err)
 		endTime = time.Now()
 	}
 
-	startTime, err := time.Parse("2006-01-02 15:04:05", query.Get("start_time"))
+	startTime, err := time.Parse(datamantype.DateTimeFormatStr, query.Get("start_time"))
 	if err != nil {
 		h.log.Printf("Error decoding start time, using default: %v", err)
 		startTime = endTime.Add(-1 * time.Hour)
