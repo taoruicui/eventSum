@@ -101,12 +101,56 @@ func newDataStore(conf eventsumConfig, log *log.Logger) *dataStore {
 	}
 }
 
-func (d *dataStore) GetById(table string, id int) (*query.Result, error) {
-	filter := map[string]interface{}{"_id": []interface{}{"=",id}}
-	return d.Query(query.Filter, table, filter, nil,nil,nil,1,nil,nil)
+func (d *dataStore) Query(  typ query.QueryType,
+							collection string,
+							filter interface{},
+							record map[string]interface{},
+							recordOp map[string]interface{},
+							pkey map[string]interface{},
+							limit int,
+							sort []string,
+							join []interface{}) (*query.Result, error) {
+	var res *query.Result
+	q := &query.Query{
+		Type: typ,
+		Args: map[string]interface{}{
+			"db":             "event_sum",
+			"collection":     collection,
+			"shard_instance": "public",
+		},
+	}
+	if filter != nil {
+		q.Args["filter"] = filter
+	}
+	if record != nil {
+		q.Args["record"] = record
+	}
+	if recordOp != nil {
+		q.Args["record_op"] = recordOp
+	}
+	if pkey != nil {
+		q.Args["pkey"] = pkey
+	}
+	if limit != -1 {
+		q.Args["limit"] = limit
+	}
+	if sort != nil {
+		q.Args["sort"] = sort
+	}
+	if join != nil {
+		q.Args["join"] = join
+	}
+	res, err := d.client.DoQuery(context.Background(), q)
+	if err != nil {
+		d.log.Panic(err)
+	} else if res.Error != "" {
+		return res, errors.New(res.Error)
+	}
+	return res, err
 }
 
-func (d dataStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) ([]eventRecentResult, error) {
+func (d *dataStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) ([]eventRecentResult, error) {
+	// TODO: use the limit!!
 	var evts []eventRecentResult
 	var evtsMap = make(map[int64]int)
 	var evtPeriod eventInstancePeriod
@@ -114,9 +158,9 @@ func (d dataStore) GetRecentEvents(start, end time.Time, serviceId int, limit in
 	var evtBase eventBase
 	join := []interface{}{"event_instance_id", "event_instance_id.event_base_id"}
 	filter := []interface{}{
-			map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
-			map[string]interface{}{"end_time": []interface{}{"<", end}},
-		}
+		map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
+		map[string]interface{}{"end_time": []interface{}{"<", end}},
+	}
 	res, err := d.Query(query.Filter, "event_instance_period", filter,nil, nil,nil, -1, []string{"start_time"}, join)
 	d.log.Print(res, err)
 	if err != nil {
@@ -160,54 +204,6 @@ func (d dataStore) GetRecentEvents(start, end time.Time, serviceId int, limit in
 	return evts, nil
 }
 
-func (d *dataStore) Query(  typ query.QueryType,
-							collection string,
-							filter interface{},
-							record map[string]interface{},
-							recordOp map[string]interface{},
-							pkey map[string]int,
-							limit int,
-							sort []string,
-							join []interface{}) (*query.Result, error) {
-	var res *query.Result
-	q := &query.Query{
-		Type: typ,
-		Args: map[string]interface{}{
-			"db":             "event_sum",
-			"collection":     collection,
-			"shard_instance": "public",
-		},
-	}
-	if filter != nil {
-		q.Args["filter"] = filter
-	}
-	if record != nil {
-		q.Args["record"] = record
-	}
-	if recordOp != nil {
-		q.Args["record_op"] = recordOp
-	}
-	if pkey != nil {
-		q.Args["pkey"] = pkey
-	}
-	if limit != -1 {
-		q.Args["limit"] = limit
-	}
-	if sort != nil {
-		q.Args["sort"] = sort
-	}
-	if join != nil {
-		q.Args["join"] = join
-	}
-	res, err := d.client.DoQuery(context.Background(), q)
-	if err != nil {
-		d.log.Panic(err)
-	} else if res.Error != "" {
-		return res, errors.New(res.Error)
-	}
-	return res, err
-}
-
 func (d *dataStore) GetEventPeriods(start, end time.Time, eventId int) ([]eventInstancePeriod, error) {
 	// TODO: Change to use filter function
 	var hist []eventInstancePeriod
@@ -232,40 +228,33 @@ func (d *dataStore) GetEventPeriods(start, end time.Time, eventId int) ([]eventI
 	return hist, nil
 }
 
-func (d *dataStore) GetEventBaseById(id int) (eventBase, error) {
-	var result eventBase
-	res, err := d.GetById("event_base", id)
-	if res.Error != "" {
-		return result, errors.New(res.Error)
-	} else if len(res.Return) == 0 {
+func (d *dataStore) GetEventDetailsbyId(id int) (eventDetailsResult, error) {
+	var result eventDetailsResult
+	var instance eventInstance
+	var detail eventDetail
+	var base eventBase
+	join := []interface{}{"event_base_id", "event_detail_id"}
+	pkey := map[string]interface{}{"_id": id}
+	r, err := d.Query(query.Get, "event_instance", nil, nil, nil, pkey, -1, nil, join)
+	if r.Error != "" {
+		return result, errors.New(r.Error)
+	} else if len(r.Return) == 0 {
 		return result, err
 	}
-	mapDecode(res.Return[0], &result)
-	return result, err
-}
-
-func (d *dataStore) GetInstanceById(id int) (eventInstance, error) {
-	var result eventInstance
-	res, err := d.GetById("event_instance", id)
-	if res.Error != "" {
-		return result, errors.New(res.Error)
-	} else if len(res.Return) == 0 {
-		return result, err
+	mapDecode(r.Return[0], &instance)
+	if t1, ok := r.Return[0]["event_base_id"].(map[string]interface{}); ok {
+		mapDecode(t1, &base)
+		if t2, ok := t1["event_detail_id"].(map[string]interface{}); ok{
+			mapDecode(t2, &detail)
+		}
 	}
-	mapDecode(res.Return[0], &result)
-	return result, err
-}
-
-func (d *dataStore) GetDetailById(id int) (eventDetail, error) {
-	var result eventDetail
-	res, err := d.GetById("event_detail", id)
-	if res.Error != "" {
-		return result, errors.New(res.Error)
-	} else if len(res.Return) == 0 {
-		return result, err
+	result = eventDetailsResult{
+		EventType:   base.EventType,
+		EventName:     base.EventName,
+		RawData:  instance.RawData,
+		RawDetails:        detail.RawDetail,
 	}
-	mapDecode(res.Return[0], &result)
-	return result, err
+	return result, nil
 }
 
 func (d *dataStore) AddEvent(evt *eventBase) error {

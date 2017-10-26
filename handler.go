@@ -110,16 +110,10 @@ func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	instance, _ := h.es.ds.GetInstanceById(int(eventId))
-	detail, _ := h.es.ds.GetDetailById(int(instance.EventDetailId))
-	event, _ := h.es.ds.GetEventBaseById(int(instance.EventBaseId))
-
-	// Process result
-	response := eventDetailsResult{
-		EventType:   event.EventType,
-		EventName:     event.EventName,
-		RawData:  instance.RawData,
-		RawDetails:        detail.RawDetail,
+	response, err := h.es.ds.GetEventDetailsbyId(int(eventId))
+	if err != nil {
+		h.sendError(w, http.StatusInternalServerError, err, "Could not get event details")
+		return
 	}
 	h.sendResp(w, "event_details", response)
 }
