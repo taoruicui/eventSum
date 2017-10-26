@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jacksontj/dataman/src/datamantype"
+	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
-	"github.com/julienschmidt/httprouter"
-	"github.com/jacksontj/dataman/src/datamantype"
 )
 
 // Base class for handling HTTP Requests

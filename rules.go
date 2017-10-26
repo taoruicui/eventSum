@@ -2,16 +2,15 @@ package eventsum
 
 import (
 	"github.com/pkg/errors"
-	"reflect"
 	"log"
+	"reflect"
 )
 
-
 type rule struct {
-	Filter map[string]interface{} // filtering data
-	Grouping map[string]interface{} // merge one event to a group
-	ConsolidateFunc interface{} // merge two groups together
-	log *log.Logger
+	Filter          map[string]interface{} // filtering data
+	Grouping        map[string]interface{} // merge one event to a group
+	ConsolidateFunc interface{}            // merge two groups together
+	log             *log.Logger
 }
 
 // Process user defined groupings. A grouping is how the user wants to map some data to a
@@ -115,14 +114,14 @@ func (r *rule) addConsolidateFunc(f func(map[string]interface{}, map[string]inte
 func newRule(l *log.Logger) rule {
 	return rule{
 		Filter: map[string]interface{}{
-			//"exception_python_remove_line_no":    exceptionPythonRemoveLineNo,
-			//"exception_python_remove_stack_vars": exceptionPythonRemoveStackVars,
+		//"exception_python_remove_line_no":    exceptionPythonRemoveLineNo,
+		//"exception_python_remove_stack_vars": exceptionPythonRemoveStackVars,
 		},
-		Grouping: map[string]interface{} {
-			//"query_perf_trace_grouping": queryPerfTraceGrouping,
+		Grouping: map[string]interface{}{
+		//"query_perf_trace_grouping": queryPerfTraceGrouping,
 		},
 		ConsolidateFunc: defaultConsolidate,
-		log: l,
+		log:             l,
 	}
 }
 

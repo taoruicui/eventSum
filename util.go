@@ -5,11 +5,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"math"
-	"time"
-	"reflect"
 	"github.com/jacksontj/dataman/src/datamantype"
 	"github.com/mitchellh/mapstructure"
+	"math"
+	"reflect"
+	"time"
 )
 
 // returns the start and end times of the interval bounding time t,
@@ -48,9 +48,9 @@ func stringToDateTimeHook(f reflect.Type, t reflect.Type, data interface{}) (int
 
 // mapstructure decode
 func mapDecode(source, target interface{}) error {
-	config :=  mapstructure.DecoderConfig{
+	config := mapstructure.DecoderConfig{
 		DecodeHook: stringToDateTimeHook,
-		Result: target,
+		Result:     target,
 	}
 	decoder, err := mapstructure.NewDecoder(&config)
 	if err != nil {

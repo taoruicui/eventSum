@@ -24,20 +24,20 @@ type dataStore struct {
 /* MODELS CORRESPONDING TO DATABASE TABLES */
 
 type eventBase struct {
-	Id                int64  `mapstructure:"_id"`
-	ServiceId         int    `mapstructure:"service_id"`
-	EventType         string `mapstructure:"event_type"`
-	EventName         string `mapstructure:"event_name"`
+	Id                int64       `mapstructure:"_id"`
+	ServiceId         int         `mapstructure:"service_id"`
+	EventType         string      `mapstructure:"event_type"`
+	EventName         string      `mapstructure:"event_name"`
 	ProcessedData     interface{} `mapstructure:"processed_data"`
-	ProcessedDataHash string `mapstructure:"processed_data_hash"`
+	ProcessedDataHash string      `mapstructure:"processed_data_hash"`
 }
 
 type eventInstance struct {
-	Id            int64  `mapstructure:"_id"`
-	EventBaseId   int64  `mapstructure:"event_base_id"`
-	EventDetailId int64  `mapstructure:"event_detail_id"`
+	Id            int64       `mapstructure:"_id"`
+	EventBaseId   int64       `mapstructure:"event_base_id"`
+	EventDetailId int64       `mapstructure:"event_detail_id"`
 	RawData       interface{} `mapstructure:"raw_data"`
-	RawDataHash   string `mapstructure:"raw_data_hash"`
+	RawDataHash   string      `mapstructure:"raw_data_hash"`
 
 	// ignored fields, used internally
 	ProcessedDataHash   string
@@ -45,13 +45,13 @@ type eventInstance struct {
 }
 
 type eventInstancePeriod struct {
-	Id              int64     `mapstructure:"_id"`
-	EventInstanceId int64     `mapstructure:"event_instance_id"`
-	StartTime       time.Time `mapstructure:"start_time"`
-	EndTime         time.Time `mapstructure:"end_time"`
-	Updated         time.Time `mapstructure:"updated"`
-	Count           int       `mapstructure:"count"`
-	CounterJson     map[string]interface{}    `mapstructure:"counter_json"`
+	Id              int64                  `mapstructure:"_id"`
+	EventInstanceId int64                  `mapstructure:"event_instance_id"`
+	StartTime       time.Time              `mapstructure:"start_time"`
+	EndTime         time.Time              `mapstructure:"end_time"`
+	Updated         time.Time              `mapstructure:"updated"`
+	Count           int                    `mapstructure:"count"`
+	CounterJson     map[string]interface{} `mapstructure:"counter_json"`
 
 	// ignored fields, used internally
 	RawDataHash         string
@@ -59,10 +59,10 @@ type eventInstancePeriod struct {
 }
 
 type eventDetail struct {
-	Id                  int64  `mapstructure:"_id"`
+	Id                  int64       `mapstructure:"_id"`
 	RawDetail           interface{} `mapstructure:"raw_detail"`
 	ProcessedDetail     interface{} `mapstructure:"processed_detail"`
-	ProcessedDetailHash string `mapstructure:"processed_detail_hash"`
+	ProcessedDetailHash string      `mapstructure:"processed_detail_hash"`
 }
 
 // Create a new dataStore
@@ -101,15 +101,15 @@ func newDataStore(conf eventsumConfig, log *log.Logger) *dataStore {
 	}
 }
 
-func (d *dataStore) Query(  typ query.QueryType,
-							collection string,
-							filter interface{},
-							record map[string]interface{},
-							recordOp map[string]interface{},
-							pkey map[string]interface{},
-							limit int,
-							sort []string,
-							join []interface{}) (*query.Result, error) {
+func (d *dataStore) Query(typ query.QueryType,
+	collection string,
+	filter interface{},
+	record map[string]interface{},
+	recordOp map[string]interface{},
+	pkey map[string]interface{},
+	limit int,
+	sort []string,
+	join []interface{}) (*query.Result, error) {
 	var res *query.Result
 	q := &query.Query{
 		Type: typ,
@@ -151,11 +151,11 @@ func (d *dataStore) Query(  typ query.QueryType,
 
 func (d *dataStore) AddEvent(evt *eventBase) error {
 	filter := map[string]interface{}{
-		"service_id": []interface{}{"=", evt.ServiceId},
-		"event_type": []interface{}{"=", evt.EventType},
+		"service_id":          []interface{}{"=", evt.ServiceId},
+		"event_type":          []interface{}{"=", evt.EventType},
 		"processed_data_hash": []interface{}{"=", evt.ProcessedDataHash},
 	}
-	res, err := d.Query(query.Filter, "event_base", filter, nil, nil,nil,1, nil, nil)
+	res, err := d.Query(query.Filter, "event_base", filter, nil, nil, nil, 1, nil, nil)
 	if err != nil {
 		return err
 	} else if len(res.Return) == 0 {
@@ -168,7 +168,7 @@ func (d *dataStore) AddEvent(evt *eventBase) error {
 			"processed_data_hash": evt.ProcessedDataHash,
 		}
 
-		res, err = d.Query(query.Set, "event_base", nil, record, nil,nil,-1, nil, nil)
+		res, err = d.Query(query.Set, "event_base", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -191,7 +191,7 @@ func (d *dataStore) AddEventInstance(evt *eventInstance) error {
 	filter := map[string]interface{}{
 		"raw_data_hash": []interface{}{"=", evt.RawDataHash},
 	}
-	res, err := d.Query(query.Filter, "event_instance", filter, nil, nil,nil,1, nil, nil)
+	res, err := d.Query(query.Filter, "event_instance", filter, nil, nil, nil, 1, nil, nil)
 	if err != nil {
 		return err
 	} else if len(res.Return) == 0 {
@@ -202,7 +202,7 @@ func (d *dataStore) AddEventInstance(evt *eventInstance) error {
 			"raw_data":        evt.RawData,
 			"raw_data_hash":   evt.RawDataHash,
 		}
-		res, err = d.Query(query.Set, "event_instance", nil, record, nil,nil,-1, nil, nil)
+		res, err = d.Query(query.Set, "event_instance", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -224,8 +224,8 @@ func (d *dataStore) AddEventInstances(evts []eventInstance) error {
 func (d *dataStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 	filter := map[string]interface{}{
 		"event_instance_id": []interface{}{"=", evt.EventInstanceId},
-		"start_time": []interface{}{"=", evt.StartTime},
-		"end_time": []interface{}{"=", evt.EndTime},
+		"start_time":        []interface{}{"=", evt.StartTime},
+		"end_time":          []interface{}{"=", evt.EndTime},
 	}
 	record := map[string]interface{}{
 		"event_instance_id": evt.EventInstanceId,
@@ -235,19 +235,19 @@ func (d *dataStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 		"count":             evt.Count,
 		"counter_json":      evt.CounterJson,
 	}
-	recordOp := map[string]interface{} {
+	recordOp := map[string]interface{}{
 		"count": []interface{}{"+", evt.Count},
 	}
 	// Add all the counter_json keys
 	for k, v := range evt.CounterJson {
 		recordOp["counter_json."+k] = []interface{}{"+", v}
 	}
-	res, err := d.Query(query.Filter, "event_instance_period", filter,nil, nil,nil,-1, nil, nil)
+	res, err := d.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, nil)
 	if err != nil {
 		return err
 	} else if len(res.Return) == 0 {
 		//TODO: fix uniqueness constraint
-		res, err = d.Query(query.Set, "event_instance_period", nil, record, nil,nil,-1, nil, nil)
+		res, err = d.Query(query.Set, "event_instance_period", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -256,7 +256,7 @@ func (d *dataStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 		mapDecode(res.Return[0], &tmp)
 		record["count"] = tmp.Count + evt.Count
 		record["counter_json"], _ = globalRule.Consolidate(tmp.CounterJson, evt.CounterJson)
-		res, err = d.Query(query.Update, "event_instance_period", filter, record,nil,nil,-1,nil,nil)
+		res, err = d.Query(query.Update, "event_instance_period", filter, record, nil, nil, -1, nil, nil)
 	}
 	mapDecode(res.Return[0], &evt)
 	return err
@@ -276,7 +276,7 @@ func (d *dataStore) AddEventDetail(evt *eventDetail) error {
 	filter := map[string]interface{}{
 		"processed_detail_hash": []interface{}{"=", evt.ProcessedDetailHash},
 	}
-	res, err := d.Query(query.Filter, "event_detail", filter, nil, nil,nil,1, nil, nil)
+	res, err := d.Query(query.Filter, "event_detail", filter, nil, nil, nil, 1, nil, nil)
 	if err != nil {
 		return err
 	} else if len(res.Return) == 0 {
@@ -286,7 +286,7 @@ func (d *dataStore) AddEventDetail(evt *eventDetail) error {
 			"processed_detail":      evt.ProcessedDetail,
 			"processed_detail_hash": evt.ProcessedDetailHash,
 		}
-		res, err = d.Query(query.Set, "event_detail", nil, record, nil,nil,-1, nil, nil)
+		res, err = d.Query(query.Set, "event_detail", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
 			return err
 		}
