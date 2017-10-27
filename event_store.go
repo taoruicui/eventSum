@@ -69,7 +69,7 @@ type eventChannel struct {
 }
 
 type eventStore struct {
-	ds           *dataStore    // link to any data store (Postgres, Cassandra, etc.)
+	ds           dataStore    // link to any data store (Postgres, Cassandra, etc.)
 	channel      *eventChannel // channel, or queue, for the processing of new events
 	log          *log.Logger
 	timeInterval int // interval time for event_instance_period
@@ -78,7 +78,7 @@ type eventStore struct {
 // create new Event Store. This 'store' stores necessary information
 // about the events and how they are processed. The event channel,
 // is the queue, and ds contains the link to the data store, or the DB.
-func newEventStore(ds *dataStore, config eventsumConfig, log *log.Logger) *eventStore {
+func newEventStore(ds dataStore, config eventsumConfig, log *log.Logger) *eventStore {
 	return &eventStore{
 		ds,
 		&eventChannel{

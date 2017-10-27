@@ -15,7 +15,27 @@ import (
 	"io/ioutil"
 )
 
-type dataStore struct {
+type dataStore interface {
+	Query(typ query.QueryType,
+		collection string,
+		filter interface{},
+		record map[string]interface{},
+		recordOp map[string]interface{},
+		pkey map[string]interface{},
+		limit int,
+		sort []string,
+		join []interface{}) (*query.Result, error)
+	AddEvent(evt *eventBase) error
+	AddEvents(evts []eventBase) error
+	AddEventInstance(evt *eventInstance) error
+	AddEventInstances(evts []eventInstance) error
+	AddEventInstancePeriod(evt *eventInstancePeriod) error
+	AddEventinstancePeriods(evts []eventInstancePeriod) error
+	AddEventDetail(evt *eventDetail) error
+	AddEventDetails(evts []eventDetail) error
+}
+
+type postgresStore struct {
 	client       *datamanclient.Client
 	log          *log.Logger
 	timeInterval int
@@ -67,7 +87,7 @@ type eventDetail struct {
 }
 
 // Create a new dataStore
-func newDataStore(conf eventsumConfig, log *log.Logger) *dataStore {
+func newDataStore(conf eventsumConfig, log *log.Logger) dataStore {
 	// Create a connection to Postgres Database through Dataman
 
 	storagenodeConfig, err := storagenode.DatasourceInstanceConfigFromFile(conf.DataSourceInstance)
@@ -95,14 +115,14 @@ func newDataStore(conf eventsumConfig, log *log.Logger) *dataStore {
 	}
 
 	client := &datamanclient.Client{Transport: transport}
-	return &dataStore{
+	return &postgresStore{
 		client:       client,
 		log:          log,
 		timeInterval: conf.TimeInterval,
 	}
 }
 
-func (d *dataStore) Query(typ query.QueryType,
+func (p *postgresStore) Query(typ query.QueryType,
 	collection string,
 	filter interface{},
 	record map[string]interface{},
@@ -141,22 +161,22 @@ func (d *dataStore) Query(typ query.QueryType,
 	if join != nil {
 		q.Args["join"] = join
 	}
-	res, err := d.client.DoQuery(context.Background(), q)
+	res, err := p.client.DoQuery(context.Background(), q)
 	if err != nil {
-		d.log.Panic(err)
+		p.log.Panic(err)
 	} else if res.Error != "" {
 		return res, errors.New(res.Error)
 	}
 	return res, err
 }
 
-func (d *dataStore) AddEvent(evt *eventBase) error {
+func (p *postgresStore) AddEvent(evt *eventBase) error {
 	filter := map[string]interface{}{
 		"service_id":          []interface{}{"=", evt.ServiceId},
 		"event_type":          []interface{}{"=", evt.EventType},
 		"processed_data_hash": []interface{}{"=", evt.ProcessedDataHash},
 	}
-	res, err := d.Query(query.Filter, "event_base", filter, nil, nil, nil, 1, nil, nil)
+	res, err := p.Query(query.Filter, "event_base", filter, nil, nil, nil, 1, nil, nil)
 	if err != nil {
 		return err
 	} else if len(res.Return) == 0 {
@@ -169,7 +189,7 @@ func (d *dataStore) AddEvent(evt *eventBase) error {
 			"processed_data_hash": evt.ProcessedDataHash,
 		}
 
-		res, err = d.Query(query.Set, "event_base", nil, record, nil, nil, -1, nil, nil)
+		res, err = p.Query(query.Set, "event_base", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -178,9 +198,9 @@ func (d *dataStore) AddEvent(evt *eventBase) error {
 	return nil
 }
 
-func (d *dataStore) AddEvents(evts []eventBase) error {
+func (p *postgresStore) AddEvents(evts []eventBase) error {
 	for i := range evts {
-		err := d.AddEvent(&evts[i])
+		err := p.AddEvent(&evts[i])
 		if err != nil {
 			return err
 		}
@@ -188,11 +208,11 @@ func (d *dataStore) AddEvents(evts []eventBase) error {
 	return nil
 }
 
-func (d *dataStore) AddEventInstance(evt *eventInstance) error {
+func (p *postgresStore) AddEventInstance(evt *eventInstance) error {
 	filter := map[string]interface{}{
 		"raw_data_hash": []interface{}{"=", evt.RawDataHash},
 	}
-	res, err := d.Query(query.Filter, "event_instance", filter, nil, nil, nil, 1, nil, nil)
+	res, err := p.Query(query.Filter, "event_instance", filter, nil, nil, nil, 1, nil, nil)
 	if err != nil {
 		return err
 	} else if len(res.Return) == 0 {
@@ -203,7 +223,7 @@ func (d *dataStore) AddEventInstance(evt *eventInstance) error {
 			"raw_data":        evt.RawData,
 			"raw_data_hash":   evt.RawDataHash,
 		}
-		res, err = d.Query(query.Set, "event_instance", nil, record, nil, nil, -1, nil, nil)
+		res, err = p.Query(query.Set, "event_instance", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -212,9 +232,9 @@ func (d *dataStore) AddEventInstance(evt *eventInstance) error {
 	return nil
 }
 
-func (d *dataStore) AddEventInstances(evts []eventInstance) error {
+func (p *postgresStore) AddEventInstances(evts []eventInstance) error {
 	for i := range evts {
-		err := d.AddEventInstance(&evts[i])
+		err := p.AddEventInstance(&evts[i])
 		if err != nil {
 			return err
 		}
@@ -222,7 +242,7 @@ func (d *dataStore) AddEventInstances(evts []eventInstance) error {
 	return nil
 }
 
-func (d *dataStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
+func (p *postgresStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 	filter := map[string]interface{}{
 		"event_instance_id": []interface{}{"=", evt.EventInstanceId},
 		"start_time":        []interface{}{"=", evt.StartTime},
@@ -237,12 +257,12 @@ func (d *dataStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 		"counter_json":      evt.CounterJson,
 	}
 	for {
-		res, err := d.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, nil)
+		res, err := p.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, nil)
 		if err != nil {
 			return err
 		} else if len(res.Return) == 0 {
 			//TODO: fix uniqueness constraint
-			res, err = d.Query(query.Set, "event_instance_period", nil, record, nil, nil, -1, nil, nil)
+			res, err = p.Query(query.Set, "event_instance_period", nil, record, nil, nil, -1, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -253,7 +273,7 @@ func (d *dataStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 			record["count"] = tmp.Count + evt.Count
 			record["counter_json"], _ = globalRule.Consolidate(tmp.CounterJson, evt.CounterJson)
 			record["cas_value"] = tmp.CAS + 1
-			res, err = d.Query(query.Update, "event_instance_period", filter, record, nil, nil, -1, nil, nil)
+			res, err = p.Query(query.Update, "event_instance_period", filter, record, nil, nil, -1, nil, nil)
 			// if update failed then CAS failed, must retry
 			if err != nil {
 				continue
@@ -264,9 +284,9 @@ func (d *dataStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 	}
 }
 
-func (d *dataStore) AddEventinstancePeriods(evts []eventInstancePeriod) error {
+func (p *postgresStore) AddEventinstancePeriods(evts []eventInstancePeriod) error {
 	for i := range evts {
-		err := d.AddEventInstancePeriod(&evts[i])
+		err := p.AddEventInstancePeriod(&evts[i])
 		if err != nil {
 			return err
 		}
@@ -274,11 +294,11 @@ func (d *dataStore) AddEventinstancePeriods(evts []eventInstancePeriod) error {
 	return nil
 }
 
-func (d *dataStore) AddEventDetail(evt *eventDetail) error {
+func (p *postgresStore) AddEventDetail(evt *eventDetail) error {
 	filter := map[string]interface{}{
 		"processed_detail_hash": []interface{}{"=", evt.ProcessedDetailHash},
 	}
-	res, err := d.Query(query.Filter, "event_detail", filter, nil, nil, nil, 1, nil, nil)
+	res, err := p.Query(query.Filter, "event_detail", filter, nil, nil, nil, 1, nil, nil)
 	if err != nil {
 		return err
 	} else if len(res.Return) == 0 {
@@ -288,7 +308,7 @@ func (d *dataStore) AddEventDetail(evt *eventDetail) error {
 			"processed_detail":      evt.ProcessedDetail,
 			"processed_detail_hash": evt.ProcessedDetailHash,
 		}
-		res, err = d.Query(query.Set, "event_detail", nil, record, nil, nil, -1, nil, nil)
+		res, err = p.Query(query.Set, "event_detail", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -297,9 +317,9 @@ func (d *dataStore) AddEventDetail(evt *eventDetail) error {
 	return err
 }
 
-func (d *dataStore) AddEventDetails(evts []eventDetail) error {
+func (p *postgresStore) AddEventDetails(evts []eventDetail) error {
 	for i := range evts {
-		err := d.AddEventDetail(&evts[i])
+		err := p.AddEventDetail(&evts[i])
 		if err != nil {
 			return err
 		}
