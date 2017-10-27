@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/ContextLogic/eventsum"
 	"github.com/mitchellh/mapstructure"
+	"math"
 )
 
 type stackTrace struct {
@@ -30,6 +31,7 @@ func main() {
 	e.AddFilter("exception_python_remove_line_no", exceptionPythonRemoveLineNo)
 	e.AddFilter("exception_python_remove_stack_vars", exceptionPythonRemoveStackVars)
 	e.AddGrouping("query_perf_trace_grouping", queryPerfTraceGrouping)
+	e.AddConsolidation(consolidationFunction)
 	e.Start()
 }
 
@@ -82,3 +84,20 @@ func queryPerfTraceGrouping(data eventsum.EventData, group map[string]interface{
 	group["b"] = i + 1.0
 	return group
 }
+
+/*
+CONSOLIDATION FUNCTION
+
+This function should define how two groups should be merged.
+ */
+
+ func consolidationFunction(group1, group2 map[string]interface{}) map[string]interface{} {
+	 for k, i := range group1 {
+		 if v, ok := group2[k]; !ok {
+			 group2[k] = v
+		 } else {
+		 	group2[k] = math.Max(v.(float64), i.(float64))
+		 }
+	 }
+	 return group2
+ }

@@ -127,7 +127,7 @@ func newRule(l *log.Logger) rule {
 
 // Default consolidation function. This function takes two dicts and merges
 // them together additively. Returns a single group
-func defaultConsolidate(g1 map[string]interface{}, g2 map[string]interface{}) map[string]interface{} {
+func defaultConsolidate(g1, g2 map[string]interface{}) map[string]interface{} {
 	for k, i := range g1 {
 		if _, ok := g2[k]; !ok {
 			g2[k] = 0.0
