@@ -52,6 +52,7 @@ type eventInstancePeriod struct {
 	Updated         time.Time              `mapstructure:"updated"`
 	Count           int                    `mapstructure:"count"`
 	CounterJson     map[string]interface{} `mapstructure:"counter_json"`
+	CAS int `mapstructure:"cas_value"`
 
 	// ignored fields, used internally
 	RawDataHash         string
@@ -235,31 +236,32 @@ func (d *dataStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 		"count":             evt.Count,
 		"counter_json":      evt.CounterJson,
 	}
-	recordOp := map[string]interface{}{
-		"count": []interface{}{"+", evt.Count},
-	}
-	// Add all the counter_json keys
-	for k, v := range evt.CounterJson {
-		recordOp["counter_json."+k] = []interface{}{"+", v}
-	}
-	res, err := d.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, nil)
-	if err != nil {
-		return err
-	} else if len(res.Return) == 0 {
-		//TODO: fix uniqueness constraint
-		res, err = d.Query(query.Set, "event_instance_period", nil, record, nil, nil, -1, nil, nil)
+	for {
+		res, err := d.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, nil)
 		if err != nil {
 			return err
+		} else if len(res.Return) == 0 {
+			//TODO: fix uniqueness constraint
+			res, err = d.Query(query.Set, "event_instance_period", nil, record, nil, nil, -1, nil, nil)
+			if err != nil {
+				return err
+			}
+		} else {
+			var tmp eventInstancePeriod
+			mapDecode(res.Return[0], &tmp)
+			filter["cas_value"] = []interface{}{"=", tmp.CAS}
+			record["count"] = tmp.Count + evt.Count
+			record["counter_json"], _ = globalRule.Consolidate(tmp.CounterJson, evt.CounterJson)
+			record["cas_value"] = tmp.CAS + 1
+			res, err = d.Query(query.Update, "event_instance_period", filter, record, nil, nil, -1, nil, nil)
+			// if update failed then CAS failed, must retry
+			if err != nil {
+				continue
+			}
 		}
-	} else {
-		var tmp eventInstancePeriod
-		mapDecode(res.Return[0], &tmp)
-		record["count"] = tmp.Count + evt.Count
-		record["counter_json"], _ = globalRule.Consolidate(tmp.CounterJson, evt.CounterJson)
-		res, err = d.Query(query.Update, "event_instance_period", filter, record, nil, nil, -1, nil, nil)
+		mapDecode(res.Return[0], &evt)
+		return err
 	}
-	mapDecode(res.Return[0], &evt)
-	return err
 }
 
 func (d *dataStore) AddEventinstancePeriods(evts []eventInstancePeriod) error {

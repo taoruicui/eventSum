@@ -180,6 +180,12 @@
                   "not_null": true,
                   "provision_state": 3
                 },
+                "cas_value": {
+                  "name": "cas_value",
+                  "field_type": "_int",
+                  "default": 0,
+                  "provision_state": 3
+                },
                 "count": {
                   "name": "count",
                   "field_type": "_int",

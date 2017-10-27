@@ -120,12 +120,12 @@ func (es *eventStore) Send(exc unaddedEvent) {
 
 // Process Batch from channel and bulk insert into Db
 func (es *eventStore) SummarizeBatchEvents() {
-	var excsToAdd []unaddedEvent
+	var evtsToAdd []unaddedEvent
 	for length := len(es.channel._queue); length > 0; length-- {
 		exc := <-es.channel._queue
-		excsToAdd = append(excsToAdd, exc)
+		evtsToAdd = append(evtsToAdd, exc)
 	}
-	if len(excsToAdd) == 0 {
+	if len(evtsToAdd) == 0 {
 		return
 	}
 
@@ -143,7 +143,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 	var eventClassInstancePeriodsMap = make(map[keyEventPeriod]int)
 	var eventDetailsMap = make(map[string]int)
 
-	for _, event := range excsToAdd {
+	for _, event := range evtsToAdd {
 		rawData := event.Data.Raw
 		rawDetail := event.ExtraArgs
 		// Feed event into filter
