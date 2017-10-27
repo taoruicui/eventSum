@@ -152,7 +152,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 			es.log.Printf("Error when processing data: %v", err)
 			processedData = rawData
 		}
-		processedDetail, err := globalRule.ProcessFilter(event, "detail")
+		processedDetail, err := globalRule.ProcessFilter(event, "extra_args")
 		if err != nil {
 			es.log.Printf("Error when processing detail: %v", err)
 			processedDetail = rawDetail

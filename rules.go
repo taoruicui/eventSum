@@ -58,7 +58,7 @@ func (r *rule) ProcessFilter(event unaddedEvent, filterName string) (interface{}
 
 	if filterName == "data" {
 		return event.Data, nil
-	} else if filterName == "detail" {
+	} else if filterName == "extra_args" {
 		return event.ExtraArgs, nil
 	} else {
 		return event, errors.New("filter name not supported")
