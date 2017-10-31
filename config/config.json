@@ -1,6 +1,7 @@
 {
   "data_source_instance": "config/datasourceinstance.yaml",
   "data_source_schema": "config/schema.json",
+  "log_config_file": "config/logconfig.json",
   "event_batch_limit": 4,
   "event_time_limit": 5,
   "server_port": 8080,

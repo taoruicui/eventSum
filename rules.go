@@ -2,7 +2,7 @@ package eventsum
 
 import (
 	"github.com/pkg/errors"
-	"log"
+	log "github.com/ContextLogic/eventsum/log"
 	"reflect"
 )
 
@@ -18,12 +18,12 @@ type rule struct {
 func (r *rule) ProcessGrouping(event unaddedEvent, group map[string]interface{}) (map[string]interface{}, error) {
 	for _, name := range event.ConfigurableGroupings {
 		if _, ok := r.Grouping[name]; !ok {
-			r.log.Print("Function name not supported")
+			r.log.App.Info("Function name not supported")
 			continue
 		}
 		res, err := r.call("group", name, event.Data, group)
 		if err != nil {
-			r.log.Printf("Error: %v", err)
+			r.log.App.Errorf("Error: %v", err)
 			continue
 		}
 		d := res[0].Interface().(map[string]interface{})
@@ -37,17 +37,17 @@ func (r *rule) ProcessFilter(event unaddedEvent, filterName string) (interface{}
 	if funcNames, ok := event.ConfigurableFilters[filterName]; ok {
 		for _, name := range funcNames {
 			if _, ok := r.Filter[name]; !ok {
-				r.log.Print("Function name not supported")
+				r.log.App.Info("Function name not supported")
 				continue
 			}
 			res, err := r.call("filter", name, event.Data)
 			if err != nil {
-				r.log.Printf("Error: %v", err)
+				r.log.App.Errorf("Error: %v", err)
 				continue
 			}
 			// Second reflect.Value is the error
 			if err, ok := res[1].Interface().(error); ok {
-				r.log.Printf("Error: %v", err)
+				r.log.App.Errorf("Error: %v", err)
 				continue
 			}
 			// First reflect.Value is the EventData
@@ -68,7 +68,7 @@ func (r *rule) ProcessFilter(event unaddedEvent, filterName string) (interface{}
 func (r *rule) Consolidate(g1 map[string]interface{}, g2 map[string]interface{}) (map[string]interface{}, error) {
 	res, err := r.call("consolidate", "", g1, g2)
 	if err != nil {
-		r.log.Printf("Error: %v", err)
+		r.log.App.Errorf("Error: %v", err)
 		return g1, err
 	}
 	return res[0].Interface().(map[string]interface{}), nil

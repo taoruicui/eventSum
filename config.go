@@ -10,6 +10,7 @@ import (
 type eventsumConfig struct {
 	DataSourceInstance string                 `json:"data_source_instance"`
 	DataSourceSchema   string                 `json:"data_source_schema"`
+	LogConfigFile      string                 `json:"log_config_file"`
 	BatchSize          int                    `json:"event_batch_limit"`
 	TimeLimit          int                    `json:"event_time_limit"` // in seconds
 	ServerPort         int                    `json:"server_port"`
@@ -21,6 +22,7 @@ func defaultConfig() eventsumConfig {
 	return eventsumConfig{
 		DataSourceInstance: "config/datasourceinstance.yaml",
 		DataSourceSchema:   "config/schema.json",
+		LogConfigFile:      "config/logconfig.json",
 		BatchSize:          5,
 		TimeLimit:          5,
 		ServerPort:         8080,
@@ -37,6 +39,7 @@ func parseEventsumConfig(file string) (eventsumConfig, error) {
 	if err != nil {
 		return configuration, fmt.Errorf("Error", err)
 	}
+	defer f.Close()
 	decoder := json.NewDecoder(f)
 	decodeErr := decoder.Decode(&configuration)
 	if decodeErr != nil {

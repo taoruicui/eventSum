@@ -1,11 +1,11 @@
 package eventsum
 
 import (
-	"log"
 	"time"
 
 	"context"
 	"encoding/json"
+	log "github.com/ContextLogic/eventsum/log"
 	"github.com/jacksontj/dataman/src/client"
 	"github.com/jacksontj/dataman/src/client/direct"
 	"github.com/jacksontj/dataman/src/query"
@@ -92,18 +92,18 @@ func newDataStore(conf eventsumConfig, log *log.Logger) dataStore {
 
 	storagenodeConfig, err := storagenode.DatasourceInstanceConfigFromFile(conf.DataSourceInstance)
 	if err != nil {
-		log.Fatalf("Error loading config: %v", err)
+		log.App.Fatalf("Error loading config: %v", err)
 	}
 
 	// Load meta
 	meta := &metadata.Meta{}
 	metaBytes, err := ioutil.ReadFile(conf.DataSourceSchema)
 	if err != nil {
-		log.Fatalf("Error loading schema: %v", err)
+		log.App.Fatalf("Error loading schema: %v", err)
 	}
 	err = json.Unmarshal([]byte(metaBytes), meta)
 	if err != nil {
-		log.Fatalf("Error loading meta: %v", err)
+		log.App.Fatalf("Error loading meta: %v", err)
 	}
 
 	// TODO: remove
@@ -111,7 +111,7 @@ func newDataStore(conf eventsumConfig, log *log.Logger) dataStore {
 
 	transport, err := datamandirect.NewStaticDatasourceInstanceTransport(storagenodeConfig, meta)
 	if err != nil {
-		log.Fatalf("Error NewStaticDatasourceInstanceClient: %v", err)
+		log.App.Fatalf("Error NewStaticDatasourceInstanceClient: %v", err)
 	}
 
 	client := &datamanclient.Client{Transport: transport}
@@ -163,7 +163,7 @@ func (p *postgresStore) Query(typ query.QueryType,
 	}
 	res, err := p.client.DoQuery(context.Background(), q)
 	if err != nil {
-		p.log.Panic(err)
+		p.log.App.Panic(err)
 	} else if res.Error != "" {
 		return res, errors.New(res.Error)
 	}

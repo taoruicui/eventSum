@@ -27,7 +27,7 @@ type frame struct {
 }
 
 func main() {
-	e := eventsum.New("config/default.json")
+	e := eventsum.New("config/config.json")
 	e.AddFilter("exception_python_remove_line_no", exceptionPythonRemoveLineNo)
 	e.AddFilter("exception_python_remove_stack_vars", exceptionPythonRemoveStackVars)
 	e.AddGrouping("query_perf_trace_grouping", queryPerfTraceGrouping)

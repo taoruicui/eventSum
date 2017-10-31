@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/jacksontj/dataman/src/query"
 	"github.com/pkg/errors"
-	"log"
+	log "github.com/ContextLogic/eventsum/log"
 	"time"
 )
 
@@ -149,12 +149,12 @@ func (es *eventStore) SummarizeBatchEvents() {
 		// Feed event into filter
 		processedData, err := globalRule.ProcessFilter(event, "data")
 		if err != nil {
-			es.log.Printf("Error when processing data: %v", err)
+			es.log.App.Errorf("Error when processing data: %v", err)
 			processedData = rawData
 		}
 		processedDetail, err := globalRule.ProcessFilter(event, "extra_args")
 		if err != nil {
-			es.log.Printf("Error when processing detail: %v", err)
+			es.log.App.Errorf("Error when processing detail: %v", err)
 			processedDetail = rawDetail
 		}
 
@@ -221,11 +221,11 @@ func (es *eventStore) SummarizeBatchEvents() {
 	}
 
 	if err := es.ds.AddEvents(eventClasses); err != nil {
-		es.log.Printf("Error while inserting events: %v", err)
+		es.log.App.Errorf("Error while inserting events: %v", err)
 	}
 
 	if err := es.ds.AddEventDetails(eventDetails); err != nil {
-		es.log.Printf("Error while inserting event data: %v", err)
+		es.log.App.Errorf("Error while inserting event data: %v", err)
 	}
 
 	// Add the ids generated from above
@@ -239,7 +239,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 	}
 
 	if err := es.ds.AddEventInstances(eventClassInstances); err != nil {
-		es.log.Printf("Error while inserting event instances: %v", err)
+		es.log.App.Errorf("Error while inserting event instances: %v", err)
 	}
 
 	// Add the ids generated from above
@@ -253,7 +253,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 	}
 
 	if err := es.ds.AddEventinstancePeriods(eventClassInstancePeriods); err != nil {
-		es.log.Printf("Error while inserting event time periods: %v", err)
+		es.log.App.Errorf("Error while inserting event time periods: %v", err)
 	}
 }
 

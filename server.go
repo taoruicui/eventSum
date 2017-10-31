@@ -2,7 +2,6 @@ package eventsum
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
+	log "github.com/ContextLogic/eventsum/log"
 )
 
 /* GLOBAL VARIABLES */
@@ -40,9 +40,9 @@ func (s *EventSumServer) Start() {
 
 	// run the store in a goroutine
 	go func() {
-		s.logger.Printf("Listening on http://0.0.0.0%s\n", httpServer.Addr)
+		s.logger.App.Printf("Listening on http://0.0.0.0%s", httpServer.Addr)
 		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
-			s.logger.Fatal(err)
+			s.logger.App.Fatal(err)
 		}
 	}()
 
@@ -61,15 +61,15 @@ func (s *EventSumServer) Stop(hs *http.Server, timeout time.Duration) {
 
 	// make sure we process events inside the queue
 	s.httpHandler.es.Stop()
-	s.logger.Printf("\nShutdown with timeout: %s\n", timeout)
-	s.logger.Printf("\nProcessing events still left in the queue")
+	s.logger.App.Printf("Shutdown with timeout: %s", timeout)
+	s.logger.App.Printf("Processing events still left in the queue")
 	close(s.httpHandler.es.channel._queue)
 	s.httpHandler.es.SummarizeBatchEvents()
 
 	if err := hs.Shutdown(ctx); err != nil {
-		s.logger.Printf("Error: %v\n", err)
+		s.logger.App.Errorf("Error: %v", err)
 	} else {
-		s.logger.Println("Server stopped")
+		s.logger.App.Println("Server stopped")
 	}
 }
 
@@ -102,7 +102,7 @@ func newServer(options func(server *EventSumServer)) *EventSumServer {
 	options(s)
 
 	if s.logger == nil {
-		s.logger = log.New(os.Stdout, "", log.Lshortfile)
+		s.logger = log.NewLogger("")
 	}
 
 	/* ROUTING */
@@ -125,7 +125,7 @@ func New(configFilename string) *EventSumServer {
 		panic(err)
 	}
 
-	logger := log.New(os.Stdout, "", log.Lshortfile)
+	logger := log.NewLogger(config.LogConfigFile)
 	globalRule = newRule(logger)
 	ds := newDataStore(config, logger)
 	es := newEventStore(ds, config, logger)
