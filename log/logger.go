@@ -8,18 +8,18 @@ import (
 
 type config struct {
 	TimePeriod int `json:"time_period"`
+	Environment string `json:"environment"`
 	AppLogging string `json:"app_logging"`
 	DataLogging string `json:"data_logging"`
 }
 
+// There are two types of logging in this service: App logginng and Data logging.
+// App logging: Debug, info, System calls, etc.
+// Data logging: real data, events that failed to be added to DB, etc.
 type Logger struct {
 	App *log.Logger
 	Data *log.Logger
 }
-
-//func (l *Logger) Errorf(format string, args...interface{}) {
-//	l.App.Errorf(format, args...)
-//}
 
 
 
@@ -27,6 +27,7 @@ type Logger struct {
 func parseConfig(file string) config {
 	c := config{
 		5,
+		"dev",
 		"log/system.log",
 		"log/data.log",
 	}
@@ -47,16 +48,25 @@ func parseConfig(file string) config {
 // Return new logger given config file
 func NewLogger(configFile string) *Logger {
 	config := parseConfig(configFile)
-	appFile, err := os.OpenFile(config.AppLogging, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
-	if err != nil {
-		log.Warn(err)
-		appFile = os.Stderr
+	var appFile *os.File
+	var dataFile *os.File
+	var err error
+
+	// If environment is dev, send output to stdout
+	if config.Environment == "dev" {
+		appFile = os.Stdout
+		dataFile = os.Stdout
+	} else {
+		appFile, err = os.OpenFile(config.AppLogging, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+		if err != nil {
+			log.Warn(err)
+		}
+		dataFile, err = os.OpenFile(config.DataLogging, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+		if err != nil {
+			log.Warn(err)
+		}
 	}
-	dataFile, err := os.OpenFile(config.DataLogging, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
-	if err != nil {
-		log.Warn(err)
-		dataFile = os.Stderr
-	}
+
 	l := Logger{
 		App: log.New(),
 		Data: log.New(),
