@@ -12,11 +12,12 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	"github.com/ContextLogic/eventsum/log"
+	"github.com/ContextLogic/eventsum/rules"
 	. "github.com/ContextLogic/eventsum/models"
 )
 
 /* GLOBAL VARIABLES */
-var globalRule rule
+var globalRule rules.Rule
 
 type EventSumServer struct {
 	logger      *log.Logger
@@ -79,7 +80,7 @@ func (s *EventSumServer) AddFilter(name string, filter func(EventData) (EventDat
 	if name == "" {
 		return errors.New("Name must be a valid string")
 	}
-	return globalRule.addFilter(name, filter)
+	return globalRule.AddFilter(name, filter)
 }
 
 // User Defined configurable groupings
@@ -87,12 +88,12 @@ func (s *EventSumServer) AddGrouping(name string, grouping func(EventData, map[s
 	if name == "" {
 		return errors.New("Name must be a valid string")
 	}
-	return globalRule.addGrouping(name, grouping)
+	return globalRule.AddGrouping(name, grouping)
 }
 
 // User Defined configurable groupings
 func (s *EventSumServer) AddConsolidation(f func(map[string]interface{}, map[string]interface{}) map[string]interface{}) error {
-	return globalRule.addConsolidateFunc(f)
+	return globalRule.AddConsolidateFunc(f)
 }
 
 // Creates new HTTP Server given options.
@@ -126,8 +127,9 @@ func New(configFilename string) *EventSumServer {
 		panic(err)
 	}
 
+	globalRule = rules.NewRule()
+	log.GlobalRule = &globalRule
 	logger := log.NewLogger(config.LogConfigFile)
-	globalRule = newRule(logger)
 	ds := newDataStore(config, logger)
 	es := newEventStore(ds, config, logger)
 

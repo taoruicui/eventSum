@@ -1,31 +1,27 @@
-package eventsum
+package rules
 
 import (
 	"github.com/pkg/errors"
 	. "github.com/ContextLogic/eventsum/models"
-	"github.com/ContextLogic/eventsum/log"
 	"reflect"
 )
 
-type rule struct {
+type Rule struct {
 	Filter          map[string]interface{} // filtering data
 	Grouping        map[string]interface{} // merge one event to a group
 	ConsolidateFunc interface{}            // merge two groups together
-	log             *log.Logger
 }
 
 // Process user defined groupings. A grouping is how the user wants to map some data to a
 // group, or a key. Currently, only counter_json is supported
-func (r *rule) ProcessGrouping(event UnaddedEvent, group map[string]interface{}) (map[string]interface{}, error) {
+func (r *Rule) ProcessGrouping(event UnaddedEvent, group map[string]interface{}) (map[string]interface{}, error) {
 	for _, name := range event.ConfigurableGroupings {
 		if _, ok := r.Grouping[name]; !ok {
-			r.log.App.Info("Function name not supported")
-			continue
+			return group, errors.New("Function name not supported")
 		}
 		res, err := r.call("group", name, event.Data, group)
 		if err != nil {
-			r.log.App.Errorf("Error: %v", err)
-			continue
+			return group, err
 		}
 		d := res[0].Interface().(map[string]interface{})
 		group = d
@@ -34,22 +30,19 @@ func (r *rule) ProcessGrouping(event UnaddedEvent, group map[string]interface{})
 }
 
 // Process user defined filters. Make sure that if there is an error, do not do that processing.
-func (r *rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}, error) {
+func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}, error) {
 	if funcNames, ok := event.ConfigurableFilters[filterName]; ok {
 		for _, name := range funcNames {
 			if _, ok := r.Filter[name]; !ok {
-				r.log.App.Info("Function name not supported")
-				continue
+				return nil, errors.New("Function name not supported")
 			}
 			res, err := r.call("filter", name, event.Data)
 			if err != nil {
-				r.log.App.Errorf("Error: %v", err)
-				continue
+				return nil, err
 			}
 			// Second reflect.Value is the error
 			if err, ok := res[1].Interface().(error); ok {
-				r.log.App.Errorf("Error: %v", err)
-				continue
+				return nil, err
 			}
 			// First reflect.Value is the EventData
 			d := res[0].Interface().(EventData)
@@ -66,17 +59,16 @@ func (r *rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}
 	}
 }
 
-func (r *rule) Consolidate(g1 map[string]interface{}, g2 map[string]interface{}) (map[string]interface{}, error) {
+func (r *Rule) Consolidate(g1 map[string]interface{}, g2 map[string]interface{}) (map[string]interface{}, error) {
 	res, err := r.call("consolidate", "", g1, g2)
 	if err != nil {
-		r.log.App.Errorf("Error: %v", err)
 		return g1, err
 	}
 	return res[0].Interface().(map[string]interface{}), nil
 }
 
 // Calls the Function by name using Reflection
-func (r *rule) call(typ string, name string, params ...interface{}) (result []reflect.Value, err error) {
+func (r *Rule) call(typ string, name string, params ...interface{}) (result []reflect.Value, err error) {
 	var f reflect.Value
 	if typ == "group" {
 		f = reflect.ValueOf(r.Grouping[name])
@@ -97,23 +89,23 @@ func (r *rule) call(typ string, name string, params ...interface{}) (result []re
 	return
 }
 
-func (r *rule) addFilter(name string, filter func(EventData) (EventData, error)) error {
+func (r *Rule) AddFilter(name string, filter func(EventData) (EventData, error)) error {
 	r.Filter[name] = filter
 	return nil
 }
 
-func (r *rule) addGrouping(name string, grouping func(EventData, map[string]interface{}) map[string]interface{}) error {
+func (r *Rule) AddGrouping(name string, grouping func(EventData, map[string]interface{}) map[string]interface{}) error {
 	r.Grouping[name] = grouping
 	return nil
 }
 
-func (r *rule) addConsolidateFunc(f func(map[string]interface{}, map[string]interface{}) map[string]interface{}) error {
+func (r *Rule) AddConsolidateFunc(f func(map[string]interface{}, map[string]interface{}) map[string]interface{}) error {
 	r.ConsolidateFunc = f
 	return nil
 }
 
-func newRule(l *log.Logger) rule {
-	return rule{
+func NewRule() Rule {
+	return Rule{
 		Filter: map[string]interface{}{
 		//"exception_python_remove_line_no":    exceptionPythonRemoveLineNo,
 		//"exception_python_remove_stack_vars": exceptionPythonRemoveStackVars,
@@ -122,7 +114,6 @@ func newRule(l *log.Logger) rule {
 		//"query_perf_trace_grouping": queryPerfTraceGrouping,
 		},
 		ConsolidateFunc: defaultConsolidate,
-		log:             l,
 	}
 }
 

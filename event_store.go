@@ -9,11 +9,6 @@ import (
 	"time"
 )
 
-type keyEventPeriod struct {
-	RawDataHash, ProcessedDataHash string
-	TimePeriod                     time.Time
-}
-
 // Wrapper struct for Event Channel
 type eventChannel struct {
 	_queue    chan UnaddedEvent
@@ -94,7 +89,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 	// Maps the hash to the index of the associated array
 	var eventClassesMap = make(map[string]int)
 	var eventClassInstancesMap = make(map[string]int)
-	var eventClassInstancePeriodsMap = make(map[keyEventPeriod]int)
+	var eventClassInstancePeriodsMap = make(map[KeyEventPeriod]int)
 	var eventDetailsMap = make(map[string]int)
 
 	for _, event := range evtsToAdd {
@@ -139,14 +134,13 @@ func (es *eventStore) SummarizeBatchEvents() {
 			eventClassInstancesMap[rawDataHash] = len(eventClassInstances) - 1
 		}
 
-		// The unique key should be the raw data, the processed data, and the time period,
+		// The unique key should be the raw data, and the time period,
 		// since the count should keep track of an event instance in a certain time frame.
 		t := pythonUnixToGoUnix(event.Timestamp).UTC()
 		startTime, endTime := findBoundingTime(t, es.timeInterval)
-		key := keyEventPeriod{
-			rawDataHash,
-			processedDataHash,
-			startTime,
+		key := KeyEventPeriod{
+			RawDataHash: rawDataHash,
+			StartTime: startTime,
 		}
 		if _, ok := eventClassInstancePeriodsMap[key]; !ok {
 			eventClassInstancePeriods = append(eventClassInstancePeriods, EventInstancePeriod{
@@ -154,7 +148,6 @@ func (es *eventStore) SummarizeBatchEvents() {
 				Updated:             t,
 				EndTime:             endTime,
 				RawDataHash:         rawDataHash,         // Used to reference event_instance_id later
-				ProcessedDetailHash: processedDetailHash, // Used to reference event_detail_id later
 				Count:               0,
 				CounterJson:         make(map[string]interface{}),
 			})
@@ -176,13 +169,15 @@ func (es *eventStore) SummarizeBatchEvents() {
 
 	// Returns a map where the keys are the indices that an error occurred
 	if err := es.ds.AddEvents(eventClasses); len(err) != 0 {
-		for _, v := range err {
+		for i, v := range err {
+			es.log.EventLog.LogData(eventClasses[i])
 			es.log.App.Errorf("Error while inserting events: %v", v)
 		}
 	}
 
 	if err := es.ds.AddEventDetails(eventDetails); len(err) != 0 {
-		for _, v := range err {
+		for i, v := range err {
+			es.log.EventLog.LogData(eventDetails[i])
 			es.log.App.Errorf("Error while inserting event data: %v", v)
 		}
 	}
@@ -198,7 +193,8 @@ func (es *eventStore) SummarizeBatchEvents() {
 	}
 
 	if err := es.ds.AddEventInstances(eventClassInstances); len(err) != 0 {
-		for _, v := range err {
+		for i, v := range err {
+			es.log.EventLog.LogData(eventClassInstances[i])
 			es.log.App.Errorf("Error while inserting event instances: %v", v)
 		}
 	}
@@ -214,7 +210,8 @@ func (es *eventStore) SummarizeBatchEvents() {
 	}
 
 	if err := es.ds.AddEventinstancePeriods(eventClassInstancePeriods); len(err) != 0 {
-		for _, v := range err {
+		for i, v := range err {
+			es.log.EventLog.LogData(eventClassInstancePeriods[i])
 			es.log.App.Errorf("Error while inserting event time periods: %v", v)
 		}
 	}

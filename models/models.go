@@ -25,6 +25,11 @@ type EventData struct {
 	Raw     interface{} `json:"raw_data"`
 }
 
+type KeyEventPeriod struct {
+	RawDataHash string
+	StartTime   time.Time
+}
+
 // recent events
 type EventRecentResult struct {
 	Id            int64       `json:"id"`
@@ -92,7 +97,6 @@ type EventInstancePeriod struct {
 
 	// ignored fields, used internally
 	RawDataHash         string
-	ProcessedDetailHash string
 }
 
 type EventDetail struct {

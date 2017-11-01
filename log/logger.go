@@ -2,9 +2,14 @@ package log
 
 import (
 	log "github.com/sirupsen/logrus"
+	"github.com/ContextLogic/eventsum/rules"
+	. "github.com/ContextLogic/eventsum/models"
 	"encoding/json"
 	"os"
+	"reflect"
 )
+
+var GlobalRule *rules.Rule
 
 type config struct {
 	TimePeriod int `json:"time_period"`
@@ -19,10 +24,78 @@ type config struct {
 type Logger struct {
 	App *log.Logger
 	Data *log.Logger
+	EventLog failedEventsLog
 }
 
+type failedEventsLog struct {
+	Base []EventBase `json:"base"`
+	Instance []EventInstance `json:"instance"`
+	Period []EventInstancePeriod `json:"period"`
+	Detail []EventDetail `json:"detail"`
 
+	BaseMap map[string]int `json:"base_map"`
+	InstanceMap map[string]int `json:"instance_map"`
+	PeriodMap map[KeyEventPeriod]int `json:"period_map"`
+	DetailsMap map[string]int `json:"details_map"`
+}
 
+// Logs the data into failedEventsLog
+func (l *failedEventsLog) LogData(event interface{}) {
+	// Check the event type
+	t := reflect.TypeOf(event)
+	k := t.Kind()
+	if k != reflect.Struct {
+		return
+	}
+
+	switch t.Name(){
+	case "EventBase":
+		l.logEventBase(event.(EventBase))
+	case "EventInstance":
+		l.logEventInstance(event.(EventInstance))
+	case "EventInstancePeriod":
+		l.logEventInstancePeriod(event.(EventInstancePeriod))
+	case "EventDetail":
+		l.logEventDetail(event.(EventDetail))
+	}
+}
+
+func (l *failedEventsLog) logEventBase(base EventBase) {
+	if _, ok := l.BaseMap[base.ProcessedDataHash]; !ok {
+		l.Base = append(l.Base, base)
+		l.BaseMap[base.ProcessedDataHash] = len(l.Base) - 1
+	}
+}
+
+func (l *failedEventsLog) logEventInstance(instance EventInstance) {
+	if _, ok := l.InstanceMap[instance.ProcessedDataHash]; !ok {
+		l.Instance = append(l.Instance, instance)
+		l.InstanceMap[instance.ProcessedDataHash] = len(l.Instance) - 1
+	}
+}
+
+func (l *failedEventsLog) logEventInstancePeriod(period EventInstancePeriod) {
+	key := KeyEventPeriod{
+		RawDataHash:period.RawDataHash,
+		StartTime: period.StartTime,
+	}
+	if _, ok := l.PeriodMap[key]; !ok {
+		l.Period = append(l.Period, period)
+		l.PeriodMap[key] = len(l.Period) - 1
+	} else {
+		e := &l.Period[l.PeriodMap[key]]
+		e.Count += period.Count
+		// TODO: handle error
+		e.CounterJson, _ = GlobalRule.Consolidate(period.CounterJson, e.CounterJson)
+	}
+}
+
+func (l *failedEventsLog) logEventDetail(detail EventDetail) {
+	if _, ok := l.DetailsMap[detail.ProcessedDetailHash]; !ok {
+		l.Detail = append(l.Detail, detail)
+		l.DetailsMap[detail.ProcessedDetailHash] = len(l.Detail) - 1
+	}
+}
 
 func parseConfig(file string) config {
 	c := config{
@@ -70,6 +143,12 @@ func NewLogger(configFile string) *Logger {
 	l := Logger{
 		App: log.New(),
 		Data: log.New(),
+		EventLog: failedEventsLog{
+			BaseMap: make(map[string]int),
+			InstanceMap: make(map[string]int),
+			PeriodMap: make(map[KeyEventPeriod]int),
+			DetailsMap: make(map[string]int),
+		},
 	}
 	l.App.Out = appFile
 	l.Data.Out = dataFile

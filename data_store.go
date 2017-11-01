@@ -1,7 +1,7 @@
 package eventsum
 
 import (
-	"context"
+	//"context"
 	"encoding/json"
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/log"
@@ -115,9 +115,10 @@ func (p *postgresStore) Query(typ query.QueryType,
 	if join != nil {
 		q.Args["join"] = join
 	}
-	res, err := p.client.DoQuery(context.Background(), q)
+	//res, err := p.client.DoQuery(context.Background(), q)
+	res, err := &query.Result{}, errors.New("asdf")
 	if err != nil {
-		p.log.App.Panic(err)
+		return res, err
 	} else if res.Error != "" {
 		return res, errors.New(res.Error)
 	}
@@ -227,6 +228,7 @@ func (p *postgresStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 			mapDecode(res.Return[0], &tmp)
 			filter["cas_value"] = []interface{}{"=", tmp.CAS}
 			record["count"] = tmp.Count + evt.Count
+			// TODO: handle error
 			record["counter_json"], _ = globalRule.Consolidate(tmp.CounterJson, evt.CounterJson)
 			record["cas_value"] = tmp.CAS + 1
 			res, err = p.Query(query.Update, "event_instance_period", filter, record, nil, nil, -1, nil, nil)
