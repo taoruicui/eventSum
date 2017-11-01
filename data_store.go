@@ -5,7 +5,7 @@ import (
 
 	"context"
 	"encoding/json"
-	log "github.com/ContextLogic/eventsum/log"
+	"github.com/ContextLogic/eventsum/log"
 	"github.com/jacksontj/dataman/src/client"
 	"github.com/jacksontj/dataman/src/client/direct"
 	"github.com/jacksontj/dataman/src/query"
@@ -26,13 +26,13 @@ type dataStore interface {
 		sort []string,
 		join []interface{}) (*query.Result, error)
 	AddEvent(evt *eventBase) error
-	AddEvents(evts []eventBase) error
+	AddEvents(evts []eventBase) map[int]error
 	AddEventInstance(evt *eventInstance) error
-	AddEventInstances(evts []eventInstance) error
+	AddEventInstances(evts []eventInstance) map[int]error
 	AddEventInstancePeriod(evt *eventInstancePeriod) error
-	AddEventinstancePeriods(evts []eventInstancePeriod) error
+	AddEventinstancePeriods(evts []eventInstancePeriod) map[int]error
 	AddEventDetail(evt *eventDetail) error
-	AddEventDetails(evts []eventDetail) error
+	AddEventDetails(evts []eventDetail) map[int]error
 }
 
 type postgresStore struct {
@@ -198,14 +198,15 @@ func (p *postgresStore) AddEvent(evt *eventBase) error {
 	return nil
 }
 
-func (p *postgresStore) AddEvents(evts []eventBase) error {
+func (p *postgresStore) AddEvents(evts []eventBase) map[int]error {
+	var errs = make(map[int]error)
 	for i := range evts {
 		err := p.AddEvent(&evts[i])
 		if err != nil {
-			return err
+			errs[i] = err
 		}
 	}
-	return nil
+	return errs
 }
 
 func (p *postgresStore) AddEventInstance(evt *eventInstance) error {
@@ -232,14 +233,15 @@ func (p *postgresStore) AddEventInstance(evt *eventInstance) error {
 	return nil
 }
 
-func (p *postgresStore) AddEventInstances(evts []eventInstance) error {
+func (p *postgresStore) AddEventInstances(evts []eventInstance) map[int]error {
+	var errs = make(map[int]error)
 	for i := range evts {
 		err := p.AddEventInstance(&evts[i])
 		if err != nil {
-			return err
+			errs[i] = err
 		}
 	}
-	return nil
+	return errs
 }
 
 func (p *postgresStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
@@ -284,14 +286,15 @@ func (p *postgresStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 	}
 }
 
-func (p *postgresStore) AddEventinstancePeriods(evts []eventInstancePeriod) error {
+func (p *postgresStore) AddEventinstancePeriods(evts []eventInstancePeriod) map[int]error {
+	var errs = make(map[int]error)
 	for i := range evts {
 		err := p.AddEventInstancePeriod(&evts[i])
 		if err != nil {
-			return err
+			errs[i] = err
 		}
 	}
-	return nil
+	return errs
 }
 
 func (p *postgresStore) AddEventDetail(evt *eventDetail) error {
@@ -317,12 +320,13 @@ func (p *postgresStore) AddEventDetail(evt *eventDetail) error {
 	return err
 }
 
-func (p *postgresStore) AddEventDetails(evts []eventDetail) error {
+func (p *postgresStore) AddEventDetails(evts []eventDetail) map[int]error {
+	var errs = make(map[int]error)
 	for i := range evts {
 		err := p.AddEventDetail(&evts[i])
 		if err != nil {
-			return err
+			errs[i] = err
 		}
 	}
-	return nil
+	return errs
 }

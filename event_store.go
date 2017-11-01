@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/jacksontj/dataman/src/query"
 	"github.com/pkg/errors"
-	log "github.com/ContextLogic/eventsum/log"
+	"github.com/ContextLogic/eventsum/log"
 	"time"
 )
 
@@ -220,12 +220,17 @@ func (es *eventStore) SummarizeBatchEvents() {
 		}
 	}
 
-	if err := es.ds.AddEvents(eventClasses); err != nil {
-		es.log.App.Errorf("Error while inserting events: %v", err)
+	// Returns a map where the keys are the indices that an error occurred
+	if err := es.ds.AddEvents(eventClasses); len(err) != 0 {
+		for _, v := range err {
+			es.log.App.Errorf("Error while inserting events: %v", v)
+		}
 	}
 
-	if err := es.ds.AddEventDetails(eventDetails); err != nil {
-		es.log.App.Errorf("Error while inserting event data: %v", err)
+	if err := es.ds.AddEventDetails(eventDetails); len(err) != 0 {
+		for _, v := range err {
+			es.log.App.Errorf("Error while inserting event data: %v", v)
+		}
 	}
 
 	// Add the ids generated from above
@@ -238,8 +243,10 @@ func (es *eventStore) SummarizeBatchEvents() {
 			eventDetails[eventDetailsMap[detailHash]].Id
 	}
 
-	if err := es.ds.AddEventInstances(eventClassInstances); err != nil {
-		es.log.App.Errorf("Error while inserting event instances: %v", err)
+	if err := es.ds.AddEventInstances(eventClassInstances); len(err) != 0 {
+		for _, v := range err {
+			es.log.App.Errorf("Error while inserting event instances: %v", v)
+		}
 	}
 
 	// Add the ids generated from above
@@ -252,8 +259,10 @@ func (es *eventStore) SummarizeBatchEvents() {
 		//	eventData[eventDataMap[detailHash]].Id
 	}
 
-	if err := es.ds.AddEventinstancePeriods(eventClassInstancePeriods); err != nil {
-		es.log.App.Errorf("Error while inserting event time periods: %v", err)
+	if err := es.ds.AddEventinstancePeriods(eventClassInstancePeriods); len(err) != 0 {
+		for _, v := range err {
+			es.log.App.Errorf("Error while inserting event time periods: %v", v)
+		}
 	}
 }
 
