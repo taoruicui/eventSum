@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"github.com/jacksontj/dataman/src/datamantype"
 	"github.com/julienschmidt/httprouter"
-	log "github.com/ContextLogic/eventsum/log"
+	. "github.com/ContextLogic/eventsum/models"
+	"github.com/ContextLogic/eventsum/log"
 	"net/http"
 	"strconv"
 	"time"
@@ -135,7 +136,7 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	var exc unaddedEvent
+	var exc UnaddedEvent
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&exc); err != nil {

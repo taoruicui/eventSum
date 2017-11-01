@@ -1,10 +1,9 @@
 package eventsum
 
 import (
-	"time"
-
 	"context"
 	"encoding/json"
+	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/log"
 	"github.com/jacksontj/dataman/src/client"
 	"github.com/jacksontj/dataman/src/client/direct"
@@ -25,65 +24,20 @@ type dataStore interface {
 		limit int,
 		sort []string,
 		join []interface{}) (*query.Result, error)
-	AddEvent(evt *eventBase) error
-	AddEvents(evts []eventBase) map[int]error
-	AddEventInstance(evt *eventInstance) error
-	AddEventInstances(evts []eventInstance) map[int]error
-	AddEventInstancePeriod(evt *eventInstancePeriod) error
-	AddEventinstancePeriods(evts []eventInstancePeriod) map[int]error
-	AddEventDetail(evt *eventDetail) error
-	AddEventDetails(evts []eventDetail) map[int]error
+	AddEvent(evt *EventBase) error
+	AddEvents(evts []EventBase) map[int]error
+	AddEventInstance(evt *EventInstance) error
+	AddEventInstances(evts []EventInstance) map[int]error
+	AddEventInstancePeriod(evt *EventInstancePeriod) error
+	AddEventinstancePeriods(evts []EventInstancePeriod) map[int]error
+	AddEventDetail(evt *EventDetail) error
+	AddEventDetails(evts []EventDetail) map[int]error
 }
 
 type postgresStore struct {
 	client       *datamanclient.Client
 	log          *log.Logger
 	timeInterval int
-}
-
-/* MODELS CORRESPONDING TO DATABASE TABLES */
-
-type eventBase struct {
-	Id                int64       `mapstructure:"_id"`
-	ServiceId         int         `mapstructure:"service_id"`
-	EventType         string      `mapstructure:"event_type"`
-	EventName         string      `mapstructure:"event_name"`
-	ProcessedData     interface{} `mapstructure:"processed_data"`
-	ProcessedDataHash string      `mapstructure:"processed_data_hash"`
-}
-
-type eventInstance struct {
-	Id            int64       `mapstructure:"_id"`
-	EventBaseId   int64       `mapstructure:"event_base_id"`
-	EventDetailId int64       `mapstructure:"event_detail_id"`
-	RawData       interface{} `mapstructure:"raw_data"`
-	RawDataHash   string      `mapstructure:"raw_data_hash"`
-
-	// ignored fields, used internally
-	ProcessedDataHash   string
-	ProcessedDetailHash string
-}
-
-type eventInstancePeriod struct {
-	Id              int64                  `mapstructure:"_id"`
-	EventInstanceId int64                  `mapstructure:"event_instance_id"`
-	StartTime       time.Time              `mapstructure:"start_time"`
-	EndTime         time.Time              `mapstructure:"end_time"`
-	Updated         time.Time              `mapstructure:"updated"`
-	Count           int                    `mapstructure:"count"`
-	CounterJson     map[string]interface{} `mapstructure:"counter_json"`
-	CAS int `mapstructure:"cas_value"`
-
-	// ignored fields, used internally
-	RawDataHash         string
-	ProcessedDetailHash string
-}
-
-type eventDetail struct {
-	Id                  int64       `mapstructure:"_id"`
-	RawDetail           interface{} `mapstructure:"raw_detail"`
-	ProcessedDetail     interface{} `mapstructure:"processed_detail"`
-	ProcessedDetailHash string      `mapstructure:"processed_detail_hash"`
 }
 
 // Create a new dataStore
@@ -170,7 +124,7 @@ func (p *postgresStore) Query(typ query.QueryType,
 	return res, err
 }
 
-func (p *postgresStore) AddEvent(evt *eventBase) error {
+func (p *postgresStore) AddEvent(evt *EventBase) error {
 	filter := map[string]interface{}{
 		"service_id":          []interface{}{"=", evt.ServiceId},
 		"event_type":          []interface{}{"=", evt.EventType},
@@ -198,7 +152,7 @@ func (p *postgresStore) AddEvent(evt *eventBase) error {
 	return nil
 }
 
-func (p *postgresStore) AddEvents(evts []eventBase) map[int]error {
+func (p *postgresStore) AddEvents(evts []EventBase) map[int]error {
 	var errs = make(map[int]error)
 	for i := range evts {
 		err := p.AddEvent(&evts[i])
@@ -209,7 +163,7 @@ func (p *postgresStore) AddEvents(evts []eventBase) map[int]error {
 	return errs
 }
 
-func (p *postgresStore) AddEventInstance(evt *eventInstance) error {
+func (p *postgresStore) AddEventInstance(evt *EventInstance) error {
 	filter := map[string]interface{}{
 		"raw_data_hash": []interface{}{"=", evt.RawDataHash},
 	}
@@ -233,7 +187,7 @@ func (p *postgresStore) AddEventInstance(evt *eventInstance) error {
 	return nil
 }
 
-func (p *postgresStore) AddEventInstances(evts []eventInstance) map[int]error {
+func (p *postgresStore) AddEventInstances(evts []EventInstance) map[int]error {
 	var errs = make(map[int]error)
 	for i := range evts {
 		err := p.AddEventInstance(&evts[i])
@@ -244,7 +198,7 @@ func (p *postgresStore) AddEventInstances(evts []eventInstance) map[int]error {
 	return errs
 }
 
-func (p *postgresStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
+func (p *postgresStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 	filter := map[string]interface{}{
 		"event_instance_id": []interface{}{"=", evt.EventInstanceId},
 		"start_time":        []interface{}{"=", evt.StartTime},
@@ -269,7 +223,7 @@ func (p *postgresStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 				return err
 			}
 		} else {
-			var tmp eventInstancePeriod
+			var tmp EventInstancePeriod
 			mapDecode(res.Return[0], &tmp)
 			filter["cas_value"] = []interface{}{"=", tmp.CAS}
 			record["count"] = tmp.Count + evt.Count
@@ -286,7 +240,7 @@ func (p *postgresStore) AddEventInstancePeriod(evt *eventInstancePeriod) error {
 	}
 }
 
-func (p *postgresStore) AddEventinstancePeriods(evts []eventInstancePeriod) map[int]error {
+func (p *postgresStore) AddEventinstancePeriods(evts []EventInstancePeriod) map[int]error {
 	var errs = make(map[int]error)
 	for i := range evts {
 		err := p.AddEventInstancePeriod(&evts[i])
@@ -297,7 +251,7 @@ func (p *postgresStore) AddEventinstancePeriods(evts []eventInstancePeriod) map[
 	return errs
 }
 
-func (p *postgresStore) AddEventDetail(evt *eventDetail) error {
+func (p *postgresStore) AddEventDetail(evt *EventDetail) error {
 	filter := map[string]interface{}{
 		"processed_detail_hash": []interface{}{"=", evt.ProcessedDetailHash},
 	}
@@ -320,7 +274,7 @@ func (p *postgresStore) AddEventDetail(evt *eventDetail) error {
 	return err
 }
 
-func (p *postgresStore) AddEventDetails(evts []eventDetail) map[int]error {
+func (p *postgresStore) AddEventDetails(evts []EventDetail) map[int]error {
 	var errs = make(map[int]error)
 	for i := range evts {
 		err := p.AddEventDetail(&evts[i])

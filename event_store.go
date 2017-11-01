@@ -2,67 +2,21 @@ package eventsum
 
 import (
 	"fmt"
-	"github.com/jacksontj/dataman/src/query"
 	"github.com/pkg/errors"
+	"github.com/jacksontj/dataman/src/query"
 	"github.com/ContextLogic/eventsum/log"
+	. "github.com/ContextLogic/eventsum/models"
 	"time"
 )
-
-/* EXCEPTION STORE MODELS */
 
 type keyEventPeriod struct {
 	RawDataHash, ProcessedDataHash string
 	TimePeriod                     time.Time
 }
 
-// unaddedEvent is the first event that is sent to the server
-type unaddedEvent struct {
-	ServiceId             int                    `json:"service_id"`
-	Name                  string                 `json:"event_name"`
-	Type                  string                 `json:"event_type"`
-	Data                  EventData              `json:"event_data"`
-	ExtraArgs             map[string]interface{} `json:"extra_args"`
-	Timestamp             float64                `json:"timestamp"`
-	ConfigurableFilters   map[string][]string    `json:"configurable_filters"`
-	ConfigurableGroupings []string               `json:"configurable_groupings"`
-}
-
-// Data object, payload of unaddedEvent
-type EventData struct {
-	Message string      `json:"message"`
-	Raw     interface{} `json:"raw_data"`
-}
-
-// recent events
-type eventRecentResult struct {
-	Id            int64       `json:"id"`
-	EventType     string      `json:"event_type"`
-	EventName     string      `json:"event_name"`
-	Count         int         `json:"count"`
-	LastUpdated   time.Time   `json:"last_updated"`
-	ProcessedData interface{} `json:"processed_data"`
-	InstanceIds   []int64     `json:"instance_ids"`
-}
-
-// histogram of an event
-type eventHistogramResult struct {
-	StartTime   time.Time              `json:"start_time"`
-	EndTime     time.Time              `json:"end_time"`
-	Count       int                    `json:"count"`
-	CounterJson map[string]interface{} `json:"count_json"`
-}
-
-type eventDetailsResult struct {
-	EventType  string      `json:"event_type"`
-	EventName  string      `json:"event_name"`
-	ServiceId  int         `json:"service_id"`
-	RawData    interface{} `json:"raw_data"`
-	RawDetails interface{} `json:"raw_details"`
-}
-
 // Wrapper struct for Event Channel
 type eventChannel struct {
-	_queue    chan unaddedEvent
+	_queue    chan UnaddedEvent
 	BatchSize int
 	ticker    *time.Ticker
 	quit      chan int
@@ -82,7 +36,7 @@ func newEventStore(ds dataStore, config eventsumConfig, log *log.Logger) *eventS
 	return &eventStore{
 		ds,
 		&eventChannel{
-			make(chan unaddedEvent, config.BatchSize),
+			make(chan UnaddedEvent, config.BatchSize),
 			config.BatchSize,
 			time.NewTicker(time.Duration(config.TimeLimit) * time.Second),
 			make(chan int),
@@ -110,8 +64,8 @@ func (es *eventStore) Stop() {
 	es.channel.quit <- 0
 }
 
-// Add new unaddedEvent to channel, process if full
-func (es *eventStore) Send(exc unaddedEvent) {
+// Add new UnaddedEvent to channel, process if full
+func (es *eventStore) Send(exc UnaddedEvent) {
 	es.channel._queue <- exc
 	if len(es.channel._queue) == es.channel.BatchSize {
 		go es.SummarizeBatchEvents()
@@ -120,7 +74,7 @@ func (es *eventStore) Send(exc unaddedEvent) {
 
 // Process Batch from channel and bulk insert into Db
 func (es *eventStore) SummarizeBatchEvents() {
-	var evtsToAdd []unaddedEvent
+	var evtsToAdd []UnaddedEvent
 	for length := len(es.channel._queue); length > 0; length-- {
 		exc := <-es.channel._queue
 		evtsToAdd = append(evtsToAdd, exc)
@@ -132,10 +86,10 @@ func (es *eventStore) SummarizeBatchEvents() {
 	// Match events with each other to find similar ones
 
 	// Rows to add to Tables
-	var eventClasses []eventBase
-	var eventClassInstances []eventInstance
-	var eventClassInstancePeriods []eventInstancePeriod
-	var eventDetails []eventDetail
+	var eventClasses []EventBase
+	var eventClassInstances []EventInstance
+	var eventClassInstancePeriods []EventInstancePeriod
+	var eventDetails []EventDetail
 
 	// Maps the hash to the index of the associated array
 	var eventClassesMap = make(map[string]int)
@@ -165,7 +119,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 		// Each hash should be unique in the database, and so we make sure
 		// they are not repeated in the array by checking the associated map.
 		if _, ok := eventClassesMap[processedDataHash]; !ok {
-			eventClasses = append(eventClasses, eventBase{
+			eventClasses = append(eventClasses, EventBase{
 				ServiceId:         event.ServiceId,
 				EventType:         event.Type,
 				EventName:         event.Name,
@@ -176,7 +130,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 		}
 
 		if _, ok := eventClassInstancesMap[rawDataHash]; !ok {
-			eventClassInstances = append(eventClassInstances, eventInstance{
+			eventClassInstances = append(eventClassInstances, EventInstance{
 				ProcessedDataHash:   processedDataHash,   // Used to reference event_base_id later
 				ProcessedDetailHash: processedDetailHash, // Used to reference event_detail_id later
 				RawData:             rawData,
@@ -195,7 +149,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 			startTime,
 		}
 		if _, ok := eventClassInstancePeriodsMap[key]; !ok {
-			eventClassInstancePeriods = append(eventClassInstancePeriods, eventInstancePeriod{
+			eventClassInstancePeriods = append(eventClassInstancePeriods, EventInstancePeriod{
 				StartTime:           startTime,
 				Updated:             t,
 				EndTime:             endTime,
@@ -211,7 +165,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 		e.CounterJson, _ = globalRule.ProcessGrouping(event, e.CounterJson)
 
 		if _, ok := eventDetailsMap[processedDataHash]; !ok {
-			eventDetails = append(eventDetails, eventDetail{
+			eventDetails = append(eventDetails, EventDetail{
 				RawDetail:           rawDetail,
 				ProcessedDetail:     processedDetail,
 				ProcessedDetailHash: processedDetailHash,
@@ -267,13 +221,13 @@ func (es *eventStore) SummarizeBatchEvents() {
 }
 
 // Get all events within a time period, including their count
-func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) ([]eventRecentResult, error) {
+func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) ([]EventRecentResult, error) {
 	// TODO: use the limit!!
-	var evts []eventRecentResult
+	var evts []EventRecentResult
 	var evtsMap = make(map[int64]int)
-	var evtPeriod eventInstancePeriod
-	var evtInstance eventInstance
-	var evtBase eventBase
+	var evtPeriod EventInstancePeriod
+	var evtInstance EventInstance
+	var evtBase EventBase
 	join := []interface{}{"event_instance_id", "event_instance_id.event_base_id"}
 	filter := []interface{}{
 		map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
@@ -300,7 +254,7 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 		}
 		// TODO: implement grouping
 		if _, ok = evtsMap[evtBase.Id]; !ok {
-			evts = append(evts, eventRecentResult{
+			evts = append(evts, EventRecentResult{
 				Id:            evtBase.Id,
 				EventType:     evtBase.EventType,
 				EventName:     evtBase.EventName,
@@ -322,9 +276,9 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 }
 
 // Get the histogram of a single event instance
-func (es *eventStore) GetEventHistogram(start, end time.Time, eventId int) ([]eventHistogramResult, error) {
-	var hist []eventHistogramResult
-	var bin eventInstancePeriod
+func (es *eventStore) GetEventHistogram(start, end time.Time, eventId int) ([]EventHistogramResult, error) {
+	var hist []EventHistogramResult
+	var bin EventInstancePeriod
 	filter := []interface{}{
 		[]interface{}{
 			map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
@@ -338,7 +292,7 @@ func (es *eventStore) GetEventHistogram(start, end time.Time, eventId int) ([]ev
 	}
 	for _, v := range res.Return {
 		mapDecode(v, &bin)
-		hist = append(hist, eventHistogramResult{
+		hist = append(hist, EventHistogramResult{
 			StartTime:   bin.StartTime,
 			EndTime:     bin.EndTime,
 			Count:       bin.Count,
@@ -349,11 +303,11 @@ func (es *eventStore) GetEventHistogram(start, end time.Time, eventId int) ([]ev
 }
 
 // Get the details of a single event instance
-func (es *eventStore) GetEventDetailsbyId(id int) (eventDetailsResult, error) {
-	var result eventDetailsResult
-	var instance eventInstance
-	var detail eventDetail
-	var base eventBase
+func (es *eventStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) {
+	var result EventDetailsResult
+	var instance EventInstance
+	var detail EventDetail
+	var base EventBase
 	join := []interface{}{"event_base_id", "event_detail_id"}
 	pkey := map[string]interface{}{"_id": id}
 	r, err := es.ds.Query(query.Get, "event_instance", nil, nil, nil, pkey, -1, nil, join)
@@ -369,7 +323,7 @@ func (es *eventStore) GetEventDetailsbyId(id int) (eventDetailsResult, error) {
 			mapDecode(t2, &detail)
 		}
 	}
-	result = eventDetailsResult{
+	result = EventDetailsResult{
 		ServiceId:  base.ServiceId,
 		EventType:  base.EventType,
 		EventName:  base.EventName,

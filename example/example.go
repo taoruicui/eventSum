@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum"
 	"github.com/mitchellh/mapstructure"
 	"math"
@@ -42,7 +43,7 @@ In order to implement a configurable filter, the function must accept an EventDa
 and return (EventData, error)
 */
 
-func exceptionPythonRemoveLineNo(data eventsum.EventData) (eventsum.EventData, error) {
+func exceptionPythonRemoveLineNo(data models.EventData) (models.EventData, error) {
 	var stacktrace stackTrace
 	err := mapstructure.Decode(data.Raw, &stacktrace)
 	if err != nil {
@@ -55,7 +56,7 @@ func exceptionPythonRemoveLineNo(data eventsum.EventData) (eventsum.EventData, e
 	return data, nil
 }
 
-func exceptionPythonRemoveStackVars(data eventsum.EventData) (eventsum.EventData, error) {
+func exceptionPythonRemoveStackVars(data models.EventData) (models.EventData, error) {
 	var stacktrace stackTrace
 	err := mapstructure.Decode(data.Raw, &stacktrace)
 	if err != nil {
@@ -76,7 +77,7 @@ In order to implement a grouping, the function must accept an eventData
 and a , and modify it in place.
  */
 
-func queryPerfTraceGrouping(data eventsum.EventData, group map[string]interface{}) map[string]interface{} {
+func queryPerfTraceGrouping(data models.EventData, group map[string]interface{}) map[string]interface{} {
 	if _, ok := group["b"]; !ok {
 		group["b"] = 0.0
 	}

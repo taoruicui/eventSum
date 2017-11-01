@@ -2,7 +2,8 @@ package eventsum
 
 import (
 	"github.com/pkg/errors"
-	log "github.com/ContextLogic/eventsum/log"
+	. "github.com/ContextLogic/eventsum/models"
+	"github.com/ContextLogic/eventsum/log"
 	"reflect"
 )
 
@@ -15,7 +16,7 @@ type rule struct {
 
 // Process user defined groupings. A grouping is how the user wants to map some data to a
 // group, or a key. Currently, only counter_json is supported
-func (r *rule) ProcessGrouping(event unaddedEvent, group map[string]interface{}) (map[string]interface{}, error) {
+func (r *rule) ProcessGrouping(event UnaddedEvent, group map[string]interface{}) (map[string]interface{}, error) {
 	for _, name := range event.ConfigurableGroupings {
 		if _, ok := r.Grouping[name]; !ok {
 			r.log.App.Info("Function name not supported")
@@ -33,7 +34,7 @@ func (r *rule) ProcessGrouping(event unaddedEvent, group map[string]interface{})
 }
 
 // Process user defined filters. Make sure that if there is an error, do not do that processing.
-func (r *rule) ProcessFilter(event unaddedEvent, filterName string) (interface{}, error) {
+func (r *rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}, error) {
 	if funcNames, ok := event.ConfigurableFilters[filterName]; ok {
 		for _, name := range funcNames {
 			if _, ok := r.Filter[name]; !ok {

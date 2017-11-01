@@ -12,6 +12,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	"github.com/ContextLogic/eventsum/log"
+	. "github.com/ContextLogic/eventsum/models"
 )
 
 /* GLOBAL VARIABLES */
