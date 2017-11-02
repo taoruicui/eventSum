@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"reflect"
+	"time"
 )
 
 var GlobalRule *rules.Rule
@@ -25,6 +26,8 @@ type Logger struct {
 	App *log.Logger
 	Data *log.Logger
 	EventLog failedEventsLog
+
+	ticker *time.Ticker
 }
 
 type failedEventsLog struct {
@@ -37,6 +40,41 @@ type failedEventsLog struct {
 	InstanceMap map[string]int `json:"instance_map"`
 	PeriodMap map[KeyEventPeriod]int `json:"period_map"`
 	DetailsMap map[string]int `json:"details_map"`
+	// TODO: Add mutex?
+}
+
+func (l *Logger) Start() {
+	for {
+		select {
+		case <- l.ticker.C:
+			l.App.Info("Saving failed events into the log file!")
+			l.SaveEventsToLogFile()
+		}
+	}
+}
+
+// Move all the data saved in the logs to a logfile
+func (l *Logger) SaveEventsToLogFile() {
+	l.Data.WithFields(log.Fields{
+		"event_base": l.EventLog.Base,
+		"event_base_map": l.EventLog.BaseMap,
+		"event_instance": l.EventLog.Instance,
+		"event_instance_map": l.EventLog.InstanceMap,
+		"event_instance_period": l.EventLog.Period,
+		"event_instance_period_map": l.EventLog.PeriodMap,
+		"event_detail": l.EventLog.Detail,
+		"event_detail_map": l.EventLog.DetailsMap,
+	}).Info("Dumping event data now")
+
+	// Clear the EventLog data after saving successfully
+	l.EventLog.Base = []EventBase{}
+	l.EventLog.BaseMap = make(map[string]int)
+	l.EventLog.Instance = []EventInstance{}
+	l.EventLog.InstanceMap = make(map[string]int)
+	l.EventLog.Period = []EventInstancePeriod{}
+	l.EventLog.PeriodMap = make(map[KeyEventPeriod]int)
+	l.EventLog.Detail = []EventDetail{}
+	l.EventLog.DetailsMap = make(map[string]int)
 }
 
 // Logs the data into failedEventsLog
@@ -121,24 +159,6 @@ func parseConfig(file string) config {
 // Return new logger given config file
 func NewLogger(configFile string) *Logger {
 	config := parseConfig(configFile)
-	var appFile *os.File
-	var dataFile *os.File
-	var err error
-
-	// If environment is dev, send output to stdout
-	if config.Environment == "dev" {
-		appFile = os.Stdout
-		dataFile = os.Stdout
-	} else {
-		appFile, err = os.OpenFile(config.AppLogging, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
-		if err != nil {
-			log.Warn(err)
-		}
-		dataFile, err = os.OpenFile(config.DataLogging, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
-		if err != nil {
-			log.Warn(err)
-		}
-	}
 
 	l := Logger{
 		App: log.New(),
@@ -149,8 +169,36 @@ func NewLogger(configFile string) *Logger {
 			PeriodMap: make(map[KeyEventPeriod]int),
 			DetailsMap: make(map[string]int),
 		},
+
+		ticker: time.NewTicker(time.Duration(config.TimePeriod) * time.Second),
 	}
-	l.App.Out = appFile
-	l.Data.Out = dataFile
+
+	// If environment is dev, send output to stdout
+	if config.Environment == "dev" {
+		l.App.Out = os.Stdout
+		l.Data.Out = os.Stdout
+		l.App.Level = log.DebugLevel
+		l.Data.Level = log.DebugLevel
+	} else {
+		appFile, err := os.OpenFile(config.AppLogging, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+
+		if err != nil {
+			log.Warn(err)
+		} else {
+			l.App.Out = appFile
+		}
+
+		dataFile, err := os.OpenFile(config.DataLogging, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+
+		if err != nil {
+			log.Warn(err)
+		} else {
+			l.Data.Out = dataFile
+		}
+
+	}
+
+	// run log processing in a goroutine
+	go l.Start()
 	return &l
 }
