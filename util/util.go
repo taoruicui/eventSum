@@ -1,4 +1,4 @@
-package eventsum
+package util
 
 import (
 	"crypto/sha256"
@@ -14,20 +14,20 @@ import (
 
 // returns the start and end times of the interval bounding time t,
 // interval specific as minutes
-func findBoundingTime(t time.Time, interval int) (time.Time, time.Time) {
+func FindBoundingTime(t time.Time, interval int) (time.Time, time.Time) {
 	duration := time.Duration(interval) * time.Minute
 	s := t.Truncate(duration)
 	return s, s.Add(duration)
 }
 
 // convert Python unix time.time to Go unix time.Time
-func pythonUnixToGoUnix(t float64) time.Time {
+func PythonUnixToGoUnix(t float64) time.Time {
 	seconds := int64(t)
 	nanoseconds := int64(t-math.Floor(t)) * int64(time.Second)
 	return time.Unix(seconds, nanoseconds)
 }
 
-func hash(i interface{}) string {
+func Hash(i interface{}) string {
 	b, err := json.Marshal(i)
 	if err != nil {
 		fmt.Println("Error", err)
@@ -47,7 +47,7 @@ func stringToDateTimeHook(f reflect.Type, t reflect.Type, data interface{}) (int
 }
 
 // mapstructure decode
-func mapDecode(source, target interface{}) error {
+func MapDecode(source, target interface{}) error {
 	config := mapstructure.DecoderConfig{
 		DecodeHook: stringToDateTimeHook,
 		Result:     target,

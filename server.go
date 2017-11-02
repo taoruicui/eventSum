@@ -13,7 +13,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/ContextLogic/eventsum/log"
 	"github.com/ContextLogic/eventsum/rules"
+	conf "github.com/ContextLogic/eventsum/config"
 	. "github.com/ContextLogic/eventsum/models"
+	"github.com/ContextLogic/eventsum/datastore"
 )
 
 /* GLOBAL VARIABLES */
@@ -122,15 +124,20 @@ func newServer(options func(server *EventSumServer)) *EventSumServer {
 
 func New(configFilename string) *EventSumServer {
 	// Get configurations
-	config, err := parseEventsumConfig(configFilename)
+	config, err := conf.ParseEventsumConfig(configFilename)
 	if err != nil {
 		panic(err)
 	}
 
 	globalRule = rules.NewRule()
+	// global var globalRule should be available in packages as well
 	log.GlobalRule = &globalRule
+	datastore.GlobalRule = &globalRule
 	logger := log.NewLogger(config.LogConfigFile)
-	ds := newDataStore(config, logger)
+	ds, err := datastore.NewDataStore(config)
+	if err != nil {
+		logger.App.Fatal(err)
+	}
 	es := newEventStore(ds, config, logger)
 
 	// create new http store

@@ -1,4 +1,4 @@
-package eventsum
+package config
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 )
 
 // config are settings used ... XXX
-type eventsumConfig struct {
+type EventsumConfig struct {
 	DataSourceInstance string                 `json:"data_source_instance"`
 	DataSourceSchema   string                 `json:"data_source_schema"`
 	LogConfigFile      string                 `json:"log_config_file"`
@@ -18,8 +18,8 @@ type eventsumConfig struct {
 	Args               map[string]interface{} `json:"args"`
 }
 
-func defaultConfig() eventsumConfig {
-	return eventsumConfig{
+func DefaultConfig() EventsumConfig {
+	return EventsumConfig{
 		DataSourceInstance: "config/datasourceinstance.yaml",
 		DataSourceSchema:   "config/schema.json",
 		LogConfigFile:      "config/logconfig.json",
@@ -32,9 +32,9 @@ func defaultConfig() eventsumConfig {
 }
 
 // ParseEMConfig parses configuration out of a json file
-func parseEventsumConfig(file string) (eventsumConfig, error) {
+func ParseEventsumConfig(file string) (EventsumConfig, error) {
 
-	configuration := defaultConfig()
+	configuration := DefaultConfig()
 	f, err := os.Open(file)
 	if err != nil {
 		return configuration, fmt.Errorf("Error", err)

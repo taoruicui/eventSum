@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/jacksontj/dataman/src/query"
+	"github.com/ContextLogic/eventsum/datastore"
 	"github.com/ContextLogic/eventsum/log"
+	conf "github.com/ContextLogic/eventsum/config"
 	. "github.com/ContextLogic/eventsum/models"
 	"time"
+	"github.com/ContextLogic/eventsum/util"
 )
 
 // Wrapper struct for Event Channel
@@ -18,7 +21,7 @@ type eventChannel struct {
 }
 
 type eventStore struct {
-	ds           dataStore    // link to any data store (Postgres, Cassandra, etc.)
+	ds           datastore.DataStore    // link to any data store (Postgres, Cassandra, etc.)
 	channel      *eventChannel // channel, or queue, for the processing of new events
 	log          *log.Logger
 	timeInterval int // interval time for event_instance_period
@@ -27,7 +30,7 @@ type eventStore struct {
 // create new Event Store. This 'store' stores necessary information
 // about the events and how they are processed. The event channel,
 // is the queue, and ds contains the link to the data store, or the DB.
-func newEventStore(ds dataStore, config eventsumConfig, log *log.Logger) *eventStore {
+func newEventStore(ds datastore.DataStore, config conf.EventsumConfig, log *log.Logger) *eventStore {
 	return &eventStore{
 		ds,
 		&eventChannel{
@@ -107,9 +110,9 @@ func (es *eventStore) SummarizeBatchEvents() {
 			processedDetail = rawDetail
 		}
 
-		rawDataHash := hash(rawData)
-		processedDataHash := hash(processedData)
-		processedDetailHash := hash(processedDetail)
+		rawDataHash := util.Hash(rawData)
+		processedDataHash := util.Hash(processedData)
+		processedDetailHash := util.Hash(processedDetail)
 
 		// Each hash should be unique in the database, and so we make sure
 		// they are not repeated in the array by checking the associated map.
@@ -136,8 +139,8 @@ func (es *eventStore) SummarizeBatchEvents() {
 
 		// The unique key should be the raw data, and the time period,
 		// since the count should keep track of an event instance in a certain time frame.
-		t := pythonUnixToGoUnix(event.Timestamp).UTC()
-		startTime, endTime := findBoundingTime(t, es.timeInterval)
+		t := util.PythonUnixToGoUnix(event.Timestamp).UTC()
+		startTime, endTime := util.FindBoundingTime(t, es.timeInterval)
 		key := KeyEventPeriod{
 			RawDataHash: rawDataHash,
 			StartTime: startTime,
@@ -168,15 +171,18 @@ func (es *eventStore) SummarizeBatchEvents() {
 	}
 
 	// Returns a map where the keys are the indices that an error occurred
-	if err := es.ds.AddEvents(eventClasses); len(err) != 0 {
-		for i, v := range err {
+	errBase := es.ds.AddEvents(eventClasses)
+	if len(errBase) != 0 {
+		for i, v := range errBase {
 			es.log.EventLog.LogData(eventClasses[i])
+
 			es.log.App.Errorf("Error while inserting events: %v", v)
 		}
 	}
 
-	if err := es.ds.AddEventDetails(eventDetails); len(err) != 0 {
-		for i, v := range err {
+	errDetails := es.ds.AddEventDetails(eventDetails)
+	if len(errDetails) != 0 {
+		for i, v := range errDetails {
 			es.log.EventLog.LogData(eventDetails[i])
 			es.log.App.Errorf("Error while inserting event data: %v", v)
 		}
@@ -184,16 +190,25 @@ func (es *eventStore) SummarizeBatchEvents() {
 
 	// Add the ids generated from above
 	for _, idx := range eventClassInstancesMap {
+
 		dataHash := eventClassInstances[idx].ProcessedDataHash
 		detailHash := eventClassInstances[idx].ProcessedDetailHash
 		eventClassInstances[idx].EventBaseId =
 			eventClasses[eventClassesMap[dataHash]].Id
 		eventClassInstances[idx].EventDetailId =
 			eventDetails[eventDetailsMap[detailHash]].Id
+		// log instance if there was an error adding event base or event details
+		if _, ok := errBase[eventClassesMap[dataHash]]; ok {
+			es.log.EventLog.LogData(eventClassInstances[idx])
+		}
+		if _, ok := errDetails[eventDetailsMap[detailHash]]; ok {
+			es.log.EventLog.LogData(eventClassInstances[idx])
+		}
 	}
 
-	if err := es.ds.AddEventInstances(eventClassInstances); len(err) != 0 {
-		for i, v := range err {
+	errInstances := es.ds.AddEventInstances(eventClassInstances)
+	if len(errInstances) != 0 {
+		for i, v := range errInstances {
 			es.log.EventLog.LogData(eventClassInstances[i])
 			es.log.App.Errorf("Error while inserting event instances: %v", v)
 		}
@@ -204,9 +219,10 @@ func (es *eventStore) SummarizeBatchEvents() {
 		dataHash := eventClassInstancePeriods[idx].RawDataHash
 		eventClassInstancePeriods[idx].EventInstanceId =
 			eventClassInstances[eventClassInstancesMap[dataHash]].Id
-		//detailHash := eventClassInstancePeriods[idx].ProcessedDetailHash
-		//eventClassInstancePeriods[idx].EventDetailId =
-		//	eventData[eventDataMap[detailHash]].Id
+
+		if _, ok := errInstances[eventClassInstancesMap[dataHash]]; ok {
+			es.log.EventLog.LogData(eventClassInstancePeriods[idx])
+		}
 	}
 
 	if err := es.ds.AddEventinstancePeriods(eventClassInstancePeriods); len(err) != 0 {
@@ -235,17 +251,17 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 		return evts, err
 	}
 	for _, t1 := range res.Return {
-		err = mapDecode(t1, &evtPeriod)
+		err = util.MapDecode(t1, &evtPeriod)
 		t2, ok := t1["event_instance_id"].(map[string]interface{})
 		if !ok {
 			continue
 		}
-		err = mapDecode(t2, &evtInstance)
+		err = util.MapDecode(t2, &evtInstance)
 		t3, ok := t2["event_base_id"].(map[string]interface{})
 		if !ok {
 			continue
 		}
-		err = mapDecode(t3, &evtBase)
+		err = util.MapDecode(t3, &evtBase)
 		if evtBase.ServiceId != serviceId {
 			continue
 		}
@@ -288,7 +304,7 @@ func (es *eventStore) GetEventHistogram(start, end time.Time, eventId int) ([]Ev
 		return hist, err
 	}
 	for _, v := range res.Return {
-		mapDecode(v, &bin)
+		util.MapDecode(v, &bin)
 		hist = append(hist, EventHistogramResult{
 			StartTime:   bin.StartTime,
 			EndTime:     bin.EndTime,
@@ -313,11 +329,11 @@ func (es *eventStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) {
 	} else if len(r.Return) == 0 {
 		return result, err
 	}
-	mapDecode(r.Return[0], &instance)
+	util.MapDecode(r.Return[0], &instance)
 	if t1, ok := r.Return[0]["event_base_id"].(map[string]interface{}); ok {
-		mapDecode(t1, &base)
+		util.MapDecode(t1, &base)
 		if t2, ok := t1["event_detail_id"].(map[string]interface{}); ok {
-			mapDecode(t2, &detail)
+			util.MapDecode(t2, &detail)
 		}
 	}
 	result = EventDetailsResult{

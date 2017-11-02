@@ -1,10 +1,12 @@
-package eventsum
+package datastore
 
 import (
 	//"context"
 	"encoding/json"
+	"github.com/ContextLogic/eventsum/util"
+	"github.com/ContextLogic/eventsum/rules"
 	. "github.com/ContextLogic/eventsum/models"
-	"github.com/ContextLogic/eventsum/log"
+	"github.com/ContextLogic/eventsum/config"
 	"github.com/jacksontj/dataman/src/client"
 	"github.com/jacksontj/dataman/src/client/direct"
 	"github.com/jacksontj/dataman/src/query"
@@ -14,7 +16,9 @@ import (
 	"io/ioutil"
 )
 
-type dataStore interface {
+var GlobalRule *rules.Rule
+
+type DataStore interface {
 	Query(typ query.QueryType,
 		collection string,
 		filter interface{},
@@ -36,28 +40,27 @@ type dataStore interface {
 
 type postgresStore struct {
 	client       *datamanclient.Client
-	log          *log.Logger
 	timeInterval int
 }
 
 // Create a new dataStore
-func newDataStore(conf eventsumConfig, log *log.Logger) dataStore {
+func NewDataStore(conf config.EventsumConfig) (DataStore, error) {
 	// Create a connection to Postgres Database through Dataman
 
 	storagenodeConfig, err := storagenode.DatasourceInstanceConfigFromFile(conf.DataSourceInstance)
 	if err != nil {
-		log.App.Fatalf("Error loading config: %v", err)
+		return nil, err
 	}
 
 	// Load meta
 	meta := &metadata.Meta{}
 	metaBytes, err := ioutil.ReadFile(conf.DataSourceSchema)
 	if err != nil {
-		log.App.Fatalf("Error loading schema: %v", err)
+		return nil, err
 	}
 	err = json.Unmarshal([]byte(metaBytes), meta)
 	if err != nil {
-		log.App.Fatalf("Error loading meta: %v", err)
+		return nil, err
 	}
 
 	// TODO: remove
@@ -65,15 +68,14 @@ func newDataStore(conf eventsumConfig, log *log.Logger) dataStore {
 
 	transport, err := datamandirect.NewStaticDatasourceInstanceTransport(storagenodeConfig, meta)
 	if err != nil {
-		log.App.Fatalf("Error NewStaticDatasourceInstanceClient: %v", err)
+		return nil, err
 	}
 
 	client := &datamanclient.Client{Transport: transport}
 	return &postgresStore{
 		client:       client,
-		log:          log,
 		timeInterval: conf.TimeInterval,
-	}
+	}, nil
 }
 
 func (p *postgresStore) Query(typ query.QueryType,
@@ -149,7 +151,7 @@ func (p *postgresStore) AddEvent(evt *EventBase) error {
 			return err
 		}
 	}
-	mapDecode(res.Return[0], &evt)
+	util.MapDecode(res.Return[0], &evt)
 	return nil
 }
 
@@ -184,7 +186,7 @@ func (p *postgresStore) AddEventInstance(evt *EventInstance) error {
 			return err
 		}
 	}
-	mapDecode(res.Return[0], &evt)
+	util.MapDecode(res.Return[0], &evt)
 	return nil
 }
 
@@ -225,11 +227,11 @@ func (p *postgresStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 			}
 		} else {
 			var tmp EventInstancePeriod
-			mapDecode(res.Return[0], &tmp)
+			util.MapDecode(res.Return[0], &tmp)
 			filter["cas_value"] = []interface{}{"=", tmp.CAS}
 			record["count"] = tmp.Count + evt.Count
 			// TODO: handle error
-			record["counter_json"], _ = globalRule.Consolidate(tmp.CounterJson, evt.CounterJson)
+			record["counter_json"], _ = GlobalRule.Consolidate(tmp.CounterJson, evt.CounterJson)
 			record["cas_value"] = tmp.CAS + 1
 			res, err = p.Query(query.Update, "event_instance_period", filter, record, nil, nil, -1, nil, nil)
 			// if update failed then CAS failed, must retry
@@ -237,7 +239,7 @@ func (p *postgresStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 				continue
 			}
 		}
-		mapDecode(res.Return[0], &evt)
+		util.MapDecode(res.Return[0], &evt)
 		return err
 	}
 }
@@ -272,7 +274,7 @@ func (p *postgresStore) AddEventDetail(evt *EventDetail) error {
 			return err
 		}
 	}
-	mapDecode(res.Return[0], &evt)
+	util.MapDecode(res.Return[0], &evt)
 	return err
 }
 
