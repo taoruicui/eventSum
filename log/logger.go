@@ -31,7 +31,11 @@ type Logger struct {
 	Data *log.Logger
 	EventLog failedEventsLog
 
-	ticker *time.Ticker
+	appFileName string
+	dataFileName string
+
+	tickerDump *time.Ticker // used for dumping logs
+	tickerCheck *time.Ticker // used for periodically checking logs
 }
 
 type failedEventsLog struct {
@@ -47,12 +51,14 @@ type failedEventsLog struct {
 	// TODO: Add mutex?
 }
 
-func (l *Logger) Start() {
+// Starts the logging timers
+func (l *Logger) Start(c config) {
 	for {
 		select {
-		case <- l.ticker.C:
-			l.App.Info("Saving failed events into the log file!")
+		case <- l.tickerDump.C:
 			l.SaveEventsToLogFile()
+		case <- l.tickerCheck.C:
+			l.PeriodicCheck(c)
 		}
 	}
 }
@@ -64,6 +70,7 @@ func (l *Logger) SaveEventsToLogFile() {
 		len(l.EventLog.Instances) == 0 && len(l.EventLog.Periods) == 0 {
 		return
 	}
+	l.App.Info("Saving failed events into the log file!")
 
 	l.Data.WithFields(log.Fields{
 		"event_base": l.EventLog.Bases,
@@ -88,38 +95,45 @@ func (l *Logger) SaveEventsToLogFile() {
 }
 
 // Check if there is an open db connection, and anything to put in from the logs
-func (l *Logger) PeriodicCheck(filename string, conf config) {
-	ds, err := datastore.NewDataStore(conf.DataSourceInstance, conf.DataSourceInstance)
+func (l *Logger) PeriodicCheck(conf config) {
+	datastore.GlobalRule = GlobalRule
+	ds, err := datastore.NewDataStore(conf.DataSourceInstance, conf.DataSourceSchema)
 	if err != nil {
 		return
 	}
-	file, err := os.Open(filename)
+	file, err := os.Open(l.dataFileName)
 	if err != nil {
 		l.App.WithFields(log.Fields{
-			"filename": filename,
+			"filename": l.dataFileName,
 		}).Error("Unable to open file")
 		return
 	}
 	stats, err := file.Stat()
 	if err != nil {
-
+		return
 	}
 	if stats.Size() == 0 {
-
+		return
 	}
+	l.App.Info("Running periodic check of log files")
 	// read the file line by line
 	reader := bufio.NewReader(file)
 	var failedEvent failedEventsLog
 	for {
 		line, err := reader.ReadBytes('\n')
+		if err != nil {
+			break
+		}
 		json.Unmarshal(line, &failedEvent)
 		// Add to DB
-		if err := ds.AddEvents(failedEvent.Bases); err != nil {
+		if err := ds.AddEvents(failedEvent.Bases); len(err) != 0 {
 			// TODO
+			l.App.Error(err)
 		}
 		
-		if err := ds.AddEventDetails(failedEvent.Details); err != nil {
+		if err := ds.AddEventDetails(failedEvent.Details); len(err) != 0 {
 			// TODO
+			l.App.Error(err)
 		}
 		
 		for _, idx := range failedEvent.InstanceMap {
@@ -131,24 +145,23 @@ func (l *Logger) PeriodicCheck(filename string, conf config) {
 				failedEvent.Details[failedEvent.DetailMap[detailHash]].Id
 		}
 		
-		if err := ds.AddEventInstances(failedEvent.Instances); err != nil {
+		if err := ds.AddEventInstances(failedEvent.Instances); len(err) != 0 {
 			// TODO
+			l.App.Error(err)
 		}
 
-		for _, idx := range failedEvent.PeriodMap {
+		for idx := range failedEvent.Periods {
 			dataHash := failedEvent.Periods[idx].RawDataHash
 			failedEvent.Periods[idx].EventInstanceId =
 				failedEvent.Instances[failedEvent.InstanceMap[dataHash]].Id
 		}
 
-		if err := ds.AddEventinstancePeriods(failedEvent.Periods); err != nil {
+		if err := ds.AddEventinstancePeriods(failedEvent.Periods); len(err) != 0 {
 			// TODO
-		}
-
-		if err != nil {
-			break
+			l.App.Error(err)
 		}
 	}
+
 }
 
 // Logs the data into failedEventsLog
@@ -209,10 +222,6 @@ func (l *failedEventsLog) logEventDetail(detail EventDetail) {
 	}
 }
 
-//func (l *failedEventsLog) HandleLogFmt(key, val []byte) error {
-//	return nil
-//}
-
 func parseConfig(file string) config {
 	c := config{
 		5,
@@ -249,8 +258,10 @@ func NewLogger(configFile string) *Logger {
 			PeriodMap: make(map[KeyEventPeriod]int),
 			DetailMap: make(map[string]int),
 		},
-
-		ticker: time.NewTicker(time.Duration(config.TimePeriod) * time.Second),
+		appFileName: config.AppLogging,
+		dataFileName: config.DataLogging,
+		tickerDump: time.NewTicker(time.Duration(config.TimePeriod) * time.Second),
+		tickerCheck: time.NewTicker(13 * time.Second),
 	}
 	l.Data.Formatter = &log.JSONFormatter{}
 
@@ -261,7 +272,7 @@ func NewLogger(configFile string) *Logger {
 		l.App.Level = log.DebugLevel
 		l.Data.Level = log.DebugLevel
 	} else {
-		appFile, err := os.OpenFile(config.AppLogging, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+		appFile, err := os.OpenFile(l.appFileName, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
 
 		if err != nil {
 			log.Warn(err)
@@ -269,7 +280,7 @@ func NewLogger(configFile string) *Logger {
 			l.App.Out = appFile
 		}
 
-		dataFile, err := os.OpenFile(config.DataLogging, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+		dataFile, err := os.OpenFile(l.dataFileName, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
 
 		if err != nil {
 			log.Warn(err)
@@ -280,7 +291,6 @@ func NewLogger(configFile string) *Logger {
 	}
 
 	// run log processing in a goroutine
-	l.PeriodicCheck("log/data.log", config)
-	go l.Start()
+	go l.Start(config)
 	return &l
 }

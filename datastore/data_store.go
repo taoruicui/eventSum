@@ -1,7 +1,7 @@
 package datastore
 
 import (
-	//"context"
+	"context"
 	"encoding/json"
 	"github.com/ContextLogic/eventsum/util"
 	"github.com/ContextLogic/eventsum/rules"
@@ -114,8 +114,8 @@ func (p *postgresStore) Query(typ query.QueryType,
 	if join != nil {
 		q.Args["join"] = join
 	}
-	//res, err := p.client.DoQuery(context.Background(), q)
-	res, err := &query.Result{}, errors.New("asdf")
+	res, err := p.client.DoQuery(context.Background(), q)
+	//res, err := &query.Result{}, errors.New("asdf")
 	if err != nil {
 		return res, err
 	} else if res.Error != "" {
