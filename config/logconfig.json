@@ -1,4 +1,6 @@
 {
   "time_period": 10,
-  "environment": "prod"
+  "environment": "dev",
+  "data_source_instance": "config/datasourceinstance.yaml",
+  "data_source_schema": "config/schema.json"
 }

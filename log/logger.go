@@ -8,6 +8,8 @@ import (
 	"os"
 	"reflect"
 	"time"
+	"bufio"
+	"github.com/ContextLogic/eventsum/datastore"
 )
 
 var GlobalRule *rules.Rule
@@ -17,6 +19,8 @@ type config struct {
 	Environment string `json:"environment"`
 	AppLogging string `json:"app_logging"`
 	DataLogging string `json:"data_logging"`
+	DataSourceInstance string `json:"data_source_instance"`
+	DataSourceSchema string `json:"data_source_schema"`
 }
 
 // There are two types of logging in this service: App logginng and Data logging.
@@ -31,15 +35,15 @@ type Logger struct {
 }
 
 type failedEventsLog struct {
-	Base []EventBase `json:"base"`
-	Instance []EventInstance `json:"instance"`
-	Period []EventInstancePeriod `json:"period"`
-	Detail []EventDetail `json:"detail"`
+	Bases []EventBase `json:"event_base"`
+	Instances []EventInstance `json:"event_instance"`
+	Periods []EventInstancePeriod `json:"event_instance_period"`
+	Details []EventDetail `json:"event_detail"`
 
-	BaseMap map[string]int `json:"base_map"`
-	InstanceMap map[string]int `json:"instance_map"`
-	PeriodMap map[KeyEventPeriod]int `json:"period_map"`
-	DetailsMap map[string]int `json:"details_map"`
+	BaseMap map[string]int `json:"event_base_map"`
+	InstanceMap map[string]int `json:"event_instance_map"`
+	PeriodMap map[KeyEventPeriod]int `json:"event_instance_period_map"`
+	DetailMap map[string]int `json:"event_detail_map"`
 	// TODO: Add mutex?
 }
 
@@ -55,26 +59,96 @@ func (l *Logger) Start() {
 
 // Move all the data saved in the logs to a logfile
 func (l *Logger) SaveEventsToLogFile() {
+	// Check if there is anything to save
+	if 	len(l.EventLog.Bases) == 0 && len(l.EventLog.Details) == 0 &&
+		len(l.EventLog.Instances) == 0 && len(l.EventLog.Periods) == 0 {
+		return
+	}
+
 	l.Data.WithFields(log.Fields{
-		"event_base": l.EventLog.Base,
+		"event_base": l.EventLog.Bases,
 		"event_base_map": l.EventLog.BaseMap,
-		"event_instance": l.EventLog.Instance,
+		"event_instance": l.EventLog.Instances,
 		"event_instance_map": l.EventLog.InstanceMap,
-		"event_instance_period": l.EventLog.Period,
-		"event_instance_period_map": l.EventLog.PeriodMap,
-		"event_detail": l.EventLog.Detail,
-		"event_detail_map": l.EventLog.DetailsMap,
+		"event_instance_period": l.EventLog.Periods,
+		//"event_instance_period_map": l.EventLog.PeriodMap,
+		"event_detail": l.EventLog.Details,
+		"event_detail_map": l.EventLog.DetailMap,
 	}).Info("Dumping event data now")
 
 	// Clear the EventLog data after saving successfully
-	l.EventLog.Base = []EventBase{}
+	l.EventLog.Bases = []EventBase{}
 	l.EventLog.BaseMap = make(map[string]int)
-	l.EventLog.Instance = []EventInstance{}
+	l.EventLog.Instances = []EventInstance{}
 	l.EventLog.InstanceMap = make(map[string]int)
-	l.EventLog.Period = []EventInstancePeriod{}
+	l.EventLog.Periods = []EventInstancePeriod{}
 	l.EventLog.PeriodMap = make(map[KeyEventPeriod]int)
-	l.EventLog.Detail = []EventDetail{}
-	l.EventLog.DetailsMap = make(map[string]int)
+	l.EventLog.Details = []EventDetail{}
+	l.EventLog.DetailMap = make(map[string]int)
+}
+
+// Check if there is an open db connection, and anything to put in from the logs
+func (l *Logger) PeriodicCheck(filename string, conf config) {
+	ds, err := datastore.NewDataStore(conf.DataSourceInstance, conf.DataSourceInstance)
+	if err != nil {
+		return
+	}
+	file, err := os.Open(filename)
+	if err != nil {
+		l.App.WithFields(log.Fields{
+			"filename": filename,
+		}).Error("Unable to open file")
+		return
+	}
+	stats, err := file.Stat()
+	if err != nil {
+
+	}
+	if stats.Size() == 0 {
+
+	}
+	// read the file line by line
+	reader := bufio.NewReader(file)
+	var failedEvent failedEventsLog
+	for {
+		line, err := reader.ReadBytes('\n')
+		json.Unmarshal(line, &failedEvent)
+		// Add to DB
+		if err := ds.AddEvents(failedEvent.Bases); err != nil {
+			// TODO
+		}
+		
+		if err := ds.AddEventDetails(failedEvent.Details); err != nil {
+			// TODO
+		}
+		
+		for _, idx := range failedEvent.InstanceMap {
+			dataHash := failedEvent.Instances[idx].ProcessedDataHash
+			detailHash := failedEvent.Instances[idx].ProcessedDetailHash
+			failedEvent.Instances[idx].EventBaseId =
+				failedEvent.Bases[failedEvent.BaseMap[dataHash]].Id
+			failedEvent.Instances[idx].EventDetailId =
+				failedEvent.Details[failedEvent.DetailMap[detailHash]].Id
+		}
+		
+		if err := ds.AddEventInstances(failedEvent.Instances); err != nil {
+			// TODO
+		}
+
+		for _, idx := range failedEvent.PeriodMap {
+			dataHash := failedEvent.Periods[idx].RawDataHash
+			failedEvent.Periods[idx].EventInstanceId =
+				failedEvent.Instances[failedEvent.InstanceMap[dataHash]].Id
+		}
+
+		if err := ds.AddEventinstancePeriods(failedEvent.Periods); err != nil {
+			// TODO
+		}
+
+		if err != nil {
+			break
+		}
+	}
 }
 
 // Logs the data into failedEventsLog
@@ -100,15 +174,15 @@ func (l *failedEventsLog) LogData(event interface{}) {
 
 func (l *failedEventsLog) logEventBase(base EventBase) {
 	if _, ok := l.BaseMap[base.ProcessedDataHash]; !ok {
-		l.Base = append(l.Base, base)
-		l.BaseMap[base.ProcessedDataHash] = len(l.Base) - 1
+		l.Bases = append(l.Bases, base)
+		l.BaseMap[base.ProcessedDataHash] = len(l.Bases) - 1
 	}
 }
 
 func (l *failedEventsLog) logEventInstance(instance EventInstance) {
 	if _, ok := l.InstanceMap[instance.ProcessedDataHash]; !ok {
-		l.Instance = append(l.Instance, instance)
-		l.InstanceMap[instance.ProcessedDataHash] = len(l.Instance) - 1
+		l.Instances = append(l.Instances, instance)
+		l.InstanceMap[instance.ProcessedDataHash] = len(l.Instances) - 1
 	}
 }
 
@@ -118,10 +192,10 @@ func (l *failedEventsLog) logEventInstancePeriod(period EventInstancePeriod) {
 		StartTime: period.StartTime,
 	}
 	if _, ok := l.PeriodMap[key]; !ok {
-		l.Period = append(l.Period, period)
-		l.PeriodMap[key] = len(l.Period) - 1
+		l.Periods = append(l.Periods, period)
+		l.PeriodMap[key] = len(l.Periods) - 1
 	} else {
-		e := &l.Period[l.PeriodMap[key]]
+		e := &l.Periods[l.PeriodMap[key]]
 		e.Count += period.Count
 		// TODO: handle error
 		e.CounterJson, _ = GlobalRule.Consolidate(period.CounterJson, e.CounterJson)
@@ -129,11 +203,15 @@ func (l *failedEventsLog) logEventInstancePeriod(period EventInstancePeriod) {
 }
 
 func (l *failedEventsLog) logEventDetail(detail EventDetail) {
-	if _, ok := l.DetailsMap[detail.ProcessedDetailHash]; !ok {
-		l.Detail = append(l.Detail, detail)
-		l.DetailsMap[detail.ProcessedDetailHash] = len(l.Detail) - 1
+	if _, ok := l.DetailMap[detail.ProcessedDetailHash]; !ok {
+		l.Details = append(l.Details, detail)
+		l.DetailMap[detail.ProcessedDetailHash] = len(l.Details) - 1
 	}
 }
+
+//func (l *failedEventsLog) HandleLogFmt(key, val []byte) error {
+//	return nil
+//}
 
 func parseConfig(file string) config {
 	c := config{
@@ -141,6 +219,8 @@ func parseConfig(file string) config {
 		"dev",
 		"log/system.log",
 		"log/data.log",
+		"config/datasourceinstance.yaml",
+		"config/schema.json",
 	}
 	f, err := os.Open(file)
 	if err != nil {
@@ -167,11 +247,12 @@ func NewLogger(configFile string) *Logger {
 			BaseMap: make(map[string]int),
 			InstanceMap: make(map[string]int),
 			PeriodMap: make(map[KeyEventPeriod]int),
-			DetailsMap: make(map[string]int),
+			DetailMap: make(map[string]int),
 		},
 
 		ticker: time.NewTicker(time.Duration(config.TimePeriod) * time.Second),
 	}
+	l.Data.Formatter = &log.JSONFormatter{}
 
 	// If environment is dev, send output to stdout
 	if config.Environment == "dev" {
@@ -199,6 +280,7 @@ func NewLogger(configFile string) *Logger {
 	}
 
 	// run log processing in a goroutine
+	l.PeriodicCheck("log/data.log", config)
 	go l.Start()
 	return &l
 }

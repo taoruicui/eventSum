@@ -6,7 +6,6 @@ import (
 	"github.com/ContextLogic/eventsum/util"
 	"github.com/ContextLogic/eventsum/rules"
 	. "github.com/ContextLogic/eventsum/models"
-	"github.com/ContextLogic/eventsum/config"
 	"github.com/jacksontj/dataman/src/client"
 	"github.com/jacksontj/dataman/src/client/direct"
 	"github.com/jacksontj/dataman/src/query"
@@ -40,21 +39,20 @@ type DataStore interface {
 
 type postgresStore struct {
 	client       *datamanclient.Client
-	timeInterval int
 }
 
 // Create a new dataStore
-func NewDataStore(conf config.EventsumConfig) (DataStore, error) {
+func NewDataStore(dataSourceInstance, dataSourceSchema string) (DataStore, error) {
 	// Create a connection to Postgres Database through Dataman
 
-	storagenodeConfig, err := storagenode.DatasourceInstanceConfigFromFile(conf.DataSourceInstance)
+	storagenodeConfig, err := storagenode.DatasourceInstanceConfigFromFile(dataSourceInstance)
 	if err != nil {
 		return nil, err
 	}
 
 	// Load meta
 	meta := &metadata.Meta{}
-	metaBytes, err := ioutil.ReadFile(conf.DataSourceSchema)
+	metaBytes, err := ioutil.ReadFile(dataSourceSchema)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +72,6 @@ func NewDataStore(conf config.EventsumConfig) (DataStore, error) {
 	client := &datamanclient.Client{Transport: transport}
 	return &postgresStore{
 		client:       client,
-		timeInterval: conf.TimeInterval,
 	}, nil
 }
 

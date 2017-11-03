@@ -134,7 +134,7 @@ func New(configFilename string) *EventSumServer {
 	log.GlobalRule = &globalRule
 	datastore.GlobalRule = &globalRule
 	logger := log.NewLogger(config.LogConfigFile)
-	ds, err := datastore.NewDataStore(config)
+	ds, err := datastore.NewDataStore(config.DataSourceInstance, config.DataSourceSchema)
 	if err != nil {
 		logger.App.Fatal(err)
 	}
