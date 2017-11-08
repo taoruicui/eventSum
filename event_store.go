@@ -139,7 +139,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 
 		// The unique key should be the raw data, and the time period,
 		// since the count should keep track of an event instance in a certain time frame.
-		t := util.PythonUnixToGoUnix(event.Timestamp).UTC()
+		t, _ := time.Parse(time.RFC3339, event.Timestamp)
 		startTime, endTime := util.FindBoundingTime(t, es.timeInterval)
 		key := KeyEventPeriod{
 			RawDataHash: rawDataHash,

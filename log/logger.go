@@ -15,7 +15,8 @@ import (
 var GlobalRule *rules.Rule
 
 type config struct {
-	TimePeriod int `json:"time_period"`
+	LogSaveDataInterval int `json:"log_save_data_interval"`
+	LogDataPeriodCheckInterval int `json:"log_data_period_check_interval"`
 	Environment string `json:"environment"`
 	AppLogging string `json:"app_logging"`
 	DataLogging string `json:"data_logging"`
@@ -38,6 +39,8 @@ type Logger struct {
 	tickerCheck *time.Ticker // used for periodically checking logs
 }
 
+// This struct is what is being stored into the data log file. This is the summarized
+// version of all the unadded events within a given time period
 type failedEventsLog struct {
 	Bases []EventBase `json:"event_base"`
 	Instances []EventInstance `json:"event_instance"`
@@ -129,11 +132,13 @@ func (l *Logger) PeriodicCheck(conf config) {
 		if err := ds.AddEvents(failedEvent.Bases); len(err) != 0 {
 			// TODO
 			l.App.Error(err)
+			return
 		}
 		
 		if err := ds.AddEventDetails(failedEvent.Details); len(err) != 0 {
 			// TODO
 			l.App.Error(err)
+			return
 		}
 		
 		for _, idx := range failedEvent.InstanceMap {
@@ -148,6 +153,7 @@ func (l *Logger) PeriodicCheck(conf config) {
 		if err := ds.AddEventInstances(failedEvent.Instances); len(err) != 0 {
 			// TODO
 			l.App.Error(err)
+			return
 		}
 
 		for idx := range failedEvent.Periods {
@@ -159,12 +165,13 @@ func (l *Logger) PeriodicCheck(conf config) {
 		if err := ds.AddEventinstancePeriods(failedEvent.Periods); len(err) != 0 {
 			// TODO
 			l.App.Error(err)
+			return
 		}
 	}
-
 }
 
-// Logs the data into failedEventsLog
+// Logs the data into failedEventsLog. Checks the type of the summarized event,
+// and calls the respective function
 func (l *failedEventsLog) LogData(event interface{}) {
 	// Check the event type
 	t := reflect.TypeOf(event)
@@ -225,6 +232,7 @@ func (l *failedEventsLog) logEventDetail(detail EventDetail) {
 func parseConfig(file string) config {
 	c := config{
 		5,
+		10,
 		"dev",
 		"log/system.log",
 		"log/data.log",
@@ -260,8 +268,8 @@ func NewLogger(configFile string) *Logger {
 		},
 		appFileName: config.AppLogging,
 		dataFileName: config.DataLogging,
-		tickerDump: time.NewTicker(time.Duration(config.TimePeriod) * time.Second),
-		tickerCheck: time.NewTicker(13 * time.Second),
+		tickerDump: time.NewTicker(time.Duration(config.LogSaveDataInterval) * time.Second),
+		tickerCheck: time.NewTicker(time.Duration(config.LogDataPeriodCheckInterval) * time.Second),
 	}
 	l.Data.Formatter = &log.JSONFormatter{}
 

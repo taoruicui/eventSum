@@ -1,5 +1,6 @@
 {
-  "time_period": 10,
+  "log_save_data_interval": 5,
+  "log_data_period_check_interval": 10,
   "environment": "dev",
   "data_source_instance": "config/datasourceinstance.yaml",
   "data_source_schema": "config/schema.json"

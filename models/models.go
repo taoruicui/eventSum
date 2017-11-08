@@ -14,7 +14,7 @@ type UnaddedEvent struct {
 	Type                  string                 `json:"event_type"`
 	Data                  EventData              `json:"event_data"`
 	ExtraArgs             map[string]interface{} `json:"extra_args"`
-	Timestamp             float64                `json:"timestamp"`
+	Timestamp             string                 `json:"timestamp"`
 	ConfigurableFilters   map[string][]string    `json:"configurable_filters"`
 	ConfigurableGroupings []string               `json:"configurable_groupings"`
 }
