@@ -1,7 +1,7 @@
 package log
 
 import (
-	log "github.com/sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 	"github.com/ContextLogic/eventsum/rules"
 	. "github.com/ContextLogic/eventsum/models"
 	"encoding/json"

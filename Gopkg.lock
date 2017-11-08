@@ -20,6 +20,12 @@
   revision = "f87a082bc4bc25383e93c91e947c9919fee5e3e0"
 
 [[projects]]
+  name = "github.com/jessevdk/go-flags"
+  packages = ["."]
+  revision = "96dc06278ce32a0e9d957d590bb987c81ee66407"
+  version = "v1.3.0"
+
+[[projects]]
   name = "github.com/julienschmidt/httprouter"
   packages = ["."]
   revision = "8c199fb6259ffc1af525cc3ad52ee60ba8359669"
@@ -88,6 +94,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b5709ab9e29ee8c7a918206b63c6b7a479289bc3e24c1dd9f920a4b66873c177"
+  inputs-digest = "f1801dff2de54634ef5c76bf5c25a30fa2d94988bac627dae8cfd896bf0cacd7"
   solver-name = "gps-cdcl"
   solver-version = 1
