@@ -1,10 +1,13 @@
 package main
 
 import (
+	c "github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum"
 	"github.com/mitchellh/mapstructure"
 	"math"
+	"github.com/jessevdk/go-flags"
+	"fmt"
 )
 
 type stackTrace struct {
@@ -28,11 +31,17 @@ type frame struct {
 }
 
 func main() {
-	e := eventsum.New("config/config.json")
+	var config c.Flags
+	parser := flags.NewParser(&config, flags.Default)
+	_, err := parser.Parse()
+	if err != nil {
+		fmt.Println(err)
+	}
+	e := eventsum.New(config.ConfigFile)
 	e.AddFilter("exception_python_remove_line_no", exceptionPythonRemoveLineNo)
 	e.AddFilter("exception_python_remove_stack_vars", exceptionPythonRemoveStackVars)
-	e.AddGrouping("query_perf_trace_grouping", queryPerfTraceGrouping)
-	e.AddConsolidation(consolidationFunction)
+	//e.AddGrouping("query_perf_trace_grouping", queryPerfTraceGrouping)
+	//e.AddConsolidation(consolidationFunction)
 	e.Start()
 }
 
