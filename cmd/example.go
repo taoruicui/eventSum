@@ -7,7 +7,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"math"
 	"github.com/jessevdk/go-flags"
-	"fmt"
+	logger "github.com/Sirupsen/logrus"
 )
 
 type stackTrace struct {
@@ -35,7 +35,7 @@ func main() {
 	parser := flags.NewParser(&config, flags.Default)
 	_, err := parser.Parse()
 	if err != nil {
-		fmt.Println(err)
+		logger.Fatal(err)
 	}
 	e := eventsum.New(config.ConfigFile)
 	e.AddFilter("exception_python_remove_line_no", exceptionPythonRemoveLineNo)

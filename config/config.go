@@ -8,8 +8,6 @@ import (
 
 type Flags struct {
 	ConfigFile string `short:"c" long:"config" description:"location of configuration file"`
-	FiltersFile string `short:"f" long:"filters" description:"location of filters file"`
-	GroupsFile string `short:"f" long:"filters" description:"location of filters file"`
 }
 
 // config are settings used ... XXX
