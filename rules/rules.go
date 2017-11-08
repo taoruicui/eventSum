@@ -30,19 +30,19 @@ func (r *Rule) ProcessGrouping(event UnaddedEvent, group map[string]interface{})
 }
 
 // Process user defined filters. Make sure that if there is an error, do not do that processing.
-func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}, error) {
+func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (UnaddedEvent, error) {
 	if funcNames, ok := event.ConfigurableFilters[filterName]; ok {
 		for _, name := range funcNames {
 			if _, ok := r.Filter[name]; !ok {
-				return nil, errors.New("Function name not supported")
+				return event, errors.New("Function name not supported")
 			}
 			res, err := r.call("filter", name, event.Data)
 			if err != nil {
-				return nil, err
+				return event, err
 			}
 			// Second reflect.Value is the error
 			if err, ok := res[1].Interface().(error); ok {
-				return nil, err
+				return event, err
 			}
 			// First reflect.Value is the EventData
 			d := res[0].Interface().(EventData)
@@ -50,13 +50,7 @@ func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (interface{}
 		}
 	}
 
-	if filterName == "data" {
-		return event.Data, nil
-	} else if filterName == "extra_args" {
-		return event.ExtraArgs, nil
-	} else {
-		return event, errors.New("filter name not supported")
-	}
+	return event, nil
 }
 
 func (r *Rule) Consolidate(g1 map[string]interface{}, g2 map[string]interface{}) (map[string]interface{}, error) {

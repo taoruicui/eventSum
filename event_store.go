@@ -96,19 +96,23 @@ func (es *eventStore) SummarizeBatchEvents() {
 	var eventDetailsMap = make(map[string]int)
 
 	for _, event := range evtsToAdd {
-		rawData := event.Data.Raw
 		rawDetail := event.ExtraArgs
+		event, err := globalRule.ProcessFilter(event, "instance")
+		if err != nil {
+			es.log.App.Errorf("Error when processing instance: %v", err)
+		}
+		rawData := event.Data
 		// Feed event into filter
-		processedData, err := globalRule.ProcessFilter(event, "data")
+		event, err = globalRule.ProcessFilter(event, "base")
 		if err != nil {
-			es.log.App.Errorf("Error when processing data: %v", err)
-			processedData = rawData
+			es.log.App.Errorf("Error when processing base: %v", err)
 		}
-		processedDetail, err := globalRule.ProcessFilter(event, "extra_args")
+		processedData := event.Data
+		event, err = globalRule.ProcessFilter(event, "extra_args")
 		if err != nil {
-			es.log.App.Errorf("Error when processing detail: %v", err)
-			processedDetail = rawDetail
+			es.log.App.Errorf("Error when processing extra args: %v", err)
 		}
+		processedDetail := event.ExtraArgs
 
 		rawDataHash := util.Hash(rawData)
 		processedDataHash := util.Hash(processedData)
@@ -139,7 +143,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 
 		// The unique key should be the raw data, and the time period,
 		// since the count should keep track of an event instance in a certain time frame.
-		t, _ := time.Parse(time.RFC3339, event.Timestamp)
+		t, err := time.Parse("2006-01-02T15:04:05", event.Timestamp)
 		startTime, endTime := util.FindBoundingTime(t, es.timeInterval)
 		key := KeyEventPeriod{
 			RawDataHash: rawDataHash,
