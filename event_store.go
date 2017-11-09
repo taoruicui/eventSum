@@ -96,6 +96,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 	var eventDetailsMap = make(map[string]int)
 
 	for _, event := range evtsToAdd {
+		rawEvent := event // Used for grouping
 		rawDetail := event.ExtraArgs
 		event, err := globalRule.ProcessFilter(event, "instance")
 		if err != nil {
@@ -162,7 +163,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 		}
 		e := &eventClassInstancePeriods[eventClassInstancePeriodsMap[key]]
 		e.Count++
-		e.CounterJson, _ = globalRule.ProcessGrouping(event, e.CounterJson)
+		e.CounterJson, _ = globalRule.ProcessGrouping(rawEvent, e.CounterJson)
 
 		if _, ok := eventDetailsMap[processedDataHash]; !ok {
 			eventDetails = append(eventDetails, EventDetail{
