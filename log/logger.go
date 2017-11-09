@@ -168,6 +168,10 @@ func (l *Logger) PeriodicCheck(conf config) {
 			return
 		}
 	}
+	// delete the log file
+	if err := os.Truncate(l.dataFileName, 0); err != nil {
+		l.App.Error(err)
+	}
 }
 
 // Logs the data into failedEventsLog. Checks the type of the summarized event,
