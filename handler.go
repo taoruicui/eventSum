@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jacksontj/dataman/src/datamantype"
 	"github.com/julienschmidt/httprouter"
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/log"
 	"net/http"
 	"strconv"
 	"time"
+	"github.com/ContextLogic/eventsum/util"
 )
 
 // Base class for handling HTTP Requests
@@ -57,17 +57,17 @@ func (h *httpHandler) recentEventsHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	if str := query.Get("end_time"); str != "" {
-		endTime, err = time.Parse(datamantype.DateTimeFormatStr, str)
+		endTime, err = time.Parse(util.TimeFormat, str)
 		if err != nil {
-			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure end time is in correct format: %v", datamantype.DateTimeFormatStr))
+			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure end time is in correct format: %v", util.TimeFormat))
 			return
 		}
 	}
 
 	if str := query.Get("start_time"); str != "" {
-		startTime, err = time.Parse(datamantype.DateTimeFormatStr, str)
+		startTime, err = time.Parse(util.TimeFormat, str)
 		if err != nil {
-			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure start time is in correct format: %v", datamantype.DateTimeFormatStr))
+			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure start time is in correct format: %v", util.TimeFormat))
 			return
 		}
 	}
@@ -112,17 +112,17 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	if str := query.Get("end_time"); str != "" {
-		endTime, err = time.Parse(datamantype.DateTimeFormatStr, str)
+		endTime, err = time.Parse(util.TimeFormat, str)
 		if err != nil {
-			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure end time is in correct format: %v", datamantype.DateTimeFormatStr))
+			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure end time is in correct format: %v", util.TimeFormat))
 			return
 		}
 	}
 
 	if str := query.Get("start_time"); str != "" {
-		startTime, err = time.Parse(datamantype.DateTimeFormatStr, str)
+		startTime, err = time.Parse(util.TimeFormat, str)
 		if err != nil {
-			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure start time is in correct format: %v", datamantype.DateTimeFormatStr))
+			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure start time is in correct format: %v", util.TimeFormat))
 			return
 		}
 	}
@@ -136,15 +136,24 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	var exc UnaddedEvent
+	var evt UnaddedEvent
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&exc); err != nil {
+	if err := decoder.Decode(&evt); err != nil {
 		h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event")
 		return
 	}
-	// TODO: make sure we validate the unadded event
+	// Validate the unadded event
+	if _, err := time.Parse(util.TimeFormat, evt.Timestamp); err != nil {
+		h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure timestamp is in correct format: '%v'", util.TimeFormat))
+		return
+	}
+
+	if evt.Name == "" || evt.Type == "" {
+		h.sendError(w, http.StatusBadRequest, errors.New("event_name and event_type cannot be empty"), "")
+		return
+	}
 
 	// Send to batching channel
-	h.es.Send(exc)
+	h.es.Send(evt)
 }

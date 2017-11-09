@@ -111,6 +111,7 @@ func (l *Logger) PeriodicCheck(conf config) {
 		}).Error("Unable to open file")
 		return
 	}
+	defer file.Close()
 	stats, err := file.Stat()
 	if err != nil {
 		return
