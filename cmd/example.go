@@ -86,13 +86,13 @@ In order to implement a grouping, the function must accept an eventData
 and a , and modify it in place.
  */
 
-func queryPerfTraceGrouping(data models.EventData, group map[string]interface{}) map[string]interface{} {
+func queryPerfTraceGrouping(data models.EventData, group map[string]interface{}) (map[string]interface{}, error) {
 	if _, ok := group["b"]; !ok {
 		group["b"] = 0.0
 	}
 	i := group["b"].(float64)
 	group["b"] = i + 1.0
-	return group
+	return group, nil
 }
 
 /*
@@ -101,7 +101,7 @@ CONSOLIDATION FUNCTION
 This function should define how two groups should be merged.
  */
 
- func consolidationFunction(group1, group2 map[string]interface{}) map[string]interface{} {
+ func consolidationFunction(group1, group2 map[string]interface{}) (map[string]interface{}, error) {
 	 for k, i := range group1 {
 		 if v, ok := group2[k]; !ok {
 			 group2[k] = v
@@ -109,5 +109,5 @@ This function should define how two groups should be merged.
 		 	group2[k] = math.Max(v.(float64), i.(float64))
 		 }
 	 }
-	 return group2
+	 return group2, nil
  }

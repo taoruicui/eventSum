@@ -23,6 +23,11 @@ func (r *Rule) ProcessGrouping(event UnaddedEvent, group map[string]interface{})
 		if err != nil {
 			return group, err
 		}
+		// Second reflect.Value is the error
+		if err, ok := res[1].Interface().(error); ok {
+			return group, err
+		}
+		// First reflect.Value is the EventData
 		d := res[0].Interface().(map[string]interface{})
 		group = d
 	}
@@ -58,6 +63,11 @@ func (r *Rule) Consolidate(g1 map[string]interface{}, g2 map[string]interface{})
 	if err != nil {
 		return g1, err
 	}
+	// Second reflect.Value is the error
+	if err, ok := res[1].Interface().(error); ok {
+		return g1, err
+	}
+	// First reflect.Value is the EventData
 	return res[0].Interface().(map[string]interface{}), nil
 }
 
@@ -88,12 +98,12 @@ func (r *Rule) AddFilter(name string, filter func(EventData) (EventData, error))
 	return nil
 }
 
-func (r *Rule) AddGrouping(name string, grouping func(EventData, map[string]interface{}) map[string]interface{}) error {
+func (r *Rule) AddGrouping(name string, grouping func(EventData, map[string]interface{}) (map[string]interface{}, error)) error {
 	r.Grouping[name] = grouping
 	return nil
 }
 
-func (r *Rule) AddConsolidateFunc(f func(map[string]interface{}, map[string]interface{}) map[string]interface{}) error {
+func (r *Rule) AddConsolidateFunc(f func(map[string]interface{}, map[string]interface{}) (map[string]interface{}, error)) error {
 	r.ConsolidateFunc = f
 	return nil
 }
@@ -113,12 +123,12 @@ func NewRule() Rule {
 
 // Default consolidation function. This function takes two dicts and merges
 // them together additively. Returns a single group
-func defaultConsolidate(g1, g2 map[string]interface{}) map[string]interface{} {
+func defaultConsolidate(g1, g2 map[string]interface{}) (map[string]interface{}, error) {
 	for k, i := range g1 {
 		if _, ok := g2[k]; !ok {
 			g2[k] = 0.0
 		}
 		g2[k] = g2[k].(float64) + i.(float64)
 	}
-	return g2
+	return g2, nil
 }

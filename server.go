@@ -86,7 +86,7 @@ func (s *EventSumServer) AddFilter(name string, filter func(EventData) (EventDat
 }
 
 // User Defined configurable groupings
-func (s *EventSumServer) AddGrouping(name string, grouping func(EventData, map[string]interface{}) map[string]interface{}) error {
+func (s *EventSumServer) AddGrouping(name string, grouping func(EventData, map[string]interface{}) (map[string]interface{}, error)) error {
 	if name == "" {
 		return errors.New("Name must be a valid string")
 	}
@@ -94,7 +94,7 @@ func (s *EventSumServer) AddGrouping(name string, grouping func(EventData, map[s
 }
 
 // User Defined configurable groupings
-func (s *EventSumServer) AddConsolidation(f func(map[string]interface{}, map[string]interface{}) map[string]interface{}) error {
+func (s *EventSumServer) AddConsolidation(f func(map[string]interface{}, map[string]interface{}) (map[string]interface{}, error)) error {
 	return globalRule.AddConsolidateFunc(f)
 }
 
