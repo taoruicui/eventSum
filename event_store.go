@@ -99,19 +99,23 @@ func (es *eventStore) SummarizeBatchEvents() {
 		rawEvent := event // Used for grouping
 		rawDetail := event.ExtraArgs
 		event, err := globalRule.ProcessFilter(event, "instance")
+		// TODO: save to logs if filters fail
 		if err != nil {
 			es.log.App.Errorf("Error when processing instance: %v", err)
+			continue
 		}
 		rawData := event.Data
 		// Feed event into filter
 		event, err = globalRule.ProcessFilter(event, "base")
 		if err != nil {
 			es.log.App.Errorf("Error when processing base: %v", err)
+			continue
 		}
 		processedData := event.Data
 		event, err = globalRule.ProcessFilter(event, "extra_args")
 		if err != nil {
 			es.log.App.Errorf("Error when processing extra args: %v", err)
+			continue
 		}
 		processedDetail := event.ExtraArgs
 
@@ -180,7 +184,6 @@ func (es *eventStore) SummarizeBatchEvents() {
 	if len(errBase) != 0 {
 		for i, v := range errBase {
 			es.log.EventLog.LogData(eventClasses[i])
-
 			es.log.App.Errorf("Error while inserting events: %v", v)
 		}
 	}

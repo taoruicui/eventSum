@@ -15,7 +15,9 @@ import (
 	"github.com/ContextLogic/eventsum/rules"
 	conf "github.com/ContextLogic/eventsum/config"
 	. "github.com/ContextLogic/eventsum/models"
+	"github.com/ContextLogic/eventsum/metrics"
 	"github.com/ContextLogic/eventsum/datastore"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 /* GLOBAL VARIABLES */
@@ -29,7 +31,6 @@ type EventSumServer struct {
 }
 
 func (s *EventSumServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Server", "example Go store")
 	s.route.ServeHTTP(w, r)
 }
 
@@ -111,10 +112,11 @@ func newServer(options func(server *EventSumServer)) *EventSumServer {
 
 	/* ROUTING */
 	// GET requests
-	s.route.GET("/", s.httpHandler.recentEventsHandler)
+	s.route.GET("/", latency("/api/event/recent", s.httpHandler.recentEventsHandler))
 	s.route.GET("/api/event/recent", s.httpHandler.recentEventsHandler)
 	s.route.GET("/api/event/detail", s.httpHandler.detailsEventsHandler)
 	s.route.GET("/api/event/histogram", s.httpHandler.histogramEventsHandler)
+	s.route.Handler("GET", "/metrics", promhttp.Handler())
 
 	// POST requests
 	s.route.POST("/api/event/capture", s.httpHandler.captureEventsHandler)
@@ -133,7 +135,13 @@ func New(configFilename string) *EventSumServer {
 	// global var globalRule should be available in packages as well
 	log.GlobalRule = &globalRule
 	datastore.GlobalRule = &globalRule
+
 	logger := log.NewLogger(config.LogConfigFile)
+
+	if err := metrics.RegisterPromMetrics(); err != nil {
+		logger.App.Fatalf("Unable to register prometheus metrics: %v", err)
+	}
+
 	ds, err := datastore.NewDataStore(config.DataSourceInstance, config.DataSourceSchema)
 	if err != nil {
 		logger.App.Fatal(err)
