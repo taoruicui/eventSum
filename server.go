@@ -112,14 +112,14 @@ func newServer(options func(server *EventSumServer)) *EventSumServer {
 
 	/* ROUTING */
 	// GET requests
-	s.route.GET("/", latency("/api/event/recent", s.httpHandler.recentEventsHandler))
-	s.route.GET("/api/event/recent", s.httpHandler.recentEventsHandler)
-	s.route.GET("/api/event/detail", s.httpHandler.detailsEventsHandler)
-	s.route.GET("/api/event/histogram", s.httpHandler.histogramEventsHandler)
+	s.route.GET("/", latency("/recent", s.httpHandler.recentEventsHandler))
+	s.route.GET("/recent", latency("/recent", s.httpHandler.recentEventsHandler))
+	s.route.GET("/detail", latency("/detail", s.httpHandler.detailsEventsHandler))
+	s.route.GET("/histogram", latency("/histogram", s.httpHandler.histogramEventsHandler))
 	s.route.Handler("GET", "/metrics", promhttp.Handler())
 
 	// POST requests
-	s.route.POST("/api/event/capture", s.httpHandler.captureEventsHandler)
+	s.route.POST("/capture", latency("/capture", s.httpHandler.captureEventsHandler))
 
 	return s
 }

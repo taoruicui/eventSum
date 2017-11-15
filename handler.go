@@ -7,6 +7,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/log"
+	"github.com/ContextLogic/eventsum/metrics"
 	"net/http"
 	"strconv"
 	"time"
@@ -17,6 +18,18 @@ import (
 type httpHandler struct {
 	es  *eventStore
 	log *log.Logger
+}
+
+// http wrapper to track latency by method calls
+func latency(prefix string, h httprouter.Handle) httprouter.Handle {
+	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+		start := time.Now()
+		defer func() {
+			metrics.HTTPLatency(prefix, start)
+		}()
+
+		h(w, req, ps)
+	}
 }
 
 // Writes an error to ResponseWriter
