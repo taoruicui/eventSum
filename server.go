@@ -116,6 +116,7 @@ func newServer(options func(server *EventSumServer)) *EventSumServer {
 	s.route.GET("/recent", latency("/recent", s.httpHandler.recentEventsHandler))
 	s.route.GET("/detail", latency("/detail", s.httpHandler.detailsEventsHandler))
 	s.route.GET("/histogram", latency("/histogram", s.httpHandler.histogramEventsHandler))
+	s.route.GET("/health", latency("/health", s.httpHandler.healthCheck))
 	s.route.Handler("GET", "/metrics", promhttp.Handler())
 
 	// POST requests

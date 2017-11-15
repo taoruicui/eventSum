@@ -196,3 +196,7 @@ func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Reques
 	// Send to batching channel
 	h.es.Send(evt)
 }
+
+func (h *httpHandler) healthCheck(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	// TODO: Make this useful
+}
