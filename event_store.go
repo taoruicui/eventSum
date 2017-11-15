@@ -10,6 +10,7 @@ import (
 	. "github.com/ContextLogic/eventsum/models"
 	"time"
 	"github.com/ContextLogic/eventsum/util"
+	"github.com/ContextLogic/eventsum/metrics"
 )
 
 // Wrapper struct for Event Channel
@@ -72,6 +73,11 @@ func (es *eventStore) Send(exc UnaddedEvent) {
 
 // Process Batch from channel and bulk insert into Db
 func (es *eventStore) SummarizeBatchEvents() {
+	start := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("SummarizeBatchEvents", start)
+	} ()
+
 	var evtsToAdd []UnaddedEvent
 	for length := len(es.channel._queue); length > 0; length-- {
 		exc := <-es.channel._queue
@@ -243,6 +249,11 @@ func (es *eventStore) SummarizeBatchEvents() {
 
 // Get all events within a time period, including their count
 func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) ([]EventRecentResult, error) {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("GetRecentEvents", now)
+	} ()
+
 	// TODO: use the limit!!
 	var evts []EventRecentResult
 	var evtsMap = make(map[int64]int)
@@ -298,6 +309,11 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 
 // Get the histogram of a single event instance
 func (es *eventStore) GetEventHistogram(start, end time.Time, eventId int) ([]EventHistogramResult, error) {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("GetEventHistogram", now)
+	} ()
+
 	var hist []EventHistogramResult
 	var bin EventInstancePeriod
 	filter := []interface{}{
@@ -325,6 +341,11 @@ func (es *eventStore) GetEventHistogram(start, end time.Time, eventId int) ([]Ev
 
 // Get the details of a single event instance
 func (es *eventStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("GetEventDetailsbyId", now)
+	} ()
+
 	var result EventDetailsResult
 	var instance EventInstance
 	var detail EventDetail

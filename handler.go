@@ -20,6 +20,30 @@ type httpHandler struct {
 	log *log.Logger
 }
 
+// statusRecorder is a simple http status recorder
+type statusRecorder struct {
+	http.ResponseWriter
+
+	status int
+}
+
+// NewStatusRecorder returns an initialized statusRecorder, with 200 as the
+// default status.
+func newStatusRecorder(w http.ResponseWriter) *statusRecorder {
+	return &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+}
+
+// Status returns the cached http status value.
+func (sr *statusRecorder) Status() int {
+	return sr.status
+}
+
+// WriteHeader caches the status, then calls the underlying ResponseWriter.
+func (sr *statusRecorder) WriteHeader(status int) {
+	sr.status = status
+	sr.ResponseWriter.WriteHeader(status)
+}
+
 // http wrapper to track latency by method calls
 func latency(prefix string, h httprouter.Handle) httprouter.Handle {
 	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
@@ -27,8 +51,10 @@ func latency(prefix string, h httprouter.Handle) httprouter.Handle {
 		defer func() {
 			metrics.HTTPLatency(prefix, start)
 		}()
-
-		h(w, req, ps)
+		
+		lw := newStatusRecorder(w)
+		h(lw, req, ps)
+		metrics.HTTPStatus(prefix, lw.Status())
 	}
 }
 

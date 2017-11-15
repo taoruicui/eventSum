@@ -5,6 +5,11 @@ import (
 	"time"
 )
 
+// EventStoreLatency records eventstore latency for a named op.
+func EventStoreLatency(op string, start time.Time) {
+	eventStoreTimer.WithLabelValues(op).Observe(msSince(start))
+}
+
 // DBError increments a counter for a db error operation.
 func DBError(op string) {
 	eventStoreDbErrCounter.WithLabelValues(op).Inc()

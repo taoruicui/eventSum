@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/ContextLogic/eventsum/util"
 	"github.com/ContextLogic/eventsum/rules"
+	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/jacksontj/dataman/src/client"
 	"github.com/jacksontj/dataman/src/client/direct"
@@ -66,6 +67,7 @@ func NewDataStore(dataSourceInstance, dataSourceSchema string) (DataStore, error
 
 	transport, err := datamandirect.NewStaticDatasourceInstanceTransport(storagenodeConfig, meta)
 	if err != nil {
+		metrics.DBError("transport")
 		return nil, err
 	}
 
@@ -117,8 +119,10 @@ func (p *postgresStore) Query(typ query.QueryType,
 	res, err := p.client.DoQuery(context.Background(), q)
 	//res, err := &query.Result{}, errors.New("asdf")
 	if err != nil {
+		metrics.DBError("transport")
 		return res, err
 	} else if res.Error != "" {
+		metrics.DBError("read")
 		return res, errors.New(res.Error)
 	}
 	return res, err
@@ -132,6 +136,7 @@ func (p *postgresStore) AddEvent(evt *EventBase) error {
 	}
 	res, err := p.Query(query.Filter, "event_base", filter, nil, nil, nil, 1, nil, nil)
 	if err != nil {
+		metrics.DBError("read")
 		return err
 	} else if len(res.Return) == 0 {
 		//TODO: fix uniqueness constraint
@@ -145,6 +150,7 @@ func (p *postgresStore) AddEvent(evt *EventBase) error {
 
 		res, err = p.Query(query.Set, "event_base", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
+			metrics.DBError("write")
 			return err
 		}
 	}
@@ -169,6 +175,7 @@ func (p *postgresStore) AddEventInstance(evt *EventInstance) error {
 	}
 	res, err := p.Query(query.Filter, "event_instance", filter, nil, nil, nil, 1, nil, nil)
 	if err != nil {
+		metrics.DBError("read")
 		return err
 	} else if len(res.Return) == 0 {
 		//TODO: fix uniqueness constraint
@@ -180,6 +187,7 @@ func (p *postgresStore) AddEventInstance(evt *EventInstance) error {
 		}
 		res, err = p.Query(query.Set, "event_instance", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
+			metrics.DBError("write")
 			return err
 		}
 	}
@@ -215,11 +223,13 @@ func (p *postgresStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 	for {
 		res, err := p.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, nil)
 		if err != nil {
+			metrics.DBError("read")
 			return err
 		} else if len(res.Return) == 0 {
 			//TODO: fix uniqueness constraint
 			res, err = p.Query(query.Set, "event_instance_period", nil, record, nil, nil, -1, nil, nil)
 			if err != nil {
+				metrics.DBError("write")
 				return err
 			}
 		} else {
@@ -258,6 +268,7 @@ func (p *postgresStore) AddEventDetail(evt *EventDetail) error {
 	}
 	res, err := p.Query(query.Filter, "event_detail", filter, nil, nil, nil, 1, nil, nil)
 	if err != nil {
+		metrics.DBError("read")
 		return err
 	} else if len(res.Return) == 0 {
 		//TODO: fix uniqueness constraint
@@ -268,6 +279,7 @@ func (p *postgresStore) AddEventDetail(evt *EventDetail) error {
 		}
 		res, err = p.Query(query.Set, "event_detail", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
+			metrics.DBError("write")
 			return err
 		}
 	}

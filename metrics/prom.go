@@ -29,6 +29,14 @@ var (
 		Name:      "db_error",
 		Help:      "The count of db errors by db name and type of operation",
 	}, []string{"operation"})
+
+	eventStoreTimer = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "eventmaster",
+		Subsystem: "event_store",
+		Name:      "method_time",
+		Help:      "Time of event store methods by method name",
+		Buckets:   buckets(),
+	}, []string{"method"})
 )
 
 // RegisterPromMetrics registers all the metrics that eventsum uses.
