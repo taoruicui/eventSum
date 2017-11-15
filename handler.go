@@ -199,4 +199,5 @@ func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Reques
 
 func (h *httpHandler) healthCheck(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	// TODO: Make this useful
+	h.sendResp(w, "", "")
 }
