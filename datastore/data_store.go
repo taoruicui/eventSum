@@ -90,7 +90,7 @@ func (p *postgresStore) Query(typ query.QueryType,
 	q := &query.Query{
 		Type: typ,
 		Args: map[string]interface{}{
-			"db":             "event_sum",
+			"db":             "eventsum",
 			"collection":     collection,
 			"shard_instance": "public",
 		},

@@ -1,7 +1,7 @@
 {
   "databases": {
-    "event_sum": {
-      "name": "event_sum",
+    "eventsum": {
+      "name": "eventsum",
       "shard_instances": {
         "public": {
           "name": "public",

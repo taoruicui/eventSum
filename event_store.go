@@ -1,7 +1,6 @@
 package eventsum
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/jacksontj/dataman/src/query"
 	"github.com/ContextLogic/eventsum/datastore"
@@ -50,7 +49,6 @@ func (es *eventStore) Start() {
 	for {
 		select {
 		case <-es.channel.ticker.C:
-			fmt.Println("running")
 			es.SummarizeBatchEvents()
 		case <-es.channel.quit:
 			es.channel.ticker.Stop()
