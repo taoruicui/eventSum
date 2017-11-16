@@ -4,30 +4,26 @@ import (
 	c "github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum"
-	"github.com/mitchellh/mapstructure"
+	m "github.com/mitchellh/mapstructure"
 	"math"
 	"github.com/jessevdk/go-flags"
 	logger "github.com/Sirupsen/logrus"
+	"fmt"
 )
 
 type stackTrace struct {
-	Module   string  `json:"module",mapstructure:"module"`
-	Type     string  `json:"type",mapstructure:"type"`
-	Value    string  `json:"value",mapstructure:"value"`
-	RawStack string  `json:"raw_stack",mapstructure:"raw_stack"`
-	Frames   []frame `json:"frames",mapstructure:"frames"`
+	Frames   []frame `json:"frames" mapstructure:"frames"`
 }
 
 type frame struct {
-	AbsPath     string                 `json:"abs_path",mapstructure:"abs_path"`
-	ContextLine string                 `json:"context_line",mapstructure:"context_line"`
-	Filename    string                 `json:"filename",mapstructure:"filename"`
-	Function    string                 `json:"function",mapstructure:"function"`
-	LineNo      int                    `json:"lineno",mapstructure:"lineno"`
-	Module      string                 `json:"module",mapstructure:"module"`
-	PostContext []string               `json:"post_context",mapstructure:"post_context"`
-	PreContext  []string               `json:"pre_context",mapstructure:"pre_context"`
-	Vars        map[string]interface{} `json:"vars",mapstructure:"vars"`
+	AbsPath     string                 `json:"abs_path" mapstructure:"abs_path"`
+	ContextLine string                 `json:"context_line" mapstructure:"context_line"`
+	Filename    string                 `json:"filename" mapstructure:"filename"`
+	Function    string                 `json:"function" mapstructure:"function"`
+	LineNo      int                    `json:"lineno" mapstructure:"lineno"`
+	Module      string                 `json:"module" mapstructure:"module"`
+	PostContext []string               `json:"post_context" mapstructure:"post_context"`
+	PreContext  []string               `json:"pre_context" mapstructure:"pre_context"`
 }
 
 func main() {
@@ -39,7 +35,6 @@ func main() {
 	}
 	e := eventsum.New(config.ConfigFile)
 	e.AddFilter("exception_python_remove_line_no", exceptionPythonRemoveLineNo)
-	e.AddFilter("exception_python_remove_stack_vars", exceptionPythonRemoveStackVars)
 	//e.AddGrouping("query_perf_trace_grouping", queryPerfTraceGrouping)
 	//e.AddConsolidation(consolidationFunction)
 	e.Start()
@@ -54,7 +49,15 @@ and return (EventData, error)
 
 func exceptionPythonRemoveLineNo(data models.EventData) (models.EventData, error) {
 	var stacktrace stackTrace
-	err := mapstructure.Decode(data.Raw, &stacktrace)
+	fmt.Println(data)
+	var md m.Metadata
+	config := &m.DecoderConfig{
+		Metadata: &md,
+		Result: &stacktrace,
+		WeaklyTypedInput: true,
+	}
+	decoder, _ := m.NewDecoder(config)
+	err := decoder.Decode(data.Raw)
 	if err != nil {
 		return data, err
 	}
@@ -64,20 +67,6 @@ func exceptionPythonRemoveLineNo(data models.EventData) (models.EventData, error
 	data.Raw = stacktrace
 	return data, nil
 }
-
-func exceptionPythonRemoveStackVars(data models.EventData) (models.EventData, error) {
-	var stacktrace stackTrace
-	err := mapstructure.Decode(data.Raw, &stacktrace)
-	if err != nil {
-		return data, err
-	}
-	for i := range stacktrace.Frames {
-		stacktrace.Frames[i].Vars = nil
-	}
-	data.Raw = stacktrace
-	return data, nil
-}
-
 
 /*
 GROUPING FUNCTIONS
