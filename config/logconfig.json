@@ -1,7 +1,9 @@
 {
+  "add_logging_dir": "log",
+  "data_logging_dir": "config",
   "log_save_data_interval": 5,
   "log_data_period_check_interval": 1000000,
-  "environment": "dev",
+  "environment": "prod",
   "data_source_instance": "config/datasourceinstance.yaml",
   "data_source_schema": "config/schema.json"
 }

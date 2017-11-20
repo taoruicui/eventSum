@@ -110,13 +110,8 @@ func (r *Rule) AddConsolidateFunc(f func(map[string]interface{}, map[string]inte
 
 func NewRule() Rule {
 	return Rule{
-		Filter: map[string]interface{}{
-		//"exception_python_remove_line_no":    exceptionPythonRemoveLineNo,
-		//"exception_python_remove_stack_vars": exceptionPythonRemoveStackVars,
-		},
-		Grouping: map[string]interface{}{
-		//"query_perf_trace_grouping": queryPerfTraceGrouping,
-		},
+		Filter: map[string]interface{}{},
+		Grouping: map[string]interface{}{},
 		ConsolidateFunc: defaultConsolidate,
 	}
 }

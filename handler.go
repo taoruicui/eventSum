@@ -61,7 +61,7 @@ func latency(prefix string, h httprouter.Handle) httprouter.Handle {
 // Writes an error to ResponseWriter
 func (h *httpHandler) sendError(w http.ResponseWriter, code int, err error, message string) {
 	errMsg := fmt.Sprintf("%s: %s", message, err.Error())
-	h.log.App.Info(errMsg)
+	h.log.App().Info(errMsg)
 	w.WriteHeader(code)
 	w.Write([]byte(errMsg))
 }

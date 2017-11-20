@@ -105,20 +105,20 @@ func (es *eventStore) SummarizeBatchEvents() {
 		event, err := globalRule.ProcessFilter(event, "instance")
 		// TODO: save to logs if filters fail
 		if err != nil {
-			es.log.App.Errorf("Error when processing instance: %v", err)
+			es.log.App().Errorf("Error when processing instance: %v", err)
 			continue
 		}
 		rawData := event.Data
 		// Feed event into filter
 		event, err = globalRule.ProcessFilter(event, "base")
 		if err != nil {
-			es.log.App.Errorf("Error when processing base: %v", err)
+			es.log.App().Errorf("Error when processing base: %v", err)
 			continue
 		}
 		processedData := event.Data
 		event, err = globalRule.ProcessFilter(event, "extra_args")
 		if err != nil {
-			es.log.App.Errorf("Error when processing extra args: %v", err)
+			es.log.App().Errorf("Error when processing extra args: %v", err)
 			continue
 		}
 		processedDetail := event.ExtraArgs
@@ -187,16 +187,16 @@ func (es *eventStore) SummarizeBatchEvents() {
 	errBase := es.ds.AddEvents(eventClasses)
 	if len(errBase) != 0 {
 		for i, v := range errBase {
-			es.log.EventLog.LogData(eventClasses[i])
-			es.log.App.Errorf("Error while inserting events: %v", v)
+			es.log.EventLog().LogData(eventClasses[i])
+			es.log.App().Errorf("Error while inserting events: %v", v)
 		}
 	}
 
 	errDetails := es.ds.AddEventDetails(eventDetails)
 	if len(errDetails) != 0 {
 		for i, v := range errDetails {
-			es.log.EventLog.LogData(eventDetails[i])
-			es.log.App.Errorf("Error while inserting event data: %v", v)
+			es.log.EventLog().LogData(eventDetails[i])
+			es.log.App().Errorf("Error while inserting event data: %v", v)
 		}
 	}
 
@@ -211,18 +211,18 @@ func (es *eventStore) SummarizeBatchEvents() {
 			eventDetails[eventDetailsMap[detailHash]].Id
 		// log instance if there was an error adding event base or event details
 		if _, ok := errBase[eventClassesMap[dataHash]]; ok {
-			es.log.EventLog.LogData(eventClassInstances[idx])
+			es.log.EventLog().LogData(eventClassInstances[idx])
 		}
 		if _, ok := errDetails[eventDetailsMap[detailHash]]; ok {
-			es.log.EventLog.LogData(eventClassInstances[idx])
+			es.log.EventLog().LogData(eventClassInstances[idx])
 		}
 	}
 
 	errInstances := es.ds.AddEventInstances(eventClassInstances)
 	if len(errInstances) != 0 {
 		for i, v := range errInstances {
-			es.log.EventLog.LogData(eventClassInstances[i])
-			es.log.App.Errorf("Error while inserting event instances: %v", v)
+			es.log.EventLog().LogData(eventClassInstances[i])
+			es.log.App().Errorf("Error while inserting event instances: %v", v)
 		}
 	}
 
@@ -233,14 +233,14 @@ func (es *eventStore) SummarizeBatchEvents() {
 			eventClassInstances[eventClassInstancesMap[dataHash]].Id
 
 		if _, ok := errInstances[eventClassInstancesMap[dataHash]]; ok {
-			es.log.EventLog.LogData(eventClassInstancePeriods[idx])
+			es.log.EventLog().LogData(eventClassInstancePeriods[idx])
 		}
 	}
 
 	if err := es.ds.AddEventinstancePeriods(eventClassInstancePeriods); len(err) != 0 {
 		for i, v := range err {
-			es.log.EventLog.LogData(eventClassInstancePeriods[i])
-			es.log.App.Errorf("Error while inserting event time periods: %v", v)
+			es.log.EventLog().LogData(eventClassInstancePeriods[i])
+			es.log.App().Errorf("Error while inserting event time periods: %v", v)
 		}
 	}
 }

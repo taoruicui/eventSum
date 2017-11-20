@@ -3,8 +3,10 @@ package log
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ContextLogic/eventsum/rules"
+	"github.com/ContextLogic/eventsum/util"
 	. "github.com/ContextLogic/eventsum/models"
 	"encoding/json"
+	"path/filepath"
 	"os"
 	"reflect"
 	"time"
@@ -14,12 +16,17 @@ import (
 
 var GlobalRule *rules.Rule
 
+// helper functions
+func open(filename string) (*os.File, error) {
+	return os.OpenFile(filename+".log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+}
+
 type config struct {
 	LogSaveDataInterval int `json:"log_save_data_interval"`
 	LogDataPeriodCheckInterval int `json:"log_data_period_check_interval"`
 	Environment string `json:"environment"`
-	AppLogging string `json:"app_logging"`
-	DataLogging string `json:"data_logging"`
+	AppDir string `json:"app_logging_dir"`
+	DataDir string `json:"data_logging_dir"`
 	DataSourceInstance string `json:"data_source_instance"`
 	DataSourceSchema string `json:"data_source_schema"`
 }
@@ -28,13 +35,14 @@ type config struct {
 // App logging: Debug, info, System calls, etc.
 // Data logging: real data, events that failed to be added to DB, etc.
 type Logger struct {
-	App *log.Logger
-	Data *log.Logger
-	EventLog failedEventsLog
+	app *log.Logger
+	data *log.Logger
+	eventLog failedEventsLog
 
-	appFileName string
-	dataFileName string
+	appDir string
+	dataDir string
 
+	endOfDay time.Time // used for log rotation
 	tickerDump *time.Ticker // used for dumping logs
 	tickerCheck *time.Ticker // used for periodically checking logs
 }
@@ -66,35 +74,62 @@ func (l *Logger) Start(c config) {
 	}
 }
 
+func (l *Logger) EventLog() *failedEventsLog {
+	return &l.eventLog
+}
+
+func (l *Logger) App() *log.Logger {
+	start := time.Now()
+	if l.endOfDay.Before(start) {
+		l.endOfDay.Add(24 * time.Hour)
+		if file, err := open(filepath.Join(l.appDir, l.endOfDay.Format("2006-01-02"))); err == nil {
+			l.app.Out = file
+		}
+	}
+	return l.app
+}
+
+func (l *Logger) Data() *log.Logger {
+	start := time.Now()
+	if l.endOfDay.Before(start) {
+		l.endOfDay.Add(24 * time.Hour)
+		if file, err := open(filepath.Join(l.dataDir, l.endOfDay.Format("2006-01-02"))); err == nil {
+			l.data.Out = file
+		}
+	}
+	return l.data
+}
+
 // Move all the data saved in the logs to a logfile
 func (l *Logger) SaveEventsToLogFile() {
+	log.Println("asdf")
 	// Check if there is anything to save
-	if 	len(l.EventLog.Bases) == 0 && len(l.EventLog.Details) == 0 &&
-		len(l.EventLog.Instances) == 0 && len(l.EventLog.Periods) == 0 {
+	if 	len(l.eventLog.Bases) == 0 && len(l.eventLog.Details) == 0 &&
+		len(l.eventLog.Instances) == 0 && len(l.eventLog.Periods) == 0 {
 		return
 	}
-	l.App.Info("Saving failed events into the log file!")
+	l.App().Info("Saving failed events into the log file!")
 
-	l.Data.WithFields(log.Fields{
-		"event_base": l.EventLog.Bases,
-		"event_base_map": l.EventLog.BaseMap,
-		"event_instance": l.EventLog.Instances,
-		"event_instance_map": l.EventLog.InstanceMap,
-		"event_instance_period": l.EventLog.Periods,
-		//"event_instance_period_map": l.EventLog.PeriodMap,
-		"event_detail": l.EventLog.Details,
-		"event_detail_map": l.EventLog.DetailMap,
+	l.Data().WithFields(log.Fields{
+		"event_base": l.eventLog.Bases,
+		"event_base_map": l.eventLog.BaseMap,
+		"event_instance": l.eventLog.Instances,
+		"event_instance_map": l.eventLog.InstanceMap,
+		"event_instance_period": l.eventLog.Periods,
+		//"event_instance_period_map": l.eventLog.PeriodMap,
+		"event_detail": l.eventLog.Details,
+		"event_detail_map": l.eventLog.DetailMap,
 	}).Info("Dumping event data now")
 
-	// Clear the EventLog data after saving successfully
-	l.EventLog.Bases = []EventBase{}
-	l.EventLog.BaseMap = make(map[string]int)
-	l.EventLog.Instances = []EventInstance{}
-	l.EventLog.InstanceMap = make(map[string]int)
-	l.EventLog.Periods = []EventInstancePeriod{}
-	l.EventLog.PeriodMap = make(map[KeyEventPeriod]int)
-	l.EventLog.Details = []EventDetail{}
-	l.EventLog.DetailMap = make(map[string]int)
+	// Clear the eventLog data after saving successfully
+	l.eventLog.Bases = []EventBase{}
+	l.eventLog.BaseMap = make(map[string]int)
+	l.eventLog.Instances = []EventInstance{}
+	l.eventLog.InstanceMap = make(map[string]int)
+	l.eventLog.Periods = []EventInstancePeriod{}
+	l.eventLog.PeriodMap = make(map[KeyEventPeriod]int)
+	l.eventLog.Details = []EventDetail{}
+	l.eventLog.DetailMap = make(map[string]int)
 }
 
 // Check if there is an open db connection, and anything to put in from the logs
@@ -104,10 +139,11 @@ func (l *Logger) PeriodicCheck(conf config) {
 	if err != nil {
 		return
 	}
-	file, err := os.Open(l.dataFileName)
+	filename := filepath.Join(l.dataDir, l.endOfDay.Format("2006-01-02"))
+	file, err := open(filename)
 	if err != nil {
-		l.App.WithFields(log.Fields{
-			"filename": l.dataFileName,
+		l.App().WithFields(log.Fields{
+			"filename": filename,
 		}).Error("Unable to open file")
 		return
 	}
@@ -119,7 +155,7 @@ func (l *Logger) PeriodicCheck(conf config) {
 	if stats.Size() == 0 {
 		return
 	}
-	l.App.Info("Running periodic check of log files")
+	l.App().Info("Running periodic check of log files")
 	// read the file line by line
 	reader := bufio.NewReader(file)
 	var failedEvent failedEventsLog
@@ -132,13 +168,13 @@ func (l *Logger) PeriodicCheck(conf config) {
 		// Add to DB
 		if err := ds.AddEvents(failedEvent.Bases); len(err) != 0 {
 			// TODO
-			l.App.Error(err)
+			l.App().Error(err)
 			return
 		}
 		
 		if err := ds.AddEventDetails(failedEvent.Details); len(err) != 0 {
 			// TODO
-			l.App.Error(err)
+			l.App().Error(err)
 			return
 		}
 		
@@ -153,7 +189,7 @@ func (l *Logger) PeriodicCheck(conf config) {
 		
 		if err := ds.AddEventInstances(failedEvent.Instances); len(err) != 0 {
 			// TODO
-			l.App.Error(err)
+			l.App().Error(err)
 			return
 		}
 
@@ -165,13 +201,13 @@ func (l *Logger) PeriodicCheck(conf config) {
 
 		if err := ds.AddEventinstancePeriods(failedEvent.Periods); len(err) != 0 {
 			// TODO
-			l.App.Error(err)
+			l.App().Error(err)
 			return
 		}
 	}
 	// delete the log file
-	if err := os.Truncate(l.dataFileName, 0); err != nil {
-		l.App.Error(err)
+	if err := os.Truncate(filename+".log", 0); err != nil {
+		l.App().Error(err)
 	}
 }
 
@@ -239,8 +275,8 @@ func parseConfig(file string) config {
 		5,
 		10,
 		"dev",
-		"log/system.log",
-		"log/data.log",
+		"log",
+		"log",
 		"config/datasourceinstance.yaml",
 		"config/schema.json",
 	}
@@ -261,44 +297,46 @@ func parseConfig(file string) config {
 // Return new logger given config file
 func NewLogger(configFile string) *Logger {
 	config := parseConfig(configFile)
+	_, endOfDay := util.FindBoundingTime(time.Now(), 1440)
 
 	l := Logger{
-		App: log.New(),
-		Data: log.New(),
-		EventLog: failedEventsLog{
+		app: log.New(),
+		data: log.New(),
+		eventLog: failedEventsLog{
 			BaseMap: make(map[string]int),
 			InstanceMap: make(map[string]int),
 			PeriodMap: make(map[KeyEventPeriod]int),
 			DetailMap: make(map[string]int),
 		},
-		appFileName: config.AppLogging,
-		dataFileName: config.DataLogging,
+		appDir: config.AppDir,
+		dataDir: config.DataDir,
+		endOfDay: endOfDay,
 		tickerDump: time.NewTicker(time.Duration(config.LogSaveDataInterval) * time.Second),
 		tickerCheck: time.NewTicker(time.Duration(config.LogDataPeriodCheckInterval) * time.Second),
 	}
-	l.Data.Formatter = &log.JSONFormatter{}
+	l.data.Formatter = &log.JSONFormatter{}
 
 	// If environment is dev, send output to stdout
 	if config.Environment == "dev" {
-		l.App.Out = os.Stdout
-		l.Data.Out = os.Stdout
-		l.App.Level = log.DebugLevel
-		l.Data.Level = log.DebugLevel
+		l.app.Out = os.Stdout
+		l.data.Out = os.Stdout
+		l.app.Level = log.DebugLevel
+		l.data.Level = log.DebugLevel
 	} else {
-		appFile, err := os.OpenFile(l.appFileName, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+		appFile, err := open(filepath.Join(l.appDir, l.endOfDay.Format("2006-01-02")))
 
 		if err != nil {
 			log.Warn(err)
 		} else {
-			l.App.Out = appFile
+			l.app.Out = appFile
 		}
 
-		dataFile, err := os.OpenFile(l.dataFileName, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+		dataFile, err := open(filepath.Join(l.dataDir, l.endOfDay.Format("2006-01-02")))
 
 		if err != nil {
 			log.Warn(err)
 		} else {
-			l.Data.Out = dataFile
+			l.data.Out = dataFile
 		}
 
 	}

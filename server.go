@@ -45,9 +45,9 @@ func (s *EventSumServer) Start() {
 
 	// run the store in a goroutine
 	go func() {
-		s.logger.App.Printf("Listening on http://0.0.0.0%s", httpServer.Addr)
+		s.logger.App().Printf("Listening on http://0.0.0.0%s", httpServer.Addr)
 		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
-			s.logger.App.Fatal(err)
+			s.logger.App().Fatal(err)
 		}
 	}()
 
@@ -66,15 +66,15 @@ func (s *EventSumServer) Stop(hs *http.Server, timeout time.Duration) {
 
 	// make sure we process events inside the queue
 	s.httpHandler.es.Stop()
-	s.logger.App.Printf("Shutdown with timeout: %s", timeout)
-	s.logger.App.Printf("Processing events still left in the queue")
+	s.logger.App().Printf("Shutdown with timeout: %s", timeout)
+	s.logger.App().Printf("Processing events still left in the queue")
 	close(s.httpHandler.es.channel._queue)
 	s.httpHandler.es.SummarizeBatchEvents()
 
 	if err := hs.Shutdown(ctx); err != nil {
-		s.logger.App.Errorf("Error: %v", err)
+		s.logger.App().Errorf("Error: %v", err)
 	} else {
-		s.logger.App.Println("Server stopped")
+		s.logger.App().Println("Server stopped")
 	}
 }
 
@@ -140,12 +140,12 @@ func New(configFilename string) *EventSumServer {
 	logger := log.NewLogger(config.LogConfigFile)
 
 	if err := metrics.RegisterPromMetrics(); err != nil {
-		logger.App.Fatalf("Unable to register prometheus metrics: %v", err)
+		logger.App().Fatalf("Unable to register prometheus metrics: %v", err)
 	}
 
 	ds, err := datastore.NewDataStore(config.DataSourceInstance, config.DataSourceSchema)
 	if err != nil {
-		logger.App.Fatal(err)
+		logger.App().Fatal(err)
 	}
 	es := newEventStore(ds, config, logger)
 
