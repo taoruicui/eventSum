@@ -25,8 +25,8 @@ type config struct {
 	LogSaveDataInterval int `json:"log_save_data_interval"`
 	LogDataPeriodCheckInterval int `json:"log_data_period_check_interval"`
 	Environment string `json:"environment"`
-	AppDir string `json:"app_logging_dir"`
-	DataDir string `json:"data_logging_dir"`
+	AppDir string `json:"app_logging"`
+	DataDir string `json:"data_logging"`
 	DataSourceInstance string `json:"data_source_instance"`
 	DataSourceSchema string `json:"data_source_schema"`
 }
