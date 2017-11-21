@@ -8,7 +8,6 @@ import (
 	"math"
 	"github.com/jessevdk/go-flags"
 	logger "github.com/Sirupsen/logrus"
-	"fmt"
 )
 
 type stackTrace struct {
@@ -24,6 +23,7 @@ type frame struct {
 	Module      string                 `json:"module" mapstructure:"module"`
 	PostContext []string               `json:"post_context" mapstructure:"post_context"`
 	PreContext  []string               `json:"pre_context" mapstructure:"pre_context"`
+	Vars        map[string]interface{} `json:"vars" mapstructure:"vars"`
 }
 
 func main() {
@@ -35,6 +35,7 @@ func main() {
 	}
 	e := eventsum.New(config.ConfigFile)
 	e.AddFilter("exception_python_remove_line_no", exceptionPythonRemoveLineNo)
+	e.AddFilter("exception_python_remove_stack_vars", exceptionPythonRemoveStackVars)
 	//e.AddGrouping("query_perf_trace_grouping", queryPerfTraceGrouping)
 	//e.AddConsolidation(consolidationFunction)
 	e.Start()
@@ -49,20 +50,25 @@ and return (EventData, error)
 
 func exceptionPythonRemoveLineNo(data models.EventData) (models.EventData, error) {
 	var stacktrace stackTrace
-	fmt.Println(data)
-	var md m.Metadata
-	config := &m.DecoderConfig{
-		Metadata: &md,
-		Result: &stacktrace,
-		WeaklyTypedInput: true,
-	}
-	decoder, _ := m.NewDecoder(config)
-	err := decoder.Decode(data.Raw)
+	err := m.Decode(data.Raw, &stacktrace)
 	if err != nil {
 		return data, err
 	}
 	for i := range stacktrace.Frames {
 		stacktrace.Frames[i].LineNo = 0
+	}
+	data.Raw = stacktrace
+	return data, nil
+}
+
+func exceptionPythonRemoveStackVars(data models.EventData) (models.EventData, error) {
+	var stacktrace stackTrace
+	err := m.Decode(data.Raw, &stacktrace)
+	if err != nil {
+		return data, err
+	}
+	for i := range stacktrace.Frames {
+		stacktrace.Frames[i].Vars = nil
 	}
 	data.Raw = stacktrace
 	return data, nil
