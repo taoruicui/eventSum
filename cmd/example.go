@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	c "github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum"
@@ -35,6 +36,7 @@ func main() {
 	}
 	e := eventsum.New(config.ConfigFile)
 	e.AddFilter("exception_python_remove_line_no", exceptionPythonRemoveLineNo)
+	e.AddFilter("exception_python_process_stack_vars", exceptionPythonProcessStackVars)
 	e.AddFilter("exception_python_remove_stack_vars", exceptionPythonRemoveStackVars)
 	//e.AddGrouping("query_perf_trace_grouping", queryPerfTraceGrouping)
 	//e.AddConsolidation(consolidationFunction)
@@ -62,13 +64,39 @@ func exceptionPythonRemoveLineNo(data models.EventData) (models.EventData, error
 }
 
 func exceptionPythonRemoveStackVars(data models.EventData) (models.EventData, error) {
-	var stacktrace stackTrace
+	stacktrace := stackTrace{}
 	err := m.Decode(data.Raw, &stacktrace)
 	if err != nil {
 		return data, err
 	}
 	for i := range stacktrace.Frames {
 		stacktrace.Frames[i].Vars = nil
+	}
+	data.Raw = stacktrace
+	return data, nil
+}
+
+func exceptionPythonProcessStackVars(data models.EventData) (models.EventData, error) {
+	stacktrace := stackTrace{}
+	err := m.Decode(data.Raw, &stacktrace)
+	if err != nil {
+		return data, err
+	}
+
+	re := regexp.MustCompile(`0[xX][0-9a-fA-F]+`)
+
+	for i := range stacktrace.Frames {
+		if stacktrace.Frames[i].Vars == nil {
+			continue
+		}
+
+		// Replace memory addresses with placeholder
+		for k, v := range stacktrace.Frames[i].Vars {
+			if str, ok := v.(string); ok {
+				str = re.ReplaceAllString(str, "x")
+				stacktrace.Frames[i].Vars[k] = str
+			}
+		}
 	}
 	data.Raw = stacktrace
 	return data, nil

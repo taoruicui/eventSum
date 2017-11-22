@@ -108,7 +108,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 			es.log.App().Errorf("Error when processing instance: %v", err)
 			continue
 		}
-		rawData := event.Data
+		genericData := event.Data
 		// Feed event into filter
 		event, err = globalRule.ProcessFilter(event, "base")
 		if err != nil {
@@ -123,7 +123,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 		}
 		processedDetail := event.ExtraArgs
 
-		rawDataHash := util.Hash(rawData)
+		genericDataHash := util.Hash(genericData)
 		processedDataHash := util.Hash(processedData)
 		processedDetailHash := util.Hash(processedDetail)
 
@@ -140,14 +140,15 @@ func (es *eventStore) SummarizeBatchEvents() {
 			eventClassesMap[processedDataHash] = len(eventClasses) - 1
 		}
 
-		if _, ok := eventClassInstancesMap[rawDataHash]; !ok {
+		if _, ok := eventClassInstancesMap[genericDataHash]; !ok {
 			eventClassInstances = append(eventClassInstances, EventInstance{
 				ProcessedDataHash:   processedDataHash,   // Used to reference event_base_id later
 				ProcessedDetailHash: processedDetailHash, // Used to reference event_detail_id later
-				RawData:             rawData,
-				RawDataHash:         rawDataHash,
+				RawData: rawEvent.Data,
+				GenericData:             genericData,
+				GenericDataHash:         genericDataHash,
 			})
-			eventClassInstancesMap[rawDataHash] = len(eventClassInstances) - 1
+			eventClassInstancesMap[genericDataHash] = len(eventClassInstances) - 1
 		}
 
 		// The unique key should be the raw data, and the time period,
@@ -155,7 +156,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 		t, err := time.Parse(util.TimeFormat, event.Timestamp)
 		startTime, endTime := util.FindBoundingTime(t, es.timeInterval)
 		key := KeyEventPeriod{
-			RawDataHash: rawDataHash,
+			RawDataHash: genericDataHash,
 			StartTime: startTime,
 		}
 		if _, ok := eventClassInstancePeriodsMap[key]; !ok {
@@ -163,7 +164,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 				StartTime:           startTime,
 				Updated:             t,
 				EndTime:             endTime,
-				RawDataHash:         rawDataHash,         // Used to reference event_instance_id later
+				RawDataHash:         genericDataHash,         // Used to reference event_instance_id later
 				Count:               0,
 				CounterJson:         make(map[string]interface{}),
 			})

@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"github.com/mohae/deepcopy"
+	"time"
+)
 
 
 ////////////////////////////////////////////////////
@@ -23,6 +26,14 @@ type UnaddedEvent struct {
 type EventData struct {
 	Message string      `json:"message"`
 	Raw     interface{} `json:"raw_data"`
+}
+
+// Performs deepcopy
+func (e *EventData) Copy() EventData {
+	return EventData{
+		Message: e.Message,
+		Raw: deepcopy.Copy(e.Raw),
+	}
 }
 
 type KeyEventPeriod struct {
@@ -78,7 +89,8 @@ type EventInstance struct {
 	EventBaseId   int64       `mapstructure:"event_base_id"`
 	EventDetailId int64       `mapstructure:"event_detail_id"`
 	RawData       interface{} `mapstructure:"raw_data"`
-	RawDataHash   string      `mapstructure:"raw_data_hash"`
+	GenericData interface{} `mapstructure:"generic_data"`
+	GenericDataHash   string      `mapstructure:"generic_data_hash"`
 
 	// ignored fields, used internally
 	ProcessedDataHash   string

@@ -41,7 +41,7 @@ func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (UnaddedEven
 			if _, ok := r.Filter[name]; !ok {
 				return event, errors.New("Function name not supported")
 			}
-			res, err := r.call("filter", name, event.Data)
+			res, err := r.call("filter", name, event.Data.Copy())
 			if err != nil {
 				return event, err
 			}
@@ -72,7 +72,7 @@ func (r *Rule) Consolidate(g1 map[string]interface{}, g2 map[string]interface{})
 }
 
 // Calls the Function by name using Reflection
-func (r *Rule) call(typ string, name string, params ...interface{}) (result []reflect.Value, err error) {
+func (r *Rule) call(typ string, name string, params ...interface{}) ([]reflect.Value, error) {
 	var f reflect.Value
 	if typ == "group" {
 		f = reflect.ValueOf(r.Grouping[name])
@@ -82,15 +82,15 @@ func (r *Rule) call(typ string, name string, params ...interface{}) (result []re
 		f = reflect.ValueOf(r.ConsolidateFunc)
 	}
 	if len(params) != f.Type().NumIn() {
-		err = errors.New("The number of params is not adapted.")
-		return
+		err := errors.New("The number of params is not adapted.")
+		return nil, err
 	}
 	in := make([]reflect.Value, len(params))
 	for k, param := range params {
 		in[k] = reflect.ValueOf(param)
 	}
-	result = f.Call(in)
-	return
+	result := f.Call(in)
+	return result, nil
 }
 
 func (r *Rule) AddFilter(name string, filter func(EventData) (EventData, error)) error {

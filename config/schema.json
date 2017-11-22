@@ -139,18 +139,31 @@
                   },
                   "provision_state": 3
                 },
+                "generic_data": {
+                  "name": "generic_data",
+                  "field_type": "_json",
+                  "provision_state": 3
+                },
+                "generic_data_hash": {
+                  "name": "generic_data_hash",
+                  "field_type": "_string",
+                  "provision_state": 3
+                },
                 "raw_data": {
                   "name": "raw_data",
                   "field_type": "_json",
                   "provision_state": 3
-                },
-                "raw_data_hash": {
-                  "name": "raw_data_hash",
-                  "field_type": "_string",
-                  "provision_state": 3
                 }
               },
               "indexes": {
+                "event_instance_generic_data_hash_key": {
+                  "name": "event_instance_generic_data_hash_key",
+                  "fields": [
+                    "generic_data_hash"
+                  ],
+                  "unique": true,
+                  "provision_state": 3
+                },
                 "event_instance_pkey": {
                   "name": "event_instance_pkey",
                   "fields": [
@@ -158,14 +171,6 @@
                   ],
                   "unique": true,
                   "primary": true,
-                  "provision_state": 3
-                },
-                "event_instance_raw_data_hash_key": {
-                  "name": "event_instance_raw_data_hash_key",
-                  "fields": [
-                    "raw_data_hash"
-                  ],
-                  "unique": true,
                   "provision_state": 3
                 }
               },

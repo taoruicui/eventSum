@@ -102,7 +102,6 @@ func (l *Logger) Data() *log.Logger {
 
 // Move all the data saved in the logs to a logfile
 func (l *Logger) SaveEventsToLogFile() {
-	log.Println("asdf")
 	// Check if there is anything to save
 	if 	len(l.eventLog.Bases) == 0 && len(l.eventLog.Details) == 0 &&
 		len(l.eventLog.Instances) == 0 && len(l.eventLog.Periods) == 0 {

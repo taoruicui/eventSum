@@ -171,7 +171,7 @@ func (p *postgresStore) AddEvents(evts []EventBase) map[int]error {
 
 func (p *postgresStore) AddEventInstance(evt *EventInstance) error {
 	filter := map[string]interface{}{
-		"raw_data_hash": []interface{}{"=", evt.RawDataHash},
+		"generic_data_hash": []interface{}{"=", evt.GenericDataHash},
 	}
 	res, err := p.Query(query.Filter, "event_instance", filter, nil, nil, nil, 1, nil, nil)
 	if err != nil {
@@ -183,7 +183,8 @@ func (p *postgresStore) AddEventInstance(evt *EventInstance) error {
 			"event_base_id":   evt.EventBaseId,
 			"event_detail_id": evt.EventDetailId,
 			"raw_data":        evt.RawData,
-			"raw_data_hash":   evt.RawDataHash,
+			"generic_data": evt.GenericData,
+			"generic_data_hash":   evt.GenericDataHash,
 		}
 		res, err = p.Query(query.Set, "event_instance", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
