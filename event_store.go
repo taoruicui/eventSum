@@ -10,6 +10,7 @@ import (
 	"time"
 	"github.com/ContextLogic/eventsum/util"
 	"github.com/ContextLogic/eventsum/metrics"
+	"sort"
 )
 
 // Wrapper struct for Event Channel
@@ -307,35 +308,54 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 }
 
 // Get the histogram of a single event instance
-func (es *eventStore) GetEventHistogram(start, end time.Time, eventId int) ([]EventHistogramResult, error) {
+func (es *eventStore) GetEventHistogram(start, end time.Time, baseId int) ([][]int, error) {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("GetEventHistogram", now)
 	} ()
 
-	var hist []EventHistogramResult
-	var bin EventInstancePeriod
+	var period EventInstancePeriod
+	var instance EventInstance
+	var result [][]int
+	var resultMap  = make(map[int]int)
+	join := []interface{}{"event_instance_id"}
 	filter := []interface{}{
-		[]interface{}{
-			map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
-			map[string]interface{}{"end_time": []interface{}{"<", end}},
-		}, "AND",
-		map[string]interface{}{"event_instance_id": []interface{}{"=", eventId}}}
+		map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
+		map[string]interface{}{"end_time": []interface{}{"<", end}},
+	}
 
-	res, err := es.ds.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, []string{"start_time"}, nil)
+	res, err := es.ds.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, join)
 	if err != nil {
-		return hist, err
+		return result, err
 	}
-	for _, v := range res.Return {
-		util.MapDecode(v, &bin)
-		hist = append(hist, EventHistogramResult{
-			StartTime:   bin.StartTime,
-			EndTime:     bin.EndTime,
-			Count:       bin.Count,
-			CounterJson: bin.CounterJson,
-		})
+	for _, t1 := range res.Return {
+		err = util.MapDecode(t1, &period)
+		t2, ok := t1["event_instance_id"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		err = util.MapDecode(t2, &instance)
+		if int(instance.EventBaseId) != baseId {
+			continue
+		}
+
+		st := int(period.StartTime.Unix() * 1000)
+		if _, ok := resultMap[st]; !ok {
+			resultMap[st] = 0
+		}
+		resultMap[st] += period.Count
 	}
-	return hist, nil
+
+	keys := []int{}
+	for k := range resultMap {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	for _, v := range keys {
+		result = append(result, []int{resultMap[v], v})
+	}
+
+	return result, nil
 }
 
 // Get the details of a single event instance
@@ -370,6 +390,105 @@ func (es *eventStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) {
 		EventName:  base.EventName,
 		RawData:    instance.RawData,
 		RawDetails: detail.RawDetail,
+	}
+	return result, nil
+}
+
+// Getting all events that occurred though the time range, data ordered chronologically
+// Metric value as a [value int, unixtimestamp in milliseconds]
+func (es *eventStore) GetAllEvents(start, end time.Time) ([][]int, error) {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("GetEventDetailsbyId", now)
+	} ()
+
+	var result = [][]int{}
+	var resultMap  = make(map[int]int)
+	var period EventInstancePeriod
+	filter := []interface{}{
+		map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
+		map[string]interface{}{"end_time": []interface{}{"<", end}},
+	}
+
+	res, err := es.ds.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, nil)
+
+	if err != nil {
+		return result, err
+	}
+	for _, v := range res.Return {
+		util.MapDecode(v, &period)
+		st := int(period.StartTime.Unix() * 1000)
+		if _, ok := resultMap[st]; !ok {
+			resultMap[st] = 0
+		}
+		resultMap[st] += period.Count
+	}
+
+	// Getting times so we sort the data chronologically
+	keys := []int{}
+	for k := range resultMap {
+		keys = append(keys, k)
+	}
+
+	sort.Ints(keys)
+
+	for _, v := range keys {
+		result = append(result, []int{resultMap[v], v})
+	}
+
+	return result, nil
+}
+
+// Return all service ids that appear in event_base
+func (es *eventStore) GetServiceIds() ([]int, error) {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("GetEventDetailsbyId", now)
+	} ()
+
+	var result []int
+	var base EventBase
+
+	res, err := es.ds.Query(query.Filter, "event_base", nil, nil, nil, nil, -1, nil, nil)
+
+	if err != nil {
+		return result, err
+	}
+
+	keys := make(map[int]bool)
+	for _, v := range res.Return {
+		util.MapDecode(v, &base)
+		if _, ok := keys[base.ServiceId]; !ok {
+			keys[base.ServiceId] = true
+			result = append(result, base.ServiceId)
+		}
+	}
+	return result, nil
+}
+
+// get id of base events which match service_id
+func (es *eventStore) GetBaseIds(service_id int) ([]int, error) {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("GetEventDetailsbyId", now)
+	} ()
+
+	var result []int
+	var base EventBase
+
+	res, err := es.ds.Query(query.Filter, "event_base", nil, nil, nil, nil, -1, nil, nil)
+
+	if err != nil {
+		return result, err
+	}
+
+	keys := make(map[int64]bool)
+	for _, v := range res.Return {
+		util.MapDecode(v, &base)
+		if _, ok := keys[base.Id]; base.ServiceId == service_id && !ok {
+			keys[base.Id] = true
+			result = append(result, int(base.Id))
+		}
 	}
 	return result, nil
 }

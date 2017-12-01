@@ -122,6 +122,13 @@ func newServer(options func(server *EventSumServer)) *EventSumServer {
 	// POST requests
 	s.route.POST("/capture", latency("/capture", s.httpHandler.captureEventsHandler))
 
+	// Grafana endpoints
+	s.route.GET("/grafana", latency("/grafana", cors(s.httpHandler.grafanaOk)))
+	s.route.GET("/grafana/", latency("/grafana/", cors(s.httpHandler.grafanaOk)))
+	s.route.OPTIONS("/grafana/:route", latency("/grafana", cors(s.httpHandler.grafanaOk)))
+	s.route.POST("/grafana/query", latency("/grafana/query", cors(s.httpHandler.grafanaQuery)))
+	s.route.POST("/grafana/search", latency("/grafana/search", cors(s.httpHandler.grafanaSearch)))
+
 	return s
 }
 

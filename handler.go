@@ -144,9 +144,9 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 	query := r.URL.Query()
 	endTime := time.Now()
 	startTime := endTime.Add(-1 * time.Hour)
-	eventInstanceId, err := strconv.Atoi(query.Get("event_instance_id"))
+	eventBaseId, err := strconv.Atoi(query.Get("event_base_id"))
 	if err != nil {
-		h.sendError(w, http.StatusBadRequest, errors.New("event instance ID is missing or not an int"), "Error")
+		h.sendError(w, http.StatusBadRequest, errors.New("event base ID is missing or not an int"), "Error")
 		return
 	}
 
@@ -166,7 +166,7 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	response, err := h.es.GetEventHistogram(startTime, endTime, eventInstanceId)
+	response, err := h.es.GetEventHistogram(startTime, endTime, eventBaseId)
 	if err != nil {
 		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
 		return
