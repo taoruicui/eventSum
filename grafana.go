@@ -74,18 +74,24 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 		base_id, err := strconv.Atoi(target.Target)
 		// target is base_id
 		if err == nil {
-			evtBase, err := h.es.GetByBaseId(base_id)
-			evts, err := h.es.GetEventHistogram(query.Range.From, query.Range.To, base_id)
+			// TODO: limit datapoints to maxDataPoints
+			evt, err := h.es.GetEventHistogram(query.Range.From, query.Range.To, base_id)
 			if err != nil {
 				h.sendError(w, http.StatusInternalServerError, err, "query error")
 			}
 
+			datapoints := [][]int{}
+			for _, bin := range evt.Datapoints {
+				datapoints = append(datapoints, []int{bin.Count, bin.Start})
+			}
+
 			result = append(result, queryResp{
-				Target: evtBase.EventName,
-				Datapoints: evts,
+				Target: evt.FormatName(),
+				Datapoints: datapoints,
 			})
-		// target is "increased.<service_id>"
-		} else if strings.Contains(target.Target, "increased") {
+		// target is "recent.<service_id>"
+		} else if strings.Contains(target.Target, "recent") {
+			// TODO: limit datapoints to maxDataPoints
 			service_id, err := strconv.Atoi(strings.Split(target.Target,".")[1])
 			evts, err := h.es.GetRecentEvents(query.Range.From, query.Range.To, service_id, 5)
 			if err != nil {
@@ -99,15 +105,32 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 					datapoints = append(datapoints, []int{bin.Count, bin.Start})
 				}
 				result = append(result, queryResp{
-					Target: string(evt.Id),
+					Target: evt.FormatName(),
 					Datapoints: datapoints,
 				})
 			}
-		// target is "recent.<service_id>"
-		} else if strings.Contains(target.Target, "recent") {
+		// target is "increased.<service_id>"
+		} else if strings.Contains(target.Target, "increased") {
+			// TODO: limit datapoints to maxDataPoints
+			service_id, err := strconv.Atoi(strings.Split(target.Target,".")[1])
+			evts, err := h.es.GetRecentEvents(query.Range.From, query.Range.To, service_id, 5)
+			if err != nil {
+				h.sendError(w, http.StatusInternalServerError, err, "query error")
+			}
 
+			for _, evt := range evts {
+				datapoints := [][]int{}
+				bins := evt.Datapoints.ToSlice()
+				for _, bin := range bins {
+					datapoints = append(datapoints, []int{bin.Count, bin.Start})
+				}
+				result = append(result, queryResp{
+					Target: evt.FormatName(),
+					Datapoints: datapoints,
+				})
+			}
 		} else {
-
+			h.sendError(w, http.StatusBadRequest, err, "Invalid request")
 		}
 
 

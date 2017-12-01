@@ -248,14 +248,14 @@ func (es *eventStore) SummarizeBatchEvents() {
 }
 
 // Get all events within a time period, including their count
-func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) (EventRecentResults, error) {
+func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) (EventResults, error) {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("GetRecentEvents", now)
 	} ()
 
 	// TODO: use the limit!!
-	var evts EventRecentResults
+	var evts EventResults
 	var evtsMap = make(map[int64]int)
 	var evtPeriod EventInstancePeriod
 	var evtInstance EventInstance
@@ -288,12 +288,14 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 			continue
 		}
 
+		// Aggregate similar events
 		if _, ok = evtsMap[evtBase.Id]; !ok {
-			evts = append(evts, EventRecentResult{
+			evts = append(evts, EventResult{
 				Id:            evtBase.Id,
 				EventType:     evtBase.EventType,
 				EventName:     evtBase.EventName,
 				TotalCount:    0,
+				ProcessedData: evtBase.ProcessedData,
 				InstanceIds:   []int64{},
 				Datapoints:    EventBins{},
 			})
@@ -315,7 +317,7 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 }
 
 // Get the histogram of a single event instance
-func (es *eventStore) GetEventHistogram(start, end time.Time, baseId int) ([][]int, error) {
+func (es *eventStore) GetEventHistogram(start, end time.Time, baseId int) (EventResult, error) {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("GetEventHistogram", now)
@@ -323,12 +325,24 @@ func (es *eventStore) GetEventHistogram(start, end time.Time, baseId int) ([][]i
 
 	var period EventInstancePeriod
 	var instance EventInstance
-	var result [][]int
-	var resultMap  = make(map[int]int)
 	join := []interface{}{"event_instance_id"}
 	filter := []interface{}{
 		map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
 		map[string]interface{}{"end_time": []interface{}{"<", end}},
+	}
+
+	base, err := es.GetByBaseId(baseId)
+	if err != nil {
+		return EventResult{}, err
+	}
+	result := EventResult{
+		Id: base.Id,
+		EventType: base.EventType,
+		EventName: base.EventName,
+		TotalCount: 0,
+		ProcessedData: base.ProcessedData,
+		InstanceIds: []int64{},
+		Datapoints: EventBins{},
 	}
 
 	res, err := es.ds.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, join)
@@ -346,20 +360,14 @@ func (es *eventStore) GetEventHistogram(start, end time.Time, baseId int) ([][]i
 			continue
 		}
 
+		// group bins
 		st := int(period.StartTime.Unix() * 1000)
-		if _, ok := resultMap[st]; !ok {
-			resultMap[st] = 0
+		if _, ok := result.Datapoints[st]; !ok {
+			result.Datapoints[st] = &Bin{Count: 0, Start: st}
 		}
-		resultMap[st] += period.Count
-	}
-
-	keys := []int{}
-	for k := range resultMap {
-		keys = append(keys, k)
-	}
-	sort.Ints(keys)
-	for _, v := range keys {
-		result = append(result, []int{resultMap[v], v})
+		result.Datapoints[st].Count += period.Count
+		result.TotalCount += period.Count
+		result.InstanceIds = append(result.InstanceIds, instance.Id)
 	}
 
 	return result, nil
@@ -507,8 +515,8 @@ func (es *eventStore) GetByBaseId(base_id int) (EventBase, error) {
 	} ()
 
 	var result EventBase
-	filter := map[string]interface{}{"base_id": []interface{}{"=", base_id}}
-	res, err := es.ds.Query(query.Filter, "event_base", filter, nil, nil, nil, 1, nil, nil)
+	pkey := map[string]interface{}{"_id": base_id}
+	res, err := es.ds.Query(query.Get, "event_base", nil, nil, nil, pkey, 1, nil, nil)
 
 	if err != nil {
 		return result, err

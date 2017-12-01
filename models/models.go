@@ -4,6 +4,7 @@ import (
 	"github.com/mohae/deepcopy"
 	"time"
 	"sort"
+	"fmt"
 )
 
 
@@ -66,38 +67,37 @@ func (e EventBins) ToSlice() []Bin {
 }
 
 // Recent events
-type EventRecentResults []EventRecentResult
+type EventResults []EventResult
 
 // used for sort function
-func (e EventRecentResults) Len() int {
+func (e EventResults) Len() int {
 	return len(e)
 }
 
 // used for sort function
-func (e EventRecentResults) Swap (i, j int) {
+func (e EventResults) Swap (i, j int) {
 	e[i], e[j] = e[j], e[i]
 }
 
 // sort from greatest to smallest
-func (e EventRecentResults) Less (i, j int) bool {
+func (e EventResults) Less (i, j int) bool {
 	return e[i].TotalCount > e[j].TotalCount
 }
 
-type EventRecentResult struct {
+// Base event with histogram of occurrences
+type EventResult struct {
 	Id            int64       `json:"id"`
 	EventType     string      `json:"event_type"`
 	EventName     string      `json:"event_name"`
 	TotalCount    int         `json:"total_count"`
+	ProcessedData interface{} `json:"processed_data"`
 	InstanceIds   []int64     `json:"instance_ids"`
 	Datapoints    EventBins  `json:"datapoints"`
 }
 
-// histogram of an event
-type EventHistogramResult struct {
-	StartTime   time.Time              `json:"start_time"`
-	EndTime     time.Time              `json:"end_time"`
-	Count       int                    `json:"count"`
-	CounterJson map[string]interface{} `json:"count_json"`
+// returns formatted name of event
+func (e EventResult) FormatName() string {
+	return fmt.Sprintf("%v: %v", e.EventType, e.EventName)
 }
 
 type EventDetailsResult struct {
@@ -129,7 +129,7 @@ type EventInstance struct {
 	EventBaseId   int64       `mapstructure:"event_base_id"`
 	EventDetailId int64       `mapstructure:"event_detail_id"`
 	RawData       interface{} `mapstructure:"raw_data"`
-	GenericData interface{} `mapstructure:"generic_data"`
+	GenericData   interface{} `mapstructure:"generic_data"`
 	GenericDataHash   string      `mapstructure:"generic_data_hash"`
 
 	// ignored fields, used internally
