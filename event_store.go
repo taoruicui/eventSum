@@ -248,14 +248,14 @@ func (es *eventStore) SummarizeBatchEvents() {
 }
 
 // Get all events within a time period, including their count
-func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) ([]EventRecentResult, error) {
+func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) (EventRecentResults, error) {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("GetRecentEvents", now)
 	} ()
 
 	// TODO: use the limit!!
-	var evts []EventRecentResult
+	var evts EventRecentResults
 	var evtsMap = make(map[int64]int)
 	var evtPeriod EventInstancePeriod
 	var evtInstance EventInstance
@@ -269,8 +269,11 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 	if err != nil {
 		return evts, err
 	}
+
+	// loop through results
 	for _, t1 := range res.Return {
 		err = util.MapDecode(t1, &evtPeriod)
+		start := int(evtPeriod.StartTime.Unix() * 1000)
 		t2, ok := t1["event_instance_id"].(map[string]interface{})
 		if !ok {
 			continue
@@ -284,26 +287,30 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 		if evtBase.ServiceId != serviceId {
 			continue
 		}
-		// TODO: implement grouping
+
 		if _, ok = evtsMap[evtBase.Id]; !ok {
 			evts = append(evts, EventRecentResult{
 				Id:            evtBase.Id,
 				EventType:     evtBase.EventType,
 				EventName:     evtBase.EventName,
-				ProcessedData: evtBase.ProcessedData,
-				Count:         0,
-				LastUpdated:   evtPeriod.Updated,
+				TotalCount:    0,
 				InstanceIds:   []int64{},
+				Datapoints:    EventBins{},
 			})
 			evtsMap[evtBase.Id] = len(evts) - 1
 		}
 		evt := &evts[evtsMap[evtBase.Id]]
-		evt.Count += evtPeriod.Count
-		evt.InstanceIds = append(evt.InstanceIds, evtInstance.Id)
-		if evt.LastUpdated.Before(evtPeriod.Updated) {
-			evt.LastUpdated = evtPeriod.Updated
+		evt.TotalCount += evtPeriod.Count
+		if _, ok := evt.Datapoints[start]; !ok {
+			evt.Datapoints[start] = &Bin{Start: start, Count: 0}
 		}
+		evt.Datapoints[start].Count += evtPeriod.Count
+		evt.InstanceIds = append(evt.InstanceIds, evtInstance.Id)
 	}
+
+	// Sort and filter top <limit> events
+	sort.Sort(evts)
+	evts = evts[:limit]
 	return evts, nil
 }
 
@@ -470,7 +477,7 @@ func (es *eventStore) GetServiceIds() ([]int, error) {
 func (es *eventStore) GetBaseIds(service_id int) ([]int, error) {
 	now := time.Now()
 	defer func() {
-		metrics.EventStoreLatency("GetEventDetailsbyId", now)
+		metrics.EventStoreLatency("GetServiceIds", now)
 	} ()
 
 	var result []int
@@ -489,6 +496,26 @@ func (es *eventStore) GetBaseIds(service_id int) ([]int, error) {
 			keys[base.Id] = true
 			result = append(result, int(base.Id))
 		}
+	}
+	return result, nil
+}
+
+func (es *eventStore) GetByBaseId(base_id int) (EventBase, error) {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("GetByBaseId", now)
+	} ()
+
+	var result EventBase
+	filter := map[string]interface{}{"base_id": []interface{}{"=", base_id}}
+	res, err := es.ds.Query(query.Filter, "event_base", filter, nil, nil, nil, 1, nil, nil)
+
+	if err != nil {
+		return result, err
+	}
+
+	for _, v := range res.Return {
+		util.MapDecode(v, &result)
 	}
 	return result, nil
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // request struct for grafana searches
@@ -71,18 +72,45 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 	var result []queryResp
 	for _, target := range query.Targets {
 		base_id, err := strconv.Atoi(target.Target)
-		if err != nil {
-			h.sendError(w, http.StatusBadRequest, err, "target not an int")
+		// target is base_id
+		if err == nil {
+			evtBase, err := h.es.GetByBaseId(base_id)
+			evts, err := h.es.GetEventHistogram(query.Range.From, query.Range.To, base_id)
+			if err != nil {
+				h.sendError(w, http.StatusInternalServerError, err, "query error")
+			}
+
+			result = append(result, queryResp{
+				Target: evtBase.EventName,
+				Datapoints: evts,
+			})
+		// target is "increased.<service_id>"
+		} else if strings.Contains(target.Target, "increased") {
+			service_id, err := strconv.Atoi(strings.Split(target.Target,".")[1])
+			evts, err := h.es.GetRecentEvents(query.Range.From, query.Range.To, service_id, 5)
+			if err != nil {
+				h.sendError(w, http.StatusInternalServerError, err, "query error")
+			}
+
+			for _, evt := range evts {
+				datapoints := [][]int{}
+				bins := evt.Datapoints.ToSlice()
+				for _, bin := range bins {
+					datapoints = append(datapoints, []int{bin.Count, bin.Start})
+				}
+				result = append(result, queryResp{
+					Target: string(evt.Id),
+					Datapoints: datapoints,
+				})
+			}
+		// target is "recent.<service_id>"
+		} else if strings.Contains(target.Target, "recent") {
+
+		} else {
+
 		}
 
-		evts, err := h.es.GetEventHistogram(query.Range.From, query.Range.To, base_id)
-		if err != nil {
-			h.sendError(w, http.StatusInternalServerError, err, "query error")
-		}
-		result = append(result, queryResp{
-			Target: target.Target,
-			Datapoints: evts,
-		})
+
 	}
 
 	if err := json.NewEncoder(w).Encode(result); err != nil {
