@@ -3,10 +3,10 @@ package datastore
 import (
 	"context"
 	"encoding/json"
-	"github.com/ContextLogic/eventsum/util"
-	"github.com/ContextLogic/eventsum/rules"
 	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
+	"github.com/ContextLogic/eventsum/rules"
+	"github.com/ContextLogic/eventsum/util"
 	"github.com/jacksontj/dataman/src/client"
 	"github.com/jacksontj/dataman/src/client/direct"
 	"github.com/jacksontj/dataman/src/query"
@@ -39,7 +39,7 @@ type DataStore interface {
 }
 
 type postgresStore struct {
-	client       *datamanclient.Client
+	client *datamanclient.Client
 }
 
 // Create a new dataStore
@@ -73,7 +73,7 @@ func NewDataStore(dataSourceInstance, dataSourceSchema string) (DataStore, error
 
 	client := &datamanclient.Client{Transport: transport}
 	return &postgresStore{
-		client:       client,
+		client: client,
 	}, nil
 }
 
@@ -180,11 +180,11 @@ func (p *postgresStore) AddEventInstance(evt *EventInstance) error {
 	} else if len(res.Return) == 0 {
 		//TODO: fix uniqueness constraint
 		record := map[string]interface{}{
-			"event_base_id":   evt.EventBaseId,
-			"event_detail_id": evt.EventDetailId,
-			"raw_data":        evt.RawData,
-			"generic_data": evt.GenericData,
-			"generic_data_hash":   evt.GenericDataHash,
+			"event_base_id":     evt.EventBaseId,
+			"event_detail_id":   evt.EventDetailId,
+			"raw_data":          evt.RawData,
+			"generic_data":      evt.GenericData,
+			"generic_data_hash": evt.GenericDataHash,
 		}
 		res, err = p.Query(query.Set, "event_instance", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {

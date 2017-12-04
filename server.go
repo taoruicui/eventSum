@@ -9,14 +9,14 @@ import (
 	"syscall"
 	"time"
 
+	conf "github.com/ContextLogic/eventsum/config"
+	"github.com/ContextLogic/eventsum/datastore"
+	"github.com/ContextLogic/eventsum/log"
+	"github.com/ContextLogic/eventsum/metrics"
+	. "github.com/ContextLogic/eventsum/models"
+	"github.com/ContextLogic/eventsum/rules"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-	"github.com/ContextLogic/eventsum/log"
-	"github.com/ContextLogic/eventsum/rules"
-	conf "github.com/ContextLogic/eventsum/config"
-	. "github.com/ContextLogic/eventsum/models"
-	"github.com/ContextLogic/eventsum/metrics"
-	"github.com/ContextLogic/eventsum/datastore"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 

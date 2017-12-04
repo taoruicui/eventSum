@@ -1,12 +1,11 @@
 package models
 
 import (
-	"github.com/mohae/deepcopy"
-	"time"
-	"sort"
 	"fmt"
+	"github.com/mohae/deepcopy"
+	"sort"
+	"time"
 )
-
 
 ////////////////////////////////////////////////////
 /* MODELS CORRESPONDING TO EVENTS AND API RESULTS */
@@ -34,7 +33,7 @@ type EventData struct {
 func (e *EventData) Copy() EventData {
 	return EventData{
 		Message: e.Message,
-		Raw: deepcopy.Copy(e.Raw),
+		Raw:     deepcopy.Copy(e.Raw),
 	}
 }
 
@@ -75,12 +74,12 @@ func (e EventResults) Len() int {
 }
 
 // used for sort function
-func (e EventResults) Swap (i, j int) {
+func (e EventResults) Swap(i, j int) {
 	e[i], e[j] = e[j], e[i]
 }
 
 // sort from greatest to smallest
-func (e EventResults) Less (i, j int) bool {
+func (e EventResults) Less(i, j int) bool {
 	return e[i].TotalCount > e[j].TotalCount
 }
 
@@ -92,7 +91,7 @@ type EventResult struct {
 	TotalCount    int         `json:"total_count"`
 	ProcessedData interface{} `json:"processed_data"`
 	InstanceIds   []int64     `json:"instance_ids"`
-	Datapoints    EventBins  `json:"datapoints"`
+	Datapoints    EventBins   `json:"datapoints"`
 }
 
 // returns formatted name of event
@@ -108,12 +107,9 @@ type EventDetailsResult struct {
 	RawDetails interface{} `json:"raw_details"`
 }
 
-
-
 /////////////////////////////////////////////
 /* MODELS CORRESPONDING TO DATABASE TABLES */
 /////////////////////////////////////////////
-
 
 type EventBase struct {
 	Id                int64       `mapstructure:"_id"`
@@ -125,12 +121,12 @@ type EventBase struct {
 }
 
 type EventInstance struct {
-	Id            int64       `mapstructure:"_id"`
-	EventBaseId   int64       `mapstructure:"event_base_id"`
-	EventDetailId int64       `mapstructure:"event_detail_id"`
-	RawData       interface{} `mapstructure:"raw_data"`
-	GenericData   interface{} `mapstructure:"generic_data"`
-	GenericDataHash   string      `mapstructure:"generic_data_hash"`
+	Id              int64       `mapstructure:"_id"`
+	EventBaseId     int64       `mapstructure:"event_base_id"`
+	EventDetailId   int64       `mapstructure:"event_detail_id"`
+	RawData         interface{} `mapstructure:"raw_data"`
+	GenericData     interface{} `mapstructure:"generic_data"`
+	GenericDataHash string      `mapstructure:"generic_data_hash"`
 
 	// ignored fields, used internally
 	ProcessedDataHash   string
@@ -145,10 +141,10 @@ type EventInstancePeriod struct {
 	Updated         time.Time              `mapstructure:"updated"`
 	Count           int                    `mapstructure:"count"`
 	CounterJson     map[string]interface{} `mapstructure:"counter_json"`
-	CAS int `mapstructure:"cas_value"`
+	CAS             int                    `mapstructure:"cas_value"`
 
 	// ignored fields, used internally
-	RawDataHash         string
+	RawDataHash string
 }
 
 type EventDetail struct {

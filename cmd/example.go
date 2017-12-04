@@ -1,18 +1,18 @@
 package main
 
 import (
-	"regexp"
+	"github.com/ContextLogic/eventsum"
 	c "github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/models"
-	"github.com/ContextLogic/eventsum"
+	logger "github.com/Sirupsen/logrus"
+	"github.com/jessevdk/go-flags"
 	m "github.com/mitchellh/mapstructure"
 	"math"
-	"github.com/jessevdk/go-flags"
-	logger "github.com/Sirupsen/logrus"
+	"regexp"
 )
 
 type stackTrace struct {
-	Frames   []frame `json:"frames" mapstructure:"frames"`
+	Frames []frame `json:"frames" mapstructure:"frames"`
 }
 
 type frame struct {
@@ -107,7 +107,7 @@ GROUPING FUNCTIONS
 
 In order to implement a grouping, the function must accept an eventData
 and a , and modify it in place.
- */
+*/
 
 func queryPerfTraceGrouping(data models.EventData, group map[string]interface{}) (map[string]interface{}, error) {
 	if _, ok := group["b"]; !ok {
@@ -122,15 +122,15 @@ func queryPerfTraceGrouping(data models.EventData, group map[string]interface{})
 CONSOLIDATION FUNCTION
 
 This function should define how two groups should be merged.
- */
+*/
 
- func consolidationFunction(group1, group2 map[string]interface{}) (map[string]interface{}, error) {
-	 for k, i := range group1 {
-		 if v, ok := group2[k]; !ok {
-			 group2[k] = v
-		 } else {
-		 	group2[k] = math.Max(v.(float64), i.(float64))
-		 }
-	 }
-	 return group2, nil
- }
+func consolidationFunction(group1, group2 map[string]interface{}) (map[string]interface{}, error) {
+	for k, i := range group1 {
+		if v, ok := group2[k]; !ok {
+			group2[k] = v
+		} else {
+			group2[k] = math.Max(v.(float64), i.(float64))
+		}
+	}
+	return group2, nil
+}

@@ -1,16 +1,16 @@
 package eventsum
 
 import (
-	"github.com/pkg/errors"
-	"github.com/jacksontj/dataman/src/query"
+	conf "github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/datastore"
 	"github.com/ContextLogic/eventsum/log"
-	conf "github.com/ContextLogic/eventsum/config"
-	. "github.com/ContextLogic/eventsum/models"
-	"time"
-	"github.com/ContextLogic/eventsum/util"
 	"github.com/ContextLogic/eventsum/metrics"
+	. "github.com/ContextLogic/eventsum/models"
+	"github.com/ContextLogic/eventsum/util"
+	"github.com/jacksontj/dataman/src/query"
+	"github.com/pkg/errors"
 	"sort"
+	"time"
 )
 
 // Wrapper struct for Event Channel
@@ -22,8 +22,8 @@ type eventChannel struct {
 }
 
 type eventStore struct {
-	ds           datastore.DataStore    // link to any data store (Postgres, Cassandra, etc.)
-	channel      *eventChannel // channel, or queue, for the processing of new events
+	ds           datastore.DataStore // link to any data store (Postgres, Cassandra, etc.)
+	channel      *eventChannel       // channel, or queue, for the processing of new events
 	log          *log.Logger
 	timeInterval int // interval time for event_instance_period
 }
@@ -75,7 +75,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 	start := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("SummarizeBatchEvents", start)
-	} ()
+	}()
 
 	var evtsToAdd []UnaddedEvent
 	for length := len(es.channel._queue); length > 0; length-- {
@@ -145,9 +145,9 @@ func (es *eventStore) SummarizeBatchEvents() {
 			eventClassInstances = append(eventClassInstances, EventInstance{
 				ProcessedDataHash:   processedDataHash,   // Used to reference event_base_id later
 				ProcessedDetailHash: processedDetailHash, // Used to reference event_detail_id later
-				RawData: rawEvent.Data,
-				GenericData:             genericData,
-				GenericDataHash:         genericDataHash,
+				RawData:             rawEvent.Data,
+				GenericData:         genericData,
+				GenericDataHash:     genericDataHash,
 			})
 			eventClassInstancesMap[genericDataHash] = len(eventClassInstances) - 1
 		}
@@ -158,16 +158,16 @@ func (es *eventStore) SummarizeBatchEvents() {
 		startTime, endTime := util.FindBoundingTime(t, es.timeInterval)
 		key := KeyEventPeriod{
 			RawDataHash: genericDataHash,
-			StartTime: startTime,
+			StartTime:   startTime,
 		}
 		if _, ok := eventClassInstancePeriodsMap[key]; !ok {
 			eventClassInstancePeriods = append(eventClassInstancePeriods, EventInstancePeriod{
-				StartTime:           startTime,
-				Updated:             t,
-				EndTime:             endTime,
-				RawDataHash:         genericDataHash,         // Used to reference event_instance_id later
-				Count:               0,
-				CounterJson:         make(map[string]interface{}),
+				StartTime:   startTime,
+				Updated:     t,
+				EndTime:     endTime,
+				RawDataHash: genericDataHash, // Used to reference event_instance_id later
+				Count:       0,
+				CounterJson: make(map[string]interface{}),
 			})
 			eventClassInstancePeriodsMap[key] = len(eventClassInstancePeriods) - 1
 		}
@@ -252,7 +252,7 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("GetRecentEvents", now)
-	} ()
+	}()
 
 	// TODO: use the limit!!
 	var evts EventResults
@@ -337,7 +337,7 @@ func (es *eventStore) GetIncreasingEvents(start, end time.Time, serviceId int, l
 		// if not in map, then its a new/increasing event
 		if r, ok := mapResult1[v.Id]; !ok {
 			evts = append(evts, v)
-		} else if float64(r.TotalCount) < 1.5 * float64(v.TotalCount) {
+		} else if float64(r.TotalCount) < 1.5*float64(v.TotalCount) {
 			evts = append(evts, v)
 		}
 	}
@@ -352,7 +352,7 @@ func (es *eventStore) GetEventHistogram(start, end time.Time, baseId int) (Event
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("GetEventHistogram", now)
-	} ()
+	}()
 
 	var period EventInstancePeriod
 	var instance EventInstance
@@ -367,13 +367,13 @@ func (es *eventStore) GetEventHistogram(start, end time.Time, baseId int) (Event
 		return EventResult{}, err
 	}
 	result := EventResult{
-		Id: base.Id,
-		EventType: base.EventType,
-		EventName: base.EventName,
-		TotalCount: 0,
+		Id:            base.Id,
+		EventType:     base.EventType,
+		EventName:     base.EventName,
+		TotalCount:    0,
 		ProcessedData: base.ProcessedData,
-		InstanceIds: []int64{},
-		Datapoints: EventBins{},
+		InstanceIds:   []int64{},
+		Datapoints:    EventBins{},
 	}
 
 	res, err := es.ds.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, join)
@@ -409,7 +409,7 @@ func (es *eventStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("GetEventDetailsbyId", now)
-	} ()
+	}()
 
 	var result EventDetailsResult
 	var instance EventInstance
@@ -445,7 +445,7 @@ func (es *eventStore) GetServiceIds() ([]int, error) {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("GetEventDetailsbyId", now)
-	} ()
+	}()
 
 	var result []int
 	var base EventBase
@@ -472,7 +472,7 @@ func (es *eventStore) GetBaseIds(service_id int) ([]int, error) {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("GetServiceIds", now)
-	} ()
+	}()
 
 	var result []int
 	var base EventBase
@@ -498,7 +498,7 @@ func (es *eventStore) GetByBaseId(base_id int) (EventBase, error) {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("GetByBaseId", now)
-	} ()
+	}()
 
 	var result EventBase
 	pkey := map[string]interface{}{"_id": base_id}

@@ -1,64 +1,64 @@
 package log
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"bufio"
+	"encoding/json"
+	"github.com/ContextLogic/eventsum/datastore"
+	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/rules"
 	"github.com/ContextLogic/eventsum/util"
-	. "github.com/ContextLogic/eventsum/models"
-	"encoding/json"
-	"path/filepath"
+	log "github.com/Sirupsen/logrus"
 	"os"
+	"path/filepath"
 	"reflect"
 	"time"
-	"bufio"
-	"github.com/ContextLogic/eventsum/datastore"
 )
 
 var GlobalRule *rules.Rule
 
 // helper functions
 func open(filename string) (*os.File, error) {
-	return os.OpenFile(filename+".log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	return os.OpenFile(filename+".log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 }
 
 type config struct {
-	LogSaveDataInterval int `json:"log_save_data_interval"`
-	LogDataPeriodCheckInterval int `json:"log_data_period_check_interval"`
-	Environment string `json:"environment"`
-	AppDir string `json:"app_logging"`
-	DataDir string `json:"data_logging"`
-	DataSourceInstance string `json:"data_source_instance"`
-	DataSourceSchema string `json:"data_source_schema"`
+	LogSaveDataInterval        int    `json:"log_save_data_interval"`
+	LogDataPeriodCheckInterval int    `json:"log_data_period_check_interval"`
+	Environment                string `json:"environment"`
+	AppDir                     string `json:"app_logging"`
+	DataDir                    string `json:"data_logging"`
+	DataSourceInstance         string `json:"data_source_instance"`
+	DataSourceSchema           string `json:"data_source_schema"`
 }
 
 // There are two types of logging in this service: App logginng and Data logging.
 // App logging: Debug, info, System calls, etc.
 // Data logging: real data, events that failed to be added to DB, etc.
 type Logger struct {
-	app *log.Logger
-	data *log.Logger
+	app      *log.Logger
+	data     *log.Logger
 	eventLog failedEventsLog
 
-	appDir string
+	appDir  string
 	dataDir string
 
-	endOfDay time.Time // used for log rotation
-	tickerDump *time.Ticker // used for dumping logs
+	endOfDay    time.Time    // used for log rotation
+	tickerDump  *time.Ticker // used for dumping logs
 	tickerCheck *time.Ticker // used for periodically checking logs
 }
 
 // This struct is what is being stored into the data log file. This is the summarized
 // version of all the unadded events within a given time period
 type failedEventsLog struct {
-	Bases []EventBase `json:"event_base"`
-	Instances []EventInstance `json:"event_instance"`
-	Periods []EventInstancePeriod `json:"event_instance_period"`
-	Details []EventDetail `json:"event_detail"`
+	Bases     []EventBase           `json:"event_base"`
+	Instances []EventInstance       `json:"event_instance"`
+	Periods   []EventInstancePeriod `json:"event_instance_period"`
+	Details   []EventDetail         `json:"event_detail"`
 
-	BaseMap map[string]int `json:"event_base_map"`
-	InstanceMap map[string]int `json:"event_instance_map"`
-	PeriodMap map[KeyEventPeriod]int `json:"event_instance_period_map"`
-	DetailMap map[string]int `json:"event_detail_map"`
+	BaseMap     map[string]int         `json:"event_base_map"`
+	InstanceMap map[string]int         `json:"event_instance_map"`
+	PeriodMap   map[KeyEventPeriod]int `json:"event_instance_period_map"`
+	DetailMap   map[string]int         `json:"event_detail_map"`
 	// TODO: Add mutex?
 }
 
@@ -66,9 +66,9 @@ type failedEventsLog struct {
 func (l *Logger) Start(c config) {
 	for {
 		select {
-		case <- l.tickerDump.C:
+		case <-l.tickerDump.C:
 			l.SaveEventsToLogFile()
-		case <- l.tickerCheck.C:
+		case <-l.tickerCheck.C:
 			l.PeriodicCheck(c)
 		}
 	}
@@ -103,20 +103,20 @@ func (l *Logger) Data() *log.Logger {
 // Move all the data saved in the logs to a logfile
 func (l *Logger) SaveEventsToLogFile() {
 	// Check if there is anything to save
-	if 	len(l.eventLog.Bases) == 0 && len(l.eventLog.Details) == 0 &&
+	if len(l.eventLog.Bases) == 0 && len(l.eventLog.Details) == 0 &&
 		len(l.eventLog.Instances) == 0 && len(l.eventLog.Periods) == 0 {
 		return
 	}
 	l.App().Info("Saving failed events into the log file!")
 
 	l.Data().WithFields(log.Fields{
-		"event_base": l.eventLog.Bases,
-		"event_base_map": l.eventLog.BaseMap,
-		"event_instance": l.eventLog.Instances,
-		"event_instance_map": l.eventLog.InstanceMap,
+		"event_base":            l.eventLog.Bases,
+		"event_base_map":        l.eventLog.BaseMap,
+		"event_instance":        l.eventLog.Instances,
+		"event_instance_map":    l.eventLog.InstanceMap,
 		"event_instance_period": l.eventLog.Periods,
 		//"event_instance_period_map": l.eventLog.PeriodMap,
-		"event_detail": l.eventLog.Details,
+		"event_detail":     l.eventLog.Details,
 		"event_detail_map": l.eventLog.DetailMap,
 	}).Info("Dumping event data now")
 
@@ -170,13 +170,13 @@ func (l *Logger) PeriodicCheck(conf config) {
 			l.App().Error(err)
 			return
 		}
-		
+
 		if err := ds.AddEventDetails(failedEvent.Details); len(err) != 0 {
 			// TODO
 			l.App().Error(err)
 			return
 		}
-		
+
 		for _, idx := range failedEvent.InstanceMap {
 			dataHash := failedEvent.Instances[idx].ProcessedDataHash
 			detailHash := failedEvent.Instances[idx].ProcessedDetailHash
@@ -185,7 +185,7 @@ func (l *Logger) PeriodicCheck(conf config) {
 			failedEvent.Instances[idx].EventDetailId =
 				failedEvent.Details[failedEvent.DetailMap[detailHash]].Id
 		}
-		
+
 		if err := ds.AddEventInstances(failedEvent.Instances); len(err) != 0 {
 			// TODO
 			l.App().Error(err)
@@ -220,7 +220,7 @@ func (l *failedEventsLog) LogData(event interface{}) {
 		return
 	}
 
-	switch t.Name(){
+	switch t.Name() {
 	case "EventBase":
 		l.logEventBase(event.(EventBase))
 	case "EventInstance":
@@ -248,8 +248,8 @@ func (l *failedEventsLog) logEventInstance(instance EventInstance) {
 
 func (l *failedEventsLog) logEventInstancePeriod(period EventInstancePeriod) {
 	key := KeyEventPeriod{
-		RawDataHash:period.RawDataHash,
-		StartTime: period.StartTime,
+		RawDataHash: period.RawDataHash,
+		StartTime:   period.StartTime,
 	}
 	if _, ok := l.PeriodMap[key]; !ok {
 		l.Periods = append(l.Periods, period)
@@ -299,18 +299,18 @@ func NewLogger(configFile string) *Logger {
 	_, endOfDay := util.FindBoundingTime(time.Now(), 1440)
 
 	l := Logger{
-		app: log.New(),
+		app:  log.New(),
 		data: log.New(),
 		eventLog: failedEventsLog{
-			BaseMap: make(map[string]int),
+			BaseMap:     make(map[string]int),
 			InstanceMap: make(map[string]int),
-			PeriodMap: make(map[KeyEventPeriod]int),
-			DetailMap: make(map[string]int),
+			PeriodMap:   make(map[KeyEventPeriod]int),
+			DetailMap:   make(map[string]int),
 		},
-		appDir: config.AppDir,
-		dataDir: config.DataDir,
-		endOfDay: endOfDay,
-		tickerDump: time.NewTicker(time.Duration(config.LogSaveDataInterval) * time.Second),
+		appDir:      config.AppDir,
+		dataDir:     config.DataDir,
+		endOfDay:    endOfDay,
+		tickerDump:  time.NewTicker(time.Duration(config.LogSaveDataInterval) * time.Second),
 		tickerCheck: time.NewTicker(time.Duration(config.LogDataPeriodCheckInterval) * time.Second),
 	}
 	l.data.Formatter = &log.JSONFormatter{}

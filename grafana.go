@@ -1,13 +1,13 @@
 package eventsum
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
-	"encoding/json"
-	"time"
-	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // request struct for grafana searches
@@ -17,15 +17,15 @@ type searchReq struct {
 
 // request struct for grafana queries
 type queryReq struct {
-	PanelId int `json:"panel_id"`
-	Range timeRange `json:"range"`
-	Interval int `json:"intervalMs"`
-	Targets []targets `json:"targets"`
-	MaxDataPoints int `json:"maxDataPoints"`
+	PanelId       int       `json:"panel_id"`
+	Range         timeRange `json:"range"`
+	Interval      int       `json:"intervalMs"`
+	Targets       []targets `json:"targets"`
+	MaxDataPoints int       `json:"maxDataPoints"`
 }
 
 type queryResp struct {
-	Target string `json:"target"`
+	Target     string  `json:"target"`
 	Datapoints [][]int `json:"datapoints"`
 }
 
@@ -37,7 +37,7 @@ type timeRange struct {
 
 type targets struct {
 	Target string `json:"target"`
-	RefId string `json:"refId"`
+	RefId  string `json:"refId"`
 }
 
 // cors adds headers that Grafana requires to work as a direct access data
@@ -91,13 +91,13 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 			}
 
 			result = append(result, queryResp{
-				Target: evt.FormatName(),
+				Target:     evt.FormatName(),
 				Datapoints: datapoints,
 			})
-		// target is "recent.<service_id>"
+			// target is "recent.<service_id>"
 		} else if strings.Contains(target.Target, "recent") {
 			// TODO: limit datapoints to maxDataPoints
-			service_id, err := strconv.Atoi(strings.Split(target.Target,".")[1])
+			service_id, err := strconv.Atoi(strings.Split(target.Target, ".")[1])
 			evts, err := h.es.GetRecentEvents(query.Range.From, query.Range.To, service_id, 5)
 			if err != nil {
 				h.sendError(w, http.StatusInternalServerError, err, "query error")
@@ -110,15 +110,15 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 					datapoints = append(datapoints, []int{bin.Count, bin.Start})
 				}
 				result = append(result, queryResp{
-					Target: evt.FormatName(),
+					Target:     evt.FormatName(),
 					Datapoints: datapoints,
 				})
 			}
-		// target is "increased.<service_id>"
+			// target is "increased.<service_id>"
 		} else if strings.Contains(target.Target, "increased") {
 			// TODO: limit datapoints to maxDataPoints
 			// TODO: panic on strings.split
-			service_id, err := strconv.Atoi(strings.Split(target.Target,".")[1])
+			service_id, err := strconv.Atoi(strings.Split(target.Target, ".")[1])
 			evts, err := h.es.GetRecentEvents(query.Range.From, query.Range.To, service_id, 5)
 			if err != nil {
 				h.sendError(w, http.StatusInternalServerError, err, "query error")
@@ -131,7 +131,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 					datapoints = append(datapoints, []int{bin.Count, bin.Start})
 				}
 				result = append(result, queryResp{
-					Target: evt.FormatName(),
+					Target:     evt.FormatName(),
 					Datapoints: datapoints,
 				})
 			}

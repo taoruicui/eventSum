@@ -1,8 +1,8 @@
 package rules
 
 import (
-	"github.com/pkg/errors"
 	. "github.com/ContextLogic/eventsum/models"
+	"github.com/pkg/errors"
 	"reflect"
 )
 
@@ -110,8 +110,8 @@ func (r *Rule) AddConsolidateFunc(f func(map[string]interface{}, map[string]inte
 
 func NewRule() Rule {
 	return Rule{
-		Filter: map[string]interface{}{},
-		Grouping: map[string]interface{}{},
+		Filter:          map[string]interface{}{},
+		Grouping:        map[string]interface{}{},
 		ConsolidateFunc: defaultConsolidate,
 	}
 }

@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/julienschmidt/httprouter"
-	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/log"
 	"github.com/ContextLogic/eventsum/metrics"
+	. "github.com/ContextLogic/eventsum/models"
+	"github.com/ContextLogic/eventsum/util"
+	"github.com/julienschmidt/httprouter"
 	"net/http"
 	"strconv"
 	"time"
-	"github.com/ContextLogic/eventsum/util"
 )
 
 // Base class for handling HTTP Requests
@@ -51,7 +51,7 @@ func latency(prefix string, h httprouter.Handle) httprouter.Handle {
 		defer func() {
 			metrics.HTTPLatency(prefix, start)
 		}()
-		
+
 		lw := newStatusRecorder(w)
 		h(lw, req, ps)
 		metrics.HTTPStatus(prefix, lw.Status())
