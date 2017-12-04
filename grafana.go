@@ -60,6 +60,11 @@ func (h *httpHandler) grafanaOk(w http.ResponseWriter, r *http.Request, _ httpro
 
 }
 
+// grafanaQuery handles all grafana metric requests. This means it handles 3 main
+// request types:
+// 1) Individual Event metrics
+// 2) Top n recent events and their metrics
+// 3) Top n new/increased events and their metrics
 func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var query queryReq
 	defer r.Body.Close()
@@ -112,6 +117,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 		// target is "increased.<service_id>"
 		} else if strings.Contains(target.Target, "increased") {
 			// TODO: limit datapoints to maxDataPoints
+			// TODO: panic on strings.split
 			service_id, err := strconv.Atoi(strings.Split(target.Target,".")[1])
 			evts, err := h.es.GetRecentEvents(query.Range.From, query.Range.To, service_id, 5)
 			if err != nil {
@@ -132,8 +138,6 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 		} else {
 			h.sendError(w, http.StatusBadRequest, err, "Invalid request")
 		}
-
-
 	}
 
 	if err := json.NewEncoder(w).Encode(result); err != nil {

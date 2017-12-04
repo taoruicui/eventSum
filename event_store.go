@@ -312,8 +312,39 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 
 	// Sort and filter top <limit> events
 	sort.Sort(evts)
-	evts = evts[:limit]
-	return evts, nil
+	return evts[:limit], nil
+}
+
+// Get all increasing events by comparing beginning and end of time period
+func (es *eventStore) GetIncreasingEvents(start, end time.Time, serviceId int, limit int) (EventResults, error) {
+	var evts EventResults
+	middle := util.AvgTime(start, end)
+	result1, err := es.GetRecentEvents(start, middle, serviceId, limit)
+	if err != nil {
+		return evts, err
+	}
+	result2, err := es.GetRecentEvents(middle, end, serviceId, limit)
+	if err != nil {
+		return evts, err
+	}
+
+	// compare average exception count of result1 and result2
+	mapResult1 := map[int64]EventResult{}
+	for _, v := range result1 {
+		mapResult1[v.Id] = v
+	}
+	for _, v := range result2 {
+		// if not in map, then its a new/increasing event
+		if r, ok := mapResult1[v.Id]; !ok {
+			evts = append(evts, v)
+		} else if float64(r.TotalCount) < 1.5 * float64(v.TotalCount) {
+			evts = append(evts, v)
+		}
+	}
+
+	// Sort and filter top <limit> events
+	sort.Sort(evts)
+	return evts[:limit], nil
 }
 
 // Get the histogram of a single event instance
@@ -406,51 +437,6 @@ func (es *eventStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) {
 		RawData:    instance.RawData,
 		RawDetails: detail.RawDetail,
 	}
-	return result, nil
-}
-
-// Getting all events that occurred though the time range, data ordered chronologically
-// Metric value as a [value int, unixtimestamp in milliseconds]
-func (es *eventStore) GetAllEvents(start, end time.Time) ([][]int, error) {
-	now := time.Now()
-	defer func() {
-		metrics.EventStoreLatency("GetEventDetailsbyId", now)
-	} ()
-
-	var result = [][]int{}
-	var resultMap  = make(map[int]int)
-	var period EventInstancePeriod
-	filter := []interface{}{
-		map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
-		map[string]interface{}{"end_time": []interface{}{"<", end}},
-	}
-
-	res, err := es.ds.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, nil)
-
-	if err != nil {
-		return result, err
-	}
-	for _, v := range res.Return {
-		util.MapDecode(v, &period)
-		st := int(period.StartTime.Unix() * 1000)
-		if _, ok := resultMap[st]; !ok {
-			resultMap[st] = 0
-		}
-		resultMap[st] += period.Count
-	}
-
-	// Getting times so we sort the data chronologically
-	keys := []int{}
-	for k := range resultMap {
-		keys = append(keys, k)
-	}
-
-	sort.Ints(keys)
-
-	for _, v := range keys {
-		result = append(result, []int{resultMap[v], v})
-	}
-
 	return result, nil
 }
 
