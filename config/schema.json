@@ -17,6 +17,15 @@
                   "not_null": true,
                   "provision_state": 3
                 },
+                "event_group_id": {
+                  "name": "event_group_id",
+                  "field_type": "_int",
+                  "relation": {
+                    "collection": "event_group",
+                    "field": "_id"
+                  },
+                  "provision_state": 3
+                },
                 "event_name": {
                   "name": "event_name",
                   "field_type": "_string",
@@ -107,6 +116,39 @@
                     "processed_detail_hash"
                   ],
                   "unique": true,
+                  "provision_state": 3
+                }
+              },
+              "provision_state": 3
+            },
+            "event_group": {
+              "name": "event_group",
+              "fields": {
+                "_id": {
+                  "name": "_id",
+                  "field_type": "_serial",
+                  "not_null": true,
+                  "provision_state": 3
+                },
+                "info": {
+                  "name": "info",
+                  "field_type": "_text",
+                  "provision_state": 3
+                },
+                "name": {
+                  "name": "name",
+                  "field_type": "_string",
+                  "provision_state": 3
+                }
+              },
+              "indexes": {
+                "event_group_pkey": {
+                  "name": "event_group_pkey",
+                  "fields": [
+                    "_id"
+                  ],
+                  "unique": true,
+                  "primary": true,
                   "provision_state": 3
                 }
               },
@@ -245,13 +287,6 @@
                   ],
                   "unique": true,
                   "primary": true,
-                  "provision_state": 3
-                },
-                "updated_idx": {
-                  "name": "updated_idx",
-                  "fields": [
-                    "updated"
-                  ],
                   "provision_state": 3
                 }
               },
