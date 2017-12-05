@@ -7,7 +7,6 @@ import (
 	"github.com/ContextLogic/eventsum/log"
 	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
-	"github.com/ContextLogic/eventsum/util"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
 	"strconv"
@@ -18,6 +17,8 @@ import (
 type httpHandler struct {
 	es  *eventStore
 	log *log.Logger
+
+	timeFormat string
 }
 
 // statusRecorder is a simple http status recorder
@@ -42,6 +43,34 @@ func (sr *statusRecorder) Status() int {
 func (sr *statusRecorder) WriteHeader(status int) {
 	sr.status = status
 	sr.ResponseWriter.WriteHeader(status)
+}
+
+// Initializes a new httpHandler given configs (currently timeFormat)
+func newHTTPHandler(es *eventStore, logger *log.Logger, timeFormat string) httpHandler {
+
+	//Time.UnmarshalJSON = func(t Time, b []byte) (err error) {
+	//	s := strings.Trim(string(b), "\"")
+	//	if s == "null" {
+	//		t.Time = time.Time{}
+	//		return
+	//	}
+	//	t.Time, err = time.Parse(timeFormat, string(b))
+	//	return err
+	//}
+	//
+	//Time.MarshalJSON = func(t Time) ([]byte, error) {
+	//	nano := time.Time{}.UnixNano()
+	//	if t.Time.UnixNano() == nano {
+	//		return []byte("null"), nil
+	//	}
+	//	return []byte(fmt.Sprintf("\"%s\"", t.Time.Format(timeFormat))), nil
+	//}
+
+	return httpHandler{
+		es:         es,
+		log:        logger,
+		timeFormat: timeFormat,
+	}
 }
 
 // http wrapper to track latency by method calls
@@ -96,17 +125,17 @@ func (h *httpHandler) recentEventsHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	if str := query.Get("end_time"); str != "" {
-		endTime, err = time.Parse(util.TimeFormat, str)
+		endTime, err = time.Parse(h.timeFormat, str)
 		if err != nil {
-			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure end time is in correct format: %v", util.TimeFormat))
+			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure end time is in correct format: %v", h.timeFormat))
 			return
 		}
 	}
 
 	if str := query.Get("start_time"); str != "" {
-		startTime, err = time.Parse(util.TimeFormat, str)
+		startTime, err = time.Parse(h.timeFormat, str)
 		if err != nil {
-			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure start time is in correct format: %v", util.TimeFormat))
+			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure start time is in correct format: %v", h.timeFormat))
 			return
 		}
 	}
@@ -151,17 +180,17 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	if str := query.Get("end_time"); str != "" {
-		endTime, err = time.Parse(util.TimeFormat, str)
+		endTime, err = time.Parse(h.timeFormat, str)
 		if err != nil {
-			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure end time is in correct format: %v", util.TimeFormat))
+			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure end time is in correct format: %v", h.timeFormat))
 			return
 		}
 	}
 
 	if str := query.Get("start_time"); str != "" {
-		startTime, err = time.Parse(util.TimeFormat, str)
+		startTime, err = time.Parse(h.timeFormat, str)
 		if err != nil {
-			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure start time is in correct format: %v", util.TimeFormat))
+			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure start time is in correct format: %v", h.timeFormat))
 			return
 		}
 	}
@@ -183,8 +212,8 @@ func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	// Validate the unadded event
-	if _, err := time.Parse(util.TimeFormat, evt.Timestamp); err != nil {
-		h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure timestamp is in correct format: '%v'", util.TimeFormat))
+	if _, err := time.Parse(h.timeFormat, evt.Timestamp); err != nil {
+		h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure timestamp is in correct format: '%v'", h.timeFormat))
 		return
 	}
 

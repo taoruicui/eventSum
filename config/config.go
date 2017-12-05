@@ -12,14 +12,14 @@ type Flags struct {
 
 // config are settings used ... XXX
 type EventsumConfig struct {
-	DataSourceInstance string                 `json:"data_source_instance"`
-	DataSourceSchema   string                 `json:"data_source_schema"`
-	LogConfigFile      string                 `json:"log_config_file"`
-	BatchSize          int                    `json:"event_batch_limit"`
-	TimeLimit          int                    `json:"event_time_limit"` // in seconds
-	ServerPort         int                    `json:"server_port"`
-	TimeInterval       int                    `json:"time_interval"` // in minutes
-	Args               map[string]interface{} `json:"args"`
+	DataSourceInstance string `json:"data_source_instance"`
+	DataSourceSchema   string `json:"data_source_schema"`
+	LogConfigFile      string `json:"log_config_file"`
+	BatchSize          int    `json:"event_batch_limit"`
+	TimeLimit          int    `json:"event_time_limit"` // in seconds
+	ServerPort         int    `json:"server_port"`
+	TimeInterval       int    `json:"time_interval"` // in minutes
+	TimeFormat         string `json:"time_format"`
 }
 
 func DefaultConfig() EventsumConfig {
@@ -31,7 +31,7 @@ func DefaultConfig() EventsumConfig {
 		TimeLimit:          5,
 		ServerPort:         8080,
 		TimeInterval:       15,
-		Args:               make(map[string]interface{}),
+		TimeFormat:         "2006-01-02 15:04:05",
 	}
 }
 

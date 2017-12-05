@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-const TimeFormat = datamantype.DateTimeFormatStr
-
 // returns the start and end times of the interval bounding time t,
 // interval specific as minutes
 func FindBoundingTime(t time.Time, interval int) (time.Time, time.Time) {

@@ -26,6 +26,7 @@ type eventStore struct {
 	channel      *eventChannel       // channel, or queue, for the processing of new events
 	log          *log.Logger
 	timeInterval int // interval time for event_instance_period
+	timeFormat   string
 }
 
 // create new Event Store. This 'store' stores necessary information
@@ -42,6 +43,7 @@ func newEventStore(ds datastore.DataStore, config conf.EventsumConfig, log *log.
 		},
 		log,
 		config.TimeInterval,
+		config.TimeFormat,
 	}
 }
 
@@ -154,7 +156,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 
 		// The unique key should be the raw data, and the time period,
 		// since the count should keep track of an event instance in a certain time frame.
-		t, err := time.Parse(util.TimeFormat, event.Timestamp)
+		t, err := time.Parse(es.timeFormat, event.Timestamp)
 		startTime, endTime := util.FindBoundingTime(t, es.timeInterval)
 		key := KeyEventPeriod{
 			RawDataHash: genericDataHash,
@@ -254,7 +256,6 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 		metrics.EventStoreLatency("GetRecentEvents", now)
 	}()
 
-	// TODO: use the limit!!
 	var evts EventResults
 	var evtsMap = make(map[int64]int)
 	var evtPeriod EventInstancePeriod
@@ -312,7 +313,11 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 
 	// Sort and filter top <limit> events
 	sort.Sort(evts)
-	return evts[:limit], nil
+	if len(evts) < limit {
+		return evts, nil
+	} else {
+		return evts[:limit], nil
+	}
 }
 
 // Get all increasing events by comparing beginning and end of time period
@@ -334,17 +339,22 @@ func (es *eventStore) GetIncreasingEvents(start, end time.Time, serviceId int, l
 		mapResult1[v.Id] = v
 	}
 	for _, v := range result2 {
-		// if not in map, then its a new/increasing event
 		if r, ok := mapResult1[v.Id]; !ok {
+			// if not in map, then its a new/increasing event
 			evts = append(evts, v)
 		} else if float64(r.TotalCount) < 1.5*float64(v.TotalCount) {
+			// only append if result2 count is 1.5 times greater than result1
 			evts = append(evts, v)
 		}
 	}
 
 	// Sort and filter top <limit> events
 	sort.Sort(evts)
-	return evts[:limit], nil
+	if len(evts) < limit {
+		return evts, nil
+	} else {
+		return evts[:limit], nil
+	}
 }
 
 // Get the histogram of a single event instance

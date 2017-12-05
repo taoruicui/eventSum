@@ -159,10 +159,7 @@ func New(configFilename string) *EventSumServer {
 	// create new http store
 	return newServer(func(s *EventSumServer) {
 		s.logger = logger
-		s.httpHandler = httpHandler{
-			es,
-			logger,
-		}
+		s.httpHandler = newHTTPHandler(es, logger, config.TimeFormat)
 		s.port = ":" + strconv.Itoa(config.ServerPort)
 	})
 }
