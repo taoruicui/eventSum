@@ -41,7 +41,7 @@ func (r *Rule) ProcessFilter(event UnaddedEvent, filterName string) (UnaddedEven
 			if _, ok := r.Filter[name]; !ok {
 				return event, errors.New("Function name not supported")
 			}
-			res, err := r.call("filter", name, event.Data.Copy())
+			res, err := r.call("filter", name, event.Data)
 			if err != nil {
 				return event, err
 			}

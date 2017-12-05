@@ -266,7 +266,7 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 		map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
 		map[string]interface{}{"end_time": []interface{}{"<", end}},
 	}
-	res, err := es.ds.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, []string{"start_time"}, join)
+	res, err := es.ds.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, join)
 	if err != nil {
 		return evts, err
 	}
@@ -274,7 +274,6 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 	// loop through results
 	for _, t1 := range res.Return {
 		err = util.MapDecode(t1, &evtPeriod)
-		start := int(evtPeriod.StartTime.Unix() * 1000)
 		t2, ok := t1["event_instance_id"].(map[string]interface{})
 		if !ok {
 			continue
@@ -302,13 +301,17 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 			})
 			evtsMap[evtBase.Id] = len(evts) - 1
 		}
+
+		start := int(evtPeriod.Updated.Unix() * 1000)
 		evt := &evts[evtsMap[evtBase.Id]]
 		evt.TotalCount += evtPeriod.Count
+		evt.InstanceIds = append(evt.InstanceIds, evtInstance.Id)
+
 		if _, ok := evt.Datapoints[start]; !ok {
 			evt.Datapoints[start] = &Bin{Start: start, Count: 0}
 		}
+
 		evt.Datapoints[start].Count += evtPeriod.Count
-		evt.InstanceIds = append(evt.InstanceIds, evtInstance.Id)
 	}
 
 	// Sort and filter top <limit> events

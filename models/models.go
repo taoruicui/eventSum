@@ -23,7 +23,7 @@ type UnaddedEvent struct {
 	ConfigurableGroupings []string               `json:"configurable_groupings"`
 }
 
-// Data object, payload of unaddedEvent
+// Data object, payload of UnaddedEvent
 type EventData struct {
 	Message string      `json:"message"`
 	Raw     interface{} `json:"raw_data"`
@@ -89,14 +89,14 @@ type EventResult struct {
 	EventType     string      `json:"event_type"`
 	EventName     string      `json:"event_name"`
 	TotalCount    int         `json:"total_count"`
-	ProcessedData interface{} `json:"processed_data"`
+	ProcessedData EventData   `json:"processed_data"`
 	InstanceIds   []int64     `json:"instance_ids"`
 	Datapoints    EventBins   `json:"datapoints"`
 }
 
 // returns formatted name of event
 func (e EventResult) FormatName() string {
-	return fmt.Sprintf("%v: %v", e.EventType, e.EventName)
+	return fmt.Sprintf("%v: %v", e.EventName, e.ProcessedData.Message)
 }
 
 type EventDetailsResult struct {
@@ -116,7 +116,8 @@ type EventBase struct {
 	ServiceId         int         `mapstructure:"service_id"`
 	EventType         string      `mapstructure:"event_type"`
 	EventName         string      `mapstructure:"event_name"`
-	ProcessedData     interface{} `mapstructure:"processed_data"`
+	EventGroupId      string      `mapstructure:"event_group_id"`
+	ProcessedData     EventData   `mapstructure:"processed_data"`
 	ProcessedDataHash string      `mapstructure:"processed_data_hash"`
 }
 
@@ -124,8 +125,8 @@ type EventInstance struct {
 	Id              int64       `mapstructure:"_id"`
 	EventBaseId     int64       `mapstructure:"event_base_id"`
 	EventDetailId   int64       `mapstructure:"event_detail_id"`
-	RawData         interface{} `mapstructure:"raw_data"`
-	GenericData     interface{} `mapstructure:"generic_data"`
+	RawData         EventData   `mapstructure:"raw_data"`
+	GenericData     EventData   `mapstructure:"generic_data"`
 	GenericDataHash string      `mapstructure:"generic_data_hash"`
 
 	// ignored fields, used internally
@@ -152,4 +153,10 @@ type EventDetail struct {
 	RawDetail           interface{} `mapstructure:"raw_detail"`
 	ProcessedDetail     interface{} `mapstructure:"processed_detail"`
 	ProcessedDetailHash string      `mapstructure:"processed_detail_hash"`
+}
+
+type EventGroup struct {
+	Id                  int64       `mapstructure:"_id"`
+	Name     string `mapstructure:"name"`
+	Info string      `mapstructure:"info"`
 }

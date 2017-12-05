@@ -119,7 +119,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 			// TODO: limit datapoints to maxDataPoints
 			// TODO: panic on strings.split
 			service_id, err := strconv.Atoi(strings.Split(target.Target, ".")[1])
-			evts, err := h.es.GetRecentEvents(query.Range.From, query.Range.To, service_id, 5)
+			evts, err := h.es.GetIncreasingEvents(query.Range.From, query.Range.To, service_id, 5)
 			if err != nil {
 				h.sendError(w, http.StatusInternalServerError, err, "query error")
 			}
