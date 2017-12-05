@@ -142,6 +142,14 @@
                 }
               },
               "indexes": {
+                "event_group_name_key": {
+                  "name": "event_group_name_key",
+                  "fields": [
+                    "name"
+                  ],
+                  "unique": true,
+                  "provision_state": 3
+                },
                 "event_group_pkey": {
                   "name": "event_group_pkey",
                   "fields": [

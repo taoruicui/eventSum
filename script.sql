@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS event_instance_period (
 
 CREATE TABLE IF NOT EXISTS event_group (
   _id serial8 PRIMARY KEY,
-  name varchar(512),
+  name varchar(512) UNIQUE,
   info text
 );
 
