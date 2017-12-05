@@ -47,25 +47,6 @@ func (sr *statusRecorder) WriteHeader(status int) {
 
 // Initializes a new httpHandler given configs (currently timeFormat)
 func newHTTPHandler(es *eventStore, logger *log.Logger, timeFormat string) httpHandler {
-
-	//Time.UnmarshalJSON = func(t Time, b []byte) (err error) {
-	//	s := strings.Trim(string(b), "\"")
-	//	if s == "null" {
-	//		t.Time = time.Time{}
-	//		return
-	//	}
-	//	t.Time, err = time.Parse(timeFormat, string(b))
-	//	return err
-	//}
-	//
-	//Time.MarshalJSON = func(t Time) ([]byte, error) {
-	//	nano := time.Time{}.UnixNano()
-	//	if t.Time.UnixNano() == nano {
-	//		return []byte("null"), nil
-	//	}
-	//	return []byte(fmt.Sprintf("\"%s\"", t.Time.Format(timeFormat))), nil
-	//}
-
 	return httpHandler{
 		es:         es,
 		log:        logger,

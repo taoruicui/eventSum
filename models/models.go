@@ -1,9 +1,7 @@
 package models
 
 import (
-	"fmt"
 	"github.com/mohae/deepcopy"
-	"sort"
 	"time"
 )
 
@@ -40,63 +38,6 @@ func (e *EventData) Copy() EventData {
 type KeyEventPeriod struct {
 	RawDataHash string
 	StartTime   time.Time
-}
-
-// Represents a bin in a histogram
-type Bin struct {
-	Count int `json:"count"`
-	Start int `json:"start"`
-}
-
-// Represents a map of bins, where the key is the start time
-type EventBins map[int]*Bin
-
-// return the bins sorted in chronological order
-func (e EventBins) ToSlice() []Bin {
-	keys := []int{}
-	res := []Bin{}
-	for i := range e {
-		keys = append(keys, i)
-	}
-	sort.Ints(keys)
-	for _, k := range keys {
-		res = append(res, *e[k])
-	}
-	return res
-}
-
-// Recent events
-type EventResults []EventResult
-
-// used for sort function
-func (e EventResults) Len() int {
-	return len(e)
-}
-
-// used for sort function
-func (e EventResults) Swap(i, j int) {
-	e[i], e[j] = e[j], e[i]
-}
-
-// sort from greatest to smallest
-func (e EventResults) Less(i, j int) bool {
-	return e[i].TotalCount > e[j].TotalCount
-}
-
-// Base event with histogram of occurrences
-type EventResult struct {
-	Id            int64       `json:"id"`
-	EventType     string      `json:"event_type"`
-	EventName     string      `json:"event_name"`
-	TotalCount    int         `json:"total_count"`
-	ProcessedData EventData   `json:"processed_data"`
-	InstanceIds   []int64     `json:"instance_ids"`
-	Datapoints    EventBins   `json:"datapoints"`
-}
-
-// returns formatted name of event
-func (e EventResult) FormatName() string {
-	return fmt.Sprintf("%v: %v", e.EventName, e.ProcessedData.Message)
 }
 
 type EventDetailsResult struct {

@@ -480,6 +480,29 @@ func (es *eventStore) GetServiceIds() ([]int, error) {
 	return result, nil
 }
 
+// Return all event group ids that appear in event_base
+func (es *eventStore) GetAllGroups() ([]EventGroup, error) {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("GetEventDetailsbyId", now)
+	}()
+
+	var result []EventGroup
+	var group EventGroup
+
+	res, err := es.ds.Query(query.Filter, "event_group", nil, nil, nil, nil, -1, nil, nil)
+
+	if err != nil {
+		return result, err
+	}
+
+	for _, v := range res.Return {
+		util.MapDecode(v, &group)
+		result = append(result, group)
+	}
+	return result, nil
+}
+
 // get id of base events which match service_id
 func (es *eventStore) GetBaseIds(service_id int) ([]int, error) {
 	now := time.Now()

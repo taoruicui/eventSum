@@ -4,41 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
+	. "github.com/ContextLogic/eventsum/models"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 )
 
-// request struct for grafana searches
-type searchReq struct {
-	Target string `json:"target"`
-}
-
-// request struct for grafana queries
-type queryReq struct {
-	PanelId       int       `json:"panel_id"`
-	Range         timeRange `json:"range"`
-	Interval      int       `json:"intervalMs"`
-	Targets       []targets `json:"targets"`
-	MaxDataPoints int       `json:"maxDataPoints"`
-}
-
-type queryResp struct {
-	Target     string  `json:"target"`
-	Datapoints [][]int `json:"datapoints"`
-}
-
-// Range specifies the time range the request is valid for.
-type timeRange struct {
-	From time.Time `json:"from"`
-	To   time.Time `json:"to"`
-}
-
-type targets struct {
-	Target string `json:"target"`
-	RefId  string `json:"refId"`
-}
 
 // cors adds headers that Grafana requires to work as a direct access data
 // source.
@@ -66,7 +37,7 @@ func (h *httpHandler) grafanaOk(w http.ResponseWriter, r *http.Request, _ httpro
 // 2) Top n recent events and their metrics
 // 3) Top n new/increased events and their metrics
 func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	var query queryReq
+	var query QueryReq
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
 
@@ -74,7 +45,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 		h.sendError(w, http.StatusBadRequest, err, "Incorrect request format")
 	}
 
-	var result []queryResp
+	var result []QueryResp
 	for _, target := range query.Targets {
 		base_id, err := strconv.Atoi(target.Target)
 		// target is base_id
@@ -90,7 +61,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 				datapoints = append(datapoints, []int{bin.Count, bin.Start})
 			}
 
-			result = append(result, queryResp{
+			result = append(result, QueryResp{
 				Target:     evt.FormatName(),
 				Datapoints: datapoints,
 			})
@@ -109,7 +80,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 				for _, bin := range bins {
 					datapoints = append(datapoints, []int{bin.Count, bin.Start})
 				}
-				result = append(result, queryResp{
+				result = append(result, QueryResp{
 					Target:     evt.FormatName(),
 					Datapoints: datapoints,
 				})
@@ -130,7 +101,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 				for _, bin := range bins {
 					datapoints = append(datapoints, []int{bin.Count, bin.Start})
 				}
-				result = append(result, queryResp{
+				result = append(result, QueryResp{
 					Target:     evt.FormatName(),
 					Datapoints: datapoints,
 				})
@@ -147,8 +118,8 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 
 // grafanaSearch handles the searching of service ids and event ids for grafana template variables
 func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	var search searchReq
-	var result []int
+	var search SearchReq
+	var result interface{}
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&search)
@@ -165,6 +136,19 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		if err != nil {
 			h.sendError(w, http.StatusInternalServerError, err, "eventstore error")
 		}
+
+	case "event_group":
+		groups, err := h.es.GetAllGroups()
+		names := []string{}
+
+		if err != nil {
+			h.sendError(w, http.StatusInternalServerError, err, "eventstore error")
+		}
+
+		for _, group := range groups {
+			names = append(names, group.Name)
+		}
+		result = names
 
 	// Get all event ids that correspond to service_id
 	default:
