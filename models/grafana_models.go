@@ -4,6 +4,10 @@ import (
 	"sort"
 	"fmt"
 	"time"
+	"strings"
+	"github.com/pkg/errors"
+	"regexp"
+	"strconv"
 )
 
 /////////////////////////////////////
@@ -11,21 +15,21 @@ import (
 /////////////////////////////////////
 
 // request struct for grafana searches
-type SearchReq struct {
+type GrafanaSearchReq struct {
 	Target string `json:"target"`
 }
 
 // request struct for grafana queries
-type QueryReq struct {
+type GrafanaQueryReq struct {
 	PanelId       int       `json:"panel_id"`
 	Range         TimeRange `json:"range"`
 	Interval      int       `json:"intervalMs"`
-	Targets       []Targets `json:"targets"`
+	Targets       []GrafanaTargets `json:"targets"`
 	MaxDataPoints int       `json:"maxDataPoints"`
 }
 
 // Query response
-type QueryResp struct {
+type GrafanaQueryResp struct {
 	Target     string  `json:"target"`
 	Datapoints [][]int `json:"datapoints"`
 }
@@ -36,17 +40,92 @@ type TimeRange struct {
 	To   time.Time `json:"to"`
 }
 
-type Targets struct {
-	Target string `json:"target"`
+type GrafanaTargets struct {
+	Target GrafanaTargetParam `json:"target"`
 	RefId  string `json:"refId"`
 }
 
-type TargetParam struct {
+// Query target params
+type GrafanaTargetParam struct {
 	ServiceId []int `json:"service_id"`
 	EventGroup []int `json:"event_group"`
 	EventBase []int `json:"event_base"`
 	Sort string `json:"sort"`
 	Limit int `json:"limit"`
+}
+
+// Since grafana sends a special data format, we need a custom
+// JSON unmarshal function
+//
+// ex: "service_id=(1|2)&event_group=(test)&limit=5"
+func (t *GrafanaTargetParam) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), "\"")
+	groups := strings.Split(s, "&")
+
+	for _, group := range groups {
+		arr := strings.Split(group, "=")
+
+		if len(arr) < 2 {
+			return errors.New("Delimiter missing: \"=\"")
+		}
+
+		param := arr[0]
+		values := arr[1]
+
+		// parse values, values passed in must be regexp, eg. (1|2)
+		if _, err := regexp.Compile(values); err != nil {
+			return err
+		}
+		
+		values = strings.TrimLeft(values, "(")
+		values = strings.TrimRight(values, ")")
+		split := strings.Split(values, "|")
+
+		// ensure param is valid
+		switch param {
+		case "service_id":
+			if i, err := toInt(split); err != nil {
+				return err
+			} else {
+				t.ServiceId = i
+			}
+		case "event_group":
+			if i, err := toInt(split); err != nil {
+				return err
+			} else {
+				t.EventBase = i
+			}
+		case "event_base":
+			if i, err := toInt(split); err != nil {
+				return err
+			} else {
+				t.EventBase = i
+			}
+		case "sort":
+			t.Sort = split[0]
+		case "limit":
+			if i, err := toInt(split); err != nil {
+				return err
+			} else {
+				t.Limit = i[0]
+			}
+		default:
+			return errors.New(fmt.Sprintf("No param named %v", param))
+		}
+	}
+	return nil
+}
+
+func toInt(arr []string) ([]int, error) {
+	ints := []int{}
+	for _, elem := range arr {
+		if i, err := strconv.Atoi(elem); err != nil {
+			return ints, err
+		} else {
+			ints = append(ints, i)
+		}
+	}
+	return ints, nil
 }
 
 // Represents a bin in a histogram

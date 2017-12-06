@@ -7,7 +7,7 @@ import (
 	. "github.com/ContextLogic/eventsum/models"
 	"net/http"
 	"strconv"
-	"strings"
+	"sort"
 )
 
 
@@ -33,11 +33,12 @@ func (h *httpHandler) grafanaOk(w http.ResponseWriter, r *http.Request, _ httpro
 
 // grafanaQuery handles all grafana metric requests. This means it handles 3 main
 // request types:
+//
 // 1) Individual Event metrics
 // 2) Top n recent events and their metrics
 // 3) Top n new/increased events and their metrics
 func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	var query QueryReq
+	var query GrafanaQueryReq
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
 
@@ -45,69 +46,53 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 		h.sendError(w, http.StatusBadRequest, err, "Incorrect request format")
 	}
 
-	var result []QueryResp
+	result := []GrafanaQueryResp{}
 	for _, target := range query.Targets {
-		base_id, err := strconv.Atoi(target.Target)
-		// target is base_id
-		if err == nil {
-			// TODO: limit datapoints to maxDataPoints
-			evt, err := h.es.GetEventHistogram(query.Range.From, query.Range.To, base_id)
-			if err != nil {
-				h.sendError(w, http.StatusInternalServerError, err, "query error")
-			}
+		// create the maps that are needed later
+		eventBaseMap :=  make(map[int]bool)
+		eventGroupMap := make(map[int]bool)
+		serviceIdMap := make(map[int]bool)
 
+		for _, v := range target.Target.EventBase {
+			eventBaseMap[v] = true
+		}
+
+		for _, v := range target.Target.EventGroup {
+			eventGroupMap[v] = true
+		}
+
+		for _, v := range target.Target.ServiceId {
+			serviceIdMap[v] = true
+		}
+
+		evts, err := h.es.GrafanaQuery(query.Range.From, query.Range.To, eventGroupMap, eventBaseMap, serviceIdMap)
+
+		if err != nil {
+			h.sendError(w, http.StatusInternalServerError, err, "query error")
+			return
+		}
+
+		// Sort the events
+		if target.Target.Sort == "recent" {
+			sort.Sort(evts)
+		} else if target.Target.Sort == "increased" {
+
+		}
+
+		if len(evts) > target.Target.Limit && target.Target.Limit > 0 {
+			evts = evts[:target.Target.Limit]
+		}
+
+		for _, evt := range evts {
 			datapoints := [][]int{}
-			for _, bin := range evt.Datapoints {
+			bins := evt.Datapoints.ToSlice()
+			for _, bin := range bins {
 				datapoints = append(datapoints, []int{bin.Count, bin.Start})
 			}
-
-			result = append(result, QueryResp{
+			result = append(result, GrafanaQueryResp{
 				Target:     evt.FormatName(),
 				Datapoints: datapoints,
 			})
-			// target is "recent.<service_id>"
-		} else if strings.Contains(target.Target, "recent") {
-			// TODO: limit datapoints to maxDataPoints
-			service_id, err := strconv.Atoi(strings.Split(target.Target, ".")[1])
-			evts, err := h.es.GetRecentEvents(query.Range.From, query.Range.To, service_id, 5)
-			if err != nil {
-				h.sendError(w, http.StatusInternalServerError, err, "query error")
-			}
-
-			for _, evt := range evts {
-				datapoints := [][]int{}
-				bins := evt.Datapoints.ToSlice()
-				for _, bin := range bins {
-					datapoints = append(datapoints, []int{bin.Count, bin.Start})
-				}
-				result = append(result, QueryResp{
-					Target:     evt.FormatName(),
-					Datapoints: datapoints,
-				})
-			}
-			// target is "increased.<service_id>"
-		} else if strings.Contains(target.Target, "increased") {
-			// TODO: limit datapoints to maxDataPoints
-			// TODO: panic on strings.split
-			service_id, err := strconv.Atoi(strings.Split(target.Target, ".")[1])
-			evts, err := h.es.GetIncreasingEvents(query.Range.From, query.Range.To, service_id, 5)
-			if err != nil {
-				h.sendError(w, http.StatusInternalServerError, err, "query error")
-			}
-
-			for _, evt := range evts {
-				datapoints := [][]int{}
-				bins := evt.Datapoints.ToSlice()
-				for _, bin := range bins {
-					datapoints = append(datapoints, []int{bin.Count, bin.Start})
-				}
-				result = append(result, QueryResp{
-					Target:     evt.FormatName(),
-					Datapoints: datapoints,
-				})
-			}
-		} else {
-			h.sendError(w, http.StatusBadRequest, err, "Invalid request")
 		}
 	}
 
@@ -118,7 +103,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 
 // grafanaSearch handles the searching of service ids and event ids for grafana template variables
 func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	var search SearchReq
+	var search GrafanaSearchReq
 	var result interface{}
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
@@ -139,16 +124,16 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 
 	case "event_group":
 		groups, err := h.es.GetAllGroups()
-		names := []string{}
+		ids := []int{}
 
 		if err != nil {
 			h.sendError(w, http.StatusInternalServerError, err, "eventstore error")
 		}
 
 		for _, group := range groups {
-			names = append(names, group.Name)
+			ids = append(ids, int(group.Id))
 		}
-		result = names
+		result = ids
 
 	// Get all event ids that correspond to service_id
 	default:

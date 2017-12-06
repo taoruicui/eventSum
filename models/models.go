@@ -57,7 +57,7 @@ type EventBase struct {
 	ServiceId         int         `mapstructure:"service_id"`
 	EventType         string      `mapstructure:"event_type"`
 	EventName         string      `mapstructure:"event_name"`
-	EventGroupId      string      `mapstructure:"event_group_id"`
+	EventGroupId      int64       `mapstructure:"event_group_id"`
 	ProcessedData     EventData   `mapstructure:"processed_data"`
 	ProcessedDataHash string      `mapstructure:"processed_data_hash"`
 }

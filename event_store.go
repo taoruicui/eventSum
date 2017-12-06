@@ -9,7 +9,6 @@ import (
 	"github.com/ContextLogic/eventsum/util"
 	"github.com/jacksontj/dataman/src/query"
 	"github.com/pkg/errors"
-	"sort"
 	"time"
 )
 
@@ -249,8 +248,10 @@ func (es *eventStore) SummarizeBatchEvents() {
 	}
 }
 
-// Get all events within a time period, including their count
-func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit int) (EventResults, error) {
+func (es *eventStore) GrafanaQuery(
+	start, end time.Time,
+	eventGroupMap, eventBaseMap, serviceIdMap map[int]bool) (EventResults, error) {
+
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("GetRecentEvents", now)
@@ -284,7 +285,15 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 			continue
 		}
 		err = util.MapDecode(t3, &evtBase)
-		if evtBase.ServiceId != serviceId {
+
+		// check if event matches params
+		if _, ok := serviceIdMap[evtBase.ServiceId]; !ok && len(serviceIdMap) != 0 {
+			continue
+		}
+		if _, ok := eventBaseMap[int(evtBase.Id)]; !ok && len(eventBaseMap) != 0 {
+			continue
+		}
+		if _, ok := eventGroupMap[int(evtBase.EventGroupId)]; !ok && len(eventGroupMap) != 0 {
 			continue
 		}
 
@@ -314,51 +323,45 @@ func (es *eventStore) GetRecentEvents(start, end time.Time, serviceId int, limit
 		evt.Datapoints[start].Count += evtPeriod.Count
 	}
 
-	// Sort and filter top <limit> events
-	sort.Sort(evts)
-	if len(evts) < limit {
-		return evts, nil
-	} else {
-		return evts[:limit], nil
-	}
+	return evts, nil
 }
 
 // Get all increasing events by comparing beginning and end of time period
-func (es *eventStore) GetIncreasingEvents(start, end time.Time, serviceId int, limit int) (EventResults, error) {
-	var evts EventResults
-	middle := util.AvgTime(start, end)
-	result1, err := es.GetRecentEvents(start, middle, serviceId, limit)
-	if err != nil {
-		return evts, err
-	}
-	result2, err := es.GetRecentEvents(middle, end, serviceId, limit)
-	if err != nil {
-		return evts, err
-	}
-
-	// compare average exception count of result1 and result2
-	mapResult1 := map[int64]EventResult{}
-	for _, v := range result1 {
-		mapResult1[v.Id] = v
-	}
-	for _, v := range result2 {
-		if r, ok := mapResult1[v.Id]; !ok {
-			// if not in map, then its a new/increasing event
-			evts = append(evts, v)
-		} else if float64(r.TotalCount) < 1.5*float64(v.TotalCount) {
-			// only append if result2 count is 1.5 times greater than result1
-			evts = append(evts, v)
-		}
-	}
-
-	// Sort and filter top <limit> events
-	sort.Sort(evts)
-	if len(evts) < limit {
-		return evts, nil
-	} else {
-		return evts[:limit], nil
-	}
-}
+//func (es *eventStore) GetIncreasingEvents(start, end time.Time, serviceId int, limit int) (EventResults, error) {
+//	var evts EventResults
+//	middle := util.AvgTime(start, end)
+//	result1, err := es.GetRecentEvents(start, middle, serviceId, limit)
+//	if err != nil {
+//		return evts, err
+//	}
+//	result2, err := es.GetRecentEvents(middle, end, serviceId, limit)
+//	if err != nil {
+//		return evts, err
+//	}
+//
+//	// compare average exception count of result1 and result2
+//	mapResult1 := map[int64]EventResult{}
+//	for _, v := range result1 {
+//		mapResult1[v.Id] = v
+//	}
+//	for _, v := range result2 {
+//		if r, ok := mapResult1[v.Id]; !ok {
+//			// if not in map, then its a new/increasing event
+//			evts = append(evts, v)
+//		} else if float64(r.TotalCount) < 1.5*float64(v.TotalCount) {
+//			// only append if result2 count is 1.5 times greater than result1
+//			evts = append(evts, v)
+//		}
+//	}
+//
+//	// Sort and filter top <limit> events
+//	sort.Sort(evts)
+//	if len(evts) < limit {
+//		return evts, nil
+//	} else {
+//		return evts[:limit], nil
+//	}
+//}
 
 // Get the histogram of a single event instance
 func (es *eventStore) GetEventHistogram(start, end time.Time, baseId int) (EventResult, error) {
