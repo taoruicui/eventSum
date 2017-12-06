@@ -131,7 +131,7 @@ func toInt(arr []string) ([]int, error) {
 // Represents a bin in a histogram
 type Bin struct {
 	Count int `json:"count"`
-	Start int `json:"start"`
+	Start int `json:"start"` // unix time in milliseconds
 }
 
 // Represents a map of bins, where the key is the start time
@@ -164,9 +164,41 @@ func (e EventResults) Swap(i, j int) {
 	e[i], e[j] = e[j], e[i]
 }
 
-// sort from greatest to smallest
+// used for sort function
 func (e EventResults) Less(i, j int) bool {
 	return e[i].TotalCount > e[j].TotalCount
+}
+
+// sort from greatest to smallest
+func (e EventResults) SortRecent() EventResults {
+	sort.Sort(e)
+	return e
+}
+
+// sort by events that have recently been increasing
+func (e EventResults) SortIncreased(mid int) EventResults {
+	evts := EventResults{}
+	for _, evt := range e {
+		if len(evt.Datapoints) <= 2 {
+			continue
+		}
+
+		countBegin := 0
+		countEnd := 0
+		// loop through all datapoints. Add to countBegin
+		// if before, else add to countEnd
+		for t, point := range evt.Datapoints {
+			if t <= mid {
+				countBegin += point.Count
+			} else {
+				countEnd += point.Count
+			}
+		}
+		if countEnd > 2 * countBegin {
+			evts = append(evts, evt)
+		}
+	}
+	return evts
 }
 
 // Base event with histogram of occurrences

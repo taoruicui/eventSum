@@ -248,7 +248,12 @@ func (es *eventStore) SummarizeBatchEvents() {
 	}
 }
 
-func (es *eventStore) GrafanaQuery(
+// GeneralQuery is used by various handlers (grafana queries,
+// web queries, etc). It takes in a time range, as well as query
+// params in the form of maps, which will filter out the events.
+// Empty maps indicate that there should be no filtering for that
+// parameter.
+func (es *eventStore) GeneralQuery(
 	start, end time.Time,
 	eventGroupMap, eventBaseMap, serviceIdMap map[int]bool) (EventResults, error) {
 
@@ -286,7 +291,7 @@ func (es *eventStore) GrafanaQuery(
 		}
 		err = util.MapDecode(t3, &evtBase)
 
-		// check if event matches params
+		// check if event matches params. If map is empty then every event matches
 		if _, ok := serviceIdMap[evtBase.ServiceId]; !ok && len(serviceIdMap) != 0 {
 			continue
 		}
@@ -324,100 +329,6 @@ func (es *eventStore) GrafanaQuery(
 	}
 
 	return evts, nil
-}
-
-// Get all increasing events by comparing beginning and end of time period
-//func (es *eventStore) GetIncreasingEvents(start, end time.Time, serviceId int, limit int) (EventResults, error) {
-//	var evts EventResults
-//	middle := util.AvgTime(start, end)
-//	result1, err := es.GetRecentEvents(start, middle, serviceId, limit)
-//	if err != nil {
-//		return evts, err
-//	}
-//	result2, err := es.GetRecentEvents(middle, end, serviceId, limit)
-//	if err != nil {
-//		return evts, err
-//	}
-//
-//	// compare average exception count of result1 and result2
-//	mapResult1 := map[int64]EventResult{}
-//	for _, v := range result1 {
-//		mapResult1[v.Id] = v
-//	}
-//	for _, v := range result2 {
-//		if r, ok := mapResult1[v.Id]; !ok {
-//			// if not in map, then its a new/increasing event
-//			evts = append(evts, v)
-//		} else if float64(r.TotalCount) < 1.5*float64(v.TotalCount) {
-//			// only append if result2 count is 1.5 times greater than result1
-//			evts = append(evts, v)
-//		}
-//	}
-//
-//	// Sort and filter top <limit> events
-//	sort.Sort(evts)
-//	if len(evts) < limit {
-//		return evts, nil
-//	} else {
-//		return evts[:limit], nil
-//	}
-//}
-
-// Get the histogram of a single event instance
-func (es *eventStore) GetEventHistogram(start, end time.Time, baseId int) (EventResult, error) {
-	now := time.Now()
-	defer func() {
-		metrics.EventStoreLatency("GetEventHistogram", now)
-	}()
-
-	var period EventInstancePeriod
-	var instance EventInstance
-	join := []interface{}{"event_instance_id"}
-	filter := []interface{}{
-		map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
-		map[string]interface{}{"end_time": []interface{}{"<", end}},
-	}
-
-	base, err := es.GetByBaseId(baseId)
-	if err != nil {
-		return EventResult{}, err
-	}
-	result := EventResult{
-		Id:            base.Id,
-		EventType:     base.EventType,
-		EventName:     base.EventName,
-		TotalCount:    0,
-		ProcessedData: base.ProcessedData,
-		InstanceIds:   []int64{},
-		Datapoints:    EventBins{},
-	}
-
-	res, err := es.ds.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, join)
-	if err != nil {
-		return result, err
-	}
-	for _, t1 := range res.Return {
-		err = util.MapDecode(t1, &period)
-		t2, ok := t1["event_instance_id"].(map[string]interface{})
-		if !ok {
-			continue
-		}
-		err = util.MapDecode(t2, &instance)
-		if int(instance.EventBaseId) != baseId {
-			continue
-		}
-
-		// group bins
-		st := int(period.StartTime.Unix() * 1000)
-		if _, ok := result.Datapoints[st]; !ok {
-			result.Datapoints[st] = &Bin{Count: 0, Start: st}
-		}
-		result.Datapoints[st].Count += period.Count
-		result.TotalCount += period.Count
-		result.InstanceIds = append(result.InstanceIds, instance.Id)
-	}
-
-	return result, nil
 }
 
 // Get the details of a single event instance

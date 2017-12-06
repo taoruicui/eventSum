@@ -96,42 +96,49 @@ func (h *httpHandler) sendResp(w http.ResponseWriter, key string, val interface{
 }
 
 func (h *httpHandler) recentEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	//query := r.URL.Query()
-	//endTime := time.Now()
-	//startTime := endTime.Add(-1 * time.Hour)
-	//serviceId, err := strconv.Atoi(query.Get("service_id"))
-	//if err != nil {
-	//	h.sendError(w, http.StatusBadRequest, errors.New("service ID is missing or not an int"), "Error")
-	//	return
-	//}
-	//
-	//if str := query.Get("end_time"); str != "" {
-	//	endTime, err = time.Parse(h.timeFormat, str)
-	//	if err != nil {
-	//		h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure end time is in correct format: %v", h.timeFormat))
-	//		return
-	//	}
-	//}
-	//
-	//if str := query.Get("start_time"); str != "" {
-	//	startTime, err = time.Parse(h.timeFormat, str)
-	//	if err != nil {
-	//		h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure start time is in correct format: %v", h.timeFormat))
-	//		return
-	//	}
-	//}
-	//
-	//limit, err := strconv.Atoi(query.Get("limit"))
-	//if err != nil {
-	//	limit = 100
-	//}
-	//
-	//response, err := h.es.GetRecentEvents(startTime, endTime, serviceId, limit)
-	//if err != nil {
-	//	h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
-	//	return
-	//}
-	//h.sendResp(w, "recent_events", response)
+	query := r.URL.Query()
+	endTime := time.Now()
+	startTime := endTime.Add(-1 * time.Hour)
+	serviceId, err := strconv.Atoi(query.Get("service_id"))
+	if err != nil {
+		h.sendError(w, http.StatusBadRequest, errors.New("service ID is missing or not an int"), "Error")
+		return
+	}
+
+	if str := query.Get("end_time"); str != "" {
+		endTime, err = time.Parse(h.timeFormat, str)
+		if err != nil {
+			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure end time is in correct format: %v", h.timeFormat))
+			return
+		}
+	}
+
+	if str := query.Get("start_time"); str != "" {
+		startTime, err = time.Parse(h.timeFormat, str)
+		if err != nil {
+			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure start time is in correct format: %v", h.timeFormat))
+			return
+		}
+	}
+
+	limit, err := strconv.Atoi(query.Get("limit"))
+	if err != nil {
+		limit = 100
+	}
+
+	serviceIdMap := map[int]bool{serviceId: true}
+	response, err := h.es.GeneralQuery(startTime, endTime, map[int]bool{}, map[int]bool{}, serviceIdMap)
+	response.SortRecent()
+
+	if len(response) > limit {
+		response = response[:limit]
+	}
+
+	if err != nil {
+		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
+		return
+	}
+	h.sendResp(w, "recent_events", response)
 }
 
 func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -176,7 +183,8 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	response, err := h.es.GetEventHistogram(startTime, endTime, eventBaseId)
+	eventMap := map[int]bool{eventBaseId: true}
+	response, err := h.es.GeneralQuery(startTime, endTime, map[int]bool{}, eventMap, map[int]bool{})
 	if err != nil {
 		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
 		return

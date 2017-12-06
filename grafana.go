@@ -7,7 +7,6 @@ import (
 	. "github.com/ContextLogic/eventsum/models"
 	"net/http"
 	"strconv"
-	"sort"
 )
 
 
@@ -65,7 +64,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 			serviceIdMap[v] = true
 		}
 
-		evts, err := h.es.GrafanaQuery(query.Range.From, query.Range.To, eventGroupMap, eventBaseMap, serviceIdMap)
+		evts, err := h.es.GeneralQuery(query.Range.From, query.Range.To, eventGroupMap, eventBaseMap, serviceIdMap)
 
 		if err != nil {
 			h.sendError(w, http.StatusInternalServerError, err, "query error")
@@ -74,9 +73,12 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 
 		// Sort the events
 		if target.Target.Sort == "recent" {
-			sort.Sort(evts)
+			evts = evts.SortRecent()
 		} else if target.Target.Sort == "increased" {
-
+			// TODO: implement increased
+			mid := int(1000 * (query.Range.From.Unix() + query.Range.To.Unix()) / 2)
+			evts = evts.SortIncreased(mid)
+			evts = evts.SortRecent()
 		}
 
 		if len(evts) > target.Target.Limit && target.Target.Limit > 0 {

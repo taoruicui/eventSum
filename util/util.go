@@ -19,17 +19,17 @@ func FindBoundingTime(t time.Time, interval int) (time.Time, time.Time) {
 	return s, s.Add(duration)
 }
 
-// Calculates the average between all times
-func AvgTime(times ...time.Time) time.Time {
+// Calculates the average
+func Avg(vals ...int) int {
 	//convert all to unix time
-	var sum int64 = 0
-	var count int64 = 0
-	for _, t := range times {
-		sum += t.Unix()
+	var sum int = 0
+	var count int = 0
+	for _, t := range vals {
+		sum += t
 		count += 1
 	}
 	avg := sum / count
-	return time.Unix(avg, 0)
+	return avg
 }
 
 func Hash(i interface{}) string {
