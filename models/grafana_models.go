@@ -47,9 +47,9 @@ type GrafanaTargets struct {
 
 // Query target params
 type GrafanaTargetParam struct {
-	ServiceId []int `json:"service_id"`
-	EventGroup []int `json:"event_group"`
-	EventBase []int `json:"event_base"`
+	ServiceName []string `json:"service_name"`
+	GroupName []string `json:"group_name"`
+	EventBaseId []int `json:"event_base_id"`
 	Sort string `json:"sort"`
 	Limit int `json:"limit"`
 }
@@ -83,49 +83,31 @@ func (t *GrafanaTargetParam) UnmarshalJSON(b []byte) error {
 
 		// ensure param is valid
 		switch param {
-		case "service_id":
-			if i, err := toInt(split); err != nil {
-				return err
-			} else {
-				t.ServiceId = i
-			}
-		case "event_group":
-			if i, err := toInt(split); err != nil {
-				return err
-			} else {
-				t.EventBase = i
-			}
-		case "event_base":
-			if i, err := toInt(split); err != nil {
-				return err
-			} else {
-				t.EventBase = i
+		case "service_name":
+			t.ServiceName = split
+		case "group_name":
+			t.GroupName = split
+		case "event_base_id":
+			for _, elem := range split {
+				if i, err := strconv.Atoi(elem); err != nil {
+					return err
+				} else {
+					t.EventBaseId = append(t.EventBaseId, i)
+				}
 			}
 		case "sort":
 			t.Sort = split[0]
 		case "limit":
-			if i, err := toInt(split); err != nil {
+			i, err := strconv.Atoi(split[0])
+			if err != nil {
 				return err
-			} else {
-				t.Limit = i[0]
 			}
+			t.Limit = i
 		default:
 			return errors.New(fmt.Sprintf("No param named %v", param))
 		}
 	}
 	return nil
-}
-
-func toInt(arr []string) ([]int, error) {
-	ints := []int{}
-	for _, elem := range arr {
-		if i, err := strconv.Atoi(elem); err != nil {
-			return ints, err
-		} else {
-			ints = append(ints, i)
-		}
-	}
-	return ints, nil
 }
 
 // Represents a bin in a histogram

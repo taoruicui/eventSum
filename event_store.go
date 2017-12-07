@@ -368,28 +368,24 @@ func (es *eventStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) {
 }
 
 // Return all service ids that appear in event_base
-func (es *eventStore) GetServiceIds() ([]int, error) {
+func (es *eventStore) GetAllServices() ([]EventService, error) {
 	now := time.Now()
 	defer func() {
-		metrics.EventStoreLatency("GetEventDetailsbyId", now)
+		metrics.EventStoreLatency("GetServiceIds", now)
 	}()
 
-	var result []int
-	var base EventBase
+	var result []EventService
+	var service EventService
 
-	res, err := es.ds.Query(query.Filter, "event_base", nil, nil, nil, nil, -1, nil, nil)
+	res, err := es.ds.Query(query.Filter, "event_service", nil, nil, nil, nil, -1, nil, nil)
 
 	if err != nil {
 		return result, err
 	}
 
-	keys := make(map[int]bool)
 	for _, v := range res.Return {
-		util.MapDecode(v, &base)
-		if _, ok := keys[base.ServiceId]; !ok {
-			keys[base.ServiceId] = true
-			result = append(result, base.ServiceId)
-		}
+		util.MapDecode(v, &service)
+		result = append(result, service)
 	}
 	return result, nil
 }

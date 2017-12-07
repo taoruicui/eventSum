@@ -46,25 +46,37 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 	}
 
 	result := []GrafanaQueryResp{}
+	// maps name to id
+	serviceNameMap := make(map[string]int)
+	groupNameMap := make(map[string]int)
+	services, _ := h.es.GetAllServices()
+	for _, service := range services {
+		serviceNameMap[service.Name] = service.Id
+	}
+	groups, _ := h.es.GetAllGroups()
+	for _, group := range groups {
+		groupNameMap[group.Name] = group.Id
+	}
+
 	for _, target := range query.Targets {
 		// create the maps that are needed later
 		eventBaseMap :=  make(map[int]bool)
-		eventGroupMap := make(map[int]bool)
+		groupIdMap := make(map[int]bool)
 		serviceIdMap := make(map[int]bool)
 
-		for _, v := range target.Target.EventBase {
+		for _, v := range target.Target.EventBaseId {
 			eventBaseMap[v] = true
 		}
 
-		for _, v := range target.Target.EventGroup {
-			eventGroupMap[v] = true
+		for _, v := range target.Target.GroupName {
+			groupIdMap[groupNameMap[v]] = true
 		}
 
-		for _, v := range target.Target.ServiceId {
-			serviceIdMap[v] = true
+		for _, v := range target.Target.ServiceName {
+			serviceIdMap[serviceNameMap[v]] = true
 		}
 
-		evts, err := h.es.GeneralQuery(query.Range.From, query.Range.To, eventGroupMap, eventBaseMap, serviceIdMap)
+		evts, err := h.es.GeneralQuery(query.Range.From, query.Range.To, groupIdMap, eventBaseMap, serviceIdMap)
 
 		if err != nil {
 			h.sendError(w, http.StatusInternalServerError, err, "query error")
@@ -117,25 +129,31 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 
 	switch search.Target {
 	// Get all service ids
-	case "service_id":
-		result, err = h.es.GetServiceIds()
+	case "service_name":
+		services, err := h.es.GetAllServices()
+		names := []string{}
 
 		if err != nil {
 			h.sendError(w, http.StatusInternalServerError, err, "eventstore error")
 		}
 
-	case "event_group":
+		for _, service := range services {
+			names = append(names, service.Name)
+		}
+		result = names
+
+	case "group_name":
 		groups, err := h.es.GetAllGroups()
-		ids := []int{}
+		names := []string{}
 
 		if err != nil {
 			h.sendError(w, http.StatusInternalServerError, err, "eventstore error")
 		}
 
 		for _, group := range groups {
-			ids = append(ids, int(group.Id))
+			names = append(names, group.Name)
 		}
-		result = ids
+		result = names
 
 	// Get all event ids that correspond to service_id
 	default:
