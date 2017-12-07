@@ -43,7 +43,7 @@ type KeyEventPeriod struct {
 type EventDetailsResult struct {
 	EventType  string      `json:"event_type"`
 	EventName  string      `json:"event_name"`
-	ServiceId  int       `json:"service_id"`
+	ServiceId  int         `json:"service_id"`
 	RawData    interface{} `json:"raw_data"`
 	RawDetails interface{} `json:"raw_details"`
 }
@@ -53,22 +53,24 @@ type EventDetailsResult struct {
 /////////////////////////////////////////////
 
 type EventBase struct {
-	Id                int       `mapstructure:"_id"`
-	ServiceId         int       `mapstructure:"service_id"`
-	EventType         string      `mapstructure:"event_type"`
-	EventName         string      `mapstructure:"event_name"`
-	EventGroupId      int       `mapstructure:"event_group_id"`
-	ProcessedData     EventData   `mapstructure:"processed_data"`
-	ProcessedDataHash string      `mapstructure:"processed_data_hash"`
+	Id                 int       `mapstructure:"_id"`
+	ServiceId          int       `mapstructure:"service_id"`
+	EventType          string    `mapstructure:"event_type"`
+	EventName          string    `mapstructure:"event_name"`
+	EventGroupId       int       `mapstructure:"event_group_id"`
+	EventEnvironmentId int       `mapstructure:"event_environment_id"`
+	ProcessedData      EventData `mapstructure:"processed_data"`
+	ProcessedDataHash  string    `mapstructure:"processed_data_hash"`
 }
 
 type EventInstance struct {
-	Id              int       `mapstructure:"_id"`
-	EventBaseId     int       `mapstructure:"event_base_id"`
-	EventDetailId   int       `mapstructure:"event_detail_id"`
-	RawData         EventData   `mapstructure:"raw_data"`
-	GenericData     EventData   `mapstructure:"generic_data"`
-	GenericDataHash string      `mapstructure:"generic_data_hash"`
+	Id                 int       `mapstructure:"_id"`
+	EventBaseId        int       `mapstructure:"event_base_id"`
+	EventDetailId      int       `mapstructure:"event_detail_id"`
+	EventEnvironmentId int       `mapstructure:"event_environment_id"`
+	RawData            EventData `mapstructure:"raw_data"`
+	GenericData        EventData `mapstructure:"generic_data"`
+	GenericDataHash    string    `mapstructure:"generic_data_hash"`
 
 	// ignored fields, used internally
 	ProcessedDataHash   string
@@ -76,8 +78,8 @@ type EventInstance struct {
 }
 
 type EventInstancePeriod struct {
-	Id              int                  `mapstructure:"_id"`
-	EventInstanceId int                  `mapstructure:"event_instance_id"`
+	Id              int                    `mapstructure:"_id"`
+	EventInstanceId int                    `mapstructure:"event_instance_id"`
 	StartTime       time.Time              `mapstructure:"start_time"`
 	EndTime         time.Time              `mapstructure:"end_time"`
 	Updated         time.Time              `mapstructure:"updated"`
@@ -90,24 +92,24 @@ type EventInstancePeriod struct {
 }
 
 type EventDetail struct {
-	Id                  int       `mapstructure:"_id"`
+	Id                  int         `mapstructure:"_id"`
 	RawDetail           interface{} `mapstructure:"raw_detail"`
 	ProcessedDetail     interface{} `mapstructure:"processed_detail"`
 	ProcessedDetailHash string      `mapstructure:"processed_detail_hash"`
 }
 
 type EventGroup struct {
-	Id                  int       `mapstructure:"_id"`
-	Name     string `mapstructure:"name"`
-	Info string      `mapstructure:"info"`
+	Id   int    `mapstructure:"_id"`
+	Name string `mapstructure:"name"`
+	Info string `mapstructure:"info"`
 }
 
 type EventService struct {
-	Id int  `mapstructure:"_id"`
+	Id   int    `mapstructure:"_id"`
 	Name string `mapstructure:"name"`
 }
 
 type EventEnvironment struct {
-	Id int
+	Id   int
 	Name string
 }

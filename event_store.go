@@ -255,7 +255,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 // parameter.
 func (es *eventStore) GeneralQuery(
 	start, end time.Time,
-	eventGroupMap, eventBaseMap, serviceIdMap map[int]bool) (EventResults, error) {
+	eventGroupMap, eventBaseMap, serviceIdMap, envIdMap map[int]bool) (EventResults, error) {
 
 	now := time.Now()
 	defer func() {
@@ -264,9 +264,6 @@ func (es *eventStore) GeneralQuery(
 
 	var evts EventResults
 	var evtsMap = make(map[int]int)
-	var evtPeriod EventInstancePeriod
-	var evtInstance EventInstance
-	var evtBase EventBase
 	join := []interface{}{"event_instance_id", "event_instance_id.event_base_id"}
 	filter := []interface{}{
 		map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
@@ -279,20 +276,26 @@ func (es *eventStore) GeneralQuery(
 
 	// loop through results
 	for _, t1 := range res.Return {
-		err = util.MapDecode(t1, &evtPeriod)
+		evtPeriod := EventInstancePeriod{}
+		evtInstance := EventInstance{}
+		evtBase := EventBase{}
+		err = util.MapDecode(t1, &evtPeriod, true)
 		t2, ok := t1["event_instance_id"].(map[string]interface{})
 		if !ok {
 			continue
 		}
-		err = util.MapDecode(t2, &evtInstance)
+		err = util.MapDecode(t2, &evtInstance, true)
 		t3, ok := t2["event_base_id"].(map[string]interface{})
 		if !ok {
 			continue
 		}
-		err = util.MapDecode(t3, &evtBase)
+		err = util.MapDecode(t3, &evtBase, true)
 
 		// check if event matches params. If map is empty then every event matches
 		if _, ok := serviceIdMap[evtBase.ServiceId]; !ok && len(serviceIdMap) != 0 {
+			continue
+		}
+		if _, ok := envIdMap[evtBase.EventEnvironmentId]; !ok && len(envIdMap) != 0 {
 			continue
 		}
 		if _, ok := eventBaseMap[evtBase.Id]; !ok && len(eventBaseMap) != 0 {
@@ -350,11 +353,11 @@ func (es *eventStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) {
 	} else if len(r.Return) == 0 {
 		return result, err
 	}
-	util.MapDecode(r.Return[0], &instance)
+	util.MapDecode(r.Return[0], &instance, false)
 	if t1, ok := r.Return[0]["event_base_id"].(map[string]interface{}); ok {
-		util.MapDecode(t1, &base)
+		util.MapDecode(t1, &base, false)
 		if t2, ok := t1["event_detail_id"].(map[string]interface{}); ok {
-			util.MapDecode(t2, &detail)
+			util.MapDecode(t2, &detail, false)
 		}
 	}
 	result = EventDetailsResult{
@@ -366,4 +369,3 @@ func (es *eventStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) {
 	}
 	return result, nil
 }
-

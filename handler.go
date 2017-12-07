@@ -127,7 +127,7 @@ func (h *httpHandler) recentEventsHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	serviceIdMap := map[int]bool{serviceId: true}
-	response, err := h.es.GeneralQuery(startTime, endTime, map[int]bool{}, map[int]bool{}, serviceIdMap)
+	response, err := h.es.GeneralQuery(startTime, endTime, map[int]bool{}, map[int]bool{}, serviceIdMap, map[int]bool{})
 	response.SortRecent()
 
 	if len(response) > limit {
@@ -184,7 +184,7 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	eventMap := map[int]bool{eventBaseId: true}
-	response, err := h.es.GeneralQuery(startTime, endTime, map[int]bool{}, eventMap, map[int]bool{})
+	response, err := h.es.GeneralQuery(startTime, endTime, map[int]bool{}, eventMap, map[int]bool{}, map[int]bool{})
 	if err != nil {
 		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
 		return

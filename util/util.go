@@ -51,11 +51,13 @@ func stringToDateTimeHook(f reflect.Type, t reflect.Type, data interface{}) (int
 	return data, nil
 }
 
-// mapstructure decode
-func MapDecode(source, target interface{}) error {
+// MapDecode uses mapstructure to decode a source to a target struct.
+// If zero is set to true, then target will be zeroed before writing.
+func MapDecode(source, target interface{}, zero bool) error {
 	config := mapstructure.DecoderConfig{
 		DecodeHook: stringToDateTimeHook,
 		Result:     target,
+		ZeroFields: zero,
 	}
 	decoder, err := mapstructure.NewDecoder(&config)
 	if err != nil {

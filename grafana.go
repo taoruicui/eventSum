@@ -3,12 +3,11 @@ package eventsum
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/julienschmidt/httprouter"
 	. "github.com/ContextLogic/eventsum/models"
-	"net/http"
+	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
+	"net/http"
 )
-
 
 // cors adds headers that Grafana requires to work as a direct access data
 // source.
@@ -49,6 +48,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 	// maps name to id
 	groupNameMap := make(map[string]int)
 	serviceNameMap := h.es.ds.GetServicesMap()
+	environmentNameMap := h.es.ds.GetEnvironmentsMap()
 	groups, _ := h.es.ds.GetGroups()
 	for _, group := range groups {
 		groupNameMap[group.Name] = group.Id
@@ -56,9 +56,10 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 
 	for _, target := range query.Targets {
 		// create the maps that are needed later
-		eventBaseMap :=  make(map[int]bool)
+		eventBaseMap := make(map[int]bool)
 		groupIdMap := make(map[int]bool)
 		serviceIdMap := make(map[int]bool)
+		envIdMap := make(map[int]bool)
 
 		for _, v := range target.Target.EventBaseId {
 			eventBaseMap[v] = true
@@ -72,7 +73,17 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 			serviceIdMap[serviceNameMap[v].Id] = true
 		}
 
-		evts, err := h.es.GeneralQuery(query.Range.From, query.Range.To, groupIdMap, eventBaseMap, serviceIdMap)
+		for _, v := range target.Target.EnvironmentName {
+			envIdMap[environmentNameMap[v].Id] = true
+		}
+
+		evts, err := h.es.GeneralQuery(
+			query.Range.From,
+			query.Range.To,
+			groupIdMap,
+			eventBaseMap,
+			serviceIdMap,
+			envIdMap)
 
 		if err != nil {
 			h.sendError(w, http.StatusInternalServerError, err, "query error")

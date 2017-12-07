@@ -38,7 +38,7 @@ type Logger struct {
 	app      *log.Logger
 	data     *log.Logger
 	eventLog failedEventsLog
-	ds datastore.DataStore
+	ds       datastore.DataStore
 
 	appDir  string
 	dataDir string
@@ -298,7 +298,7 @@ func NewLogger(configFile string, ds datastore.DataStore) *Logger {
 	l := Logger{
 		app:  log.New(),
 		data: log.New(),
-		ds: ds,
+		ds:   ds,
 		eventLog: failedEventsLog{
 			BaseMap:     make(map[string]int),
 			InstanceMap: make(map[string]int),

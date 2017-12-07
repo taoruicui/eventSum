@@ -1,13 +1,13 @@
 package models
 
 import (
-	"sort"
 	"fmt"
-	"time"
-	"strings"
 	"github.com/pkg/errors"
 	"regexp"
+	"sort"
 	"strconv"
+	"strings"
+	"time"
 )
 
 /////////////////////////////////////
@@ -21,11 +21,11 @@ type GrafanaSearchReq struct {
 
 // request struct for grafana queries
 type GrafanaQueryReq struct {
-	PanelId       int       `json:"panel_id"`
-	Range         TimeRange `json:"range"`
-	Interval      int       `json:"intervalMs"`
+	PanelId       int              `json:"panel_id"`
+	Range         TimeRange        `json:"range"`
+	Interval      int              `json:"intervalMs"`
 	Targets       []GrafanaTargets `json:"targets"`
-	MaxDataPoints int       `json:"maxDataPoints"`
+	MaxDataPoints int              `json:"maxDataPoints"`
 }
 
 // Query response
@@ -42,16 +42,17 @@ type TimeRange struct {
 
 type GrafanaTargets struct {
 	Target GrafanaTargetParam `json:"target"`
-	RefId  string `json:"refId"`
+	RefId  string             `json:"refId"`
 }
 
 // Query target params
 type GrafanaTargetParam struct {
-	ServiceName []string `json:"service_name"`
-	GroupName []string `json:"group_name"`
-	EventBaseId []int `json:"event_base_id"`
-	Sort string `json:"sort"`
-	Limit int `json:"limit"`
+	ServiceName     []string `json:"service_name"`
+	EnvironmentName []string `json:"environment_name"`
+	GroupName       []string `json:"group_name"`
+	EventBaseId     []int    `json:"event_base_id"`
+	Sort            string   `json:"sort"`
+	Limit           int      `json:"limit"`
 }
 
 // Since grafana sends a special data format, we need a custom
@@ -76,7 +77,7 @@ func (t *GrafanaTargetParam) UnmarshalJSON(b []byte) error {
 		if _, err := regexp.Compile(values); err != nil {
 			return err
 		}
-		
+
 		values = strings.TrimLeft(values, "(")
 		values = strings.TrimRight(values, ")")
 		split := strings.Split(values, "|")
@@ -85,6 +86,8 @@ func (t *GrafanaTargetParam) UnmarshalJSON(b []byte) error {
 		switch param {
 		case "service_name":
 			t.ServiceName = split
+		case "environment":
+			t.EnvironmentName = split
 		case "group_name":
 			t.GroupName = split
 		case "event_base_id":
@@ -176,7 +179,7 @@ func (e EventResults) SortIncreased(mid int) EventResults {
 				countEnd += point.Count
 			}
 		}
-		if countEnd > 2 * countBegin {
+		if countEnd > 2*countBegin {
 			evts = append(evts, evt)
 		}
 	}
@@ -186,17 +189,15 @@ func (e EventResults) SortIncreased(mid int) EventResults {
 // Base event with histogram of occurrences
 type EventResult struct {
 	Id            int       `json:"id"`
-	EventType     string      `json:"event_type"`
-	EventName     string      `json:"event_name"`
-	TotalCount    int         `json:"total_count"`
-	ProcessedData EventData   `json:"processed_data"`
+	EventType     string    `json:"event_type"`
+	EventName     string    `json:"event_name"`
+	TotalCount    int       `json:"total_count"`
+	ProcessedData EventData `json:"processed_data"`
 	InstanceIds   []int     `json:"instance_ids"`
-	Datapoints    EventBins   `json:"datapoints"`
+	Datapoints    EventBins `json:"datapoints"`
 }
 
 // returns formatted name of event
 func (e EventResult) FormatName() string {
 	return fmt.Sprintf("%v: %v", e.EventName, e.ProcessedData.Message)
 }
-
-

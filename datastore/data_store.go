@@ -49,9 +49,9 @@ type postgresStore struct {
 	Client *datamanclient.Client
 
 	// Variables stored in memory (for faster access)
-	Services []EventService
-	ServicesNameMap map[string]EventService
-	Environments []EventEnvironment
+	Services            []EventService
+	ServicesNameMap     map[string]EventService
+	Environments        []EventEnvironment
 	EnvironmentsNameMap map[string]EventEnvironment
 }
 
@@ -103,10 +103,10 @@ func NewDataStore(config config.EventsumConfig) (DataStore, error) {
 
 	client := &datamanclient.Client{Transport: transport}
 	return &postgresStore{
-		Client: client,
-		Services: services,
-		ServicesNameMap: servicesNameMap,
-		Environments: environments,
+		Client:              client,
+		Services:            services,
+		ServicesNameMap:     servicesNameMap,
+		Environments:        environments,
 		EnvironmentsNameMap: environmentsNameMap,
 	}, nil
 }
@@ -188,7 +188,7 @@ func (p *postgresStore) AddEvent(evt *EventBase) error {
 			return err
 		}
 	}
-	util.MapDecode(res.Return[0], &evt)
+	util.MapDecode(res.Return[0], &evt, false)
 	return nil
 }
 
@@ -226,7 +226,7 @@ func (p *postgresStore) AddEventInstance(evt *EventInstance) error {
 			return err
 		}
 	}
-	util.MapDecode(res.Return[0], &evt)
+	util.MapDecode(res.Return[0], &evt, false)
 	return nil
 }
 
@@ -269,7 +269,7 @@ func (p *postgresStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 			}
 		} else {
 			var tmp EventInstancePeriod
-			util.MapDecode(res.Return[0], &tmp)
+			util.MapDecode(res.Return[0], &tmp, true)
 			filter["cas_value"] = []interface{}{"=", tmp.CAS}
 			record["count"] = tmp.Count + evt.Count
 			// TODO: handle error
@@ -281,7 +281,7 @@ func (p *postgresStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 				continue
 			}
 		}
-		util.MapDecode(res.Return[0], &evt)
+		util.MapDecode(res.Return[0], &evt, false)
 		return err
 	}
 }
@@ -318,7 +318,7 @@ func (p *postgresStore) AddEventDetail(evt *EventDetail) error {
 			return err
 		}
 	}
-	util.MapDecode(res.Return[0], &evt)
+	util.MapDecode(res.Return[0], &evt, false)
 	return err
 }
 
@@ -332,7 +332,6 @@ func (p *postgresStore) AddEventDetails(evts []EventDetail) map[int]error {
 	}
 	return errs
 }
-
 
 func (p *postgresStore) GetServices() []EventService {
 	return p.Services
@@ -363,7 +362,7 @@ func (p *postgresStore) GetGroups() ([]EventGroup, error) {
 	}
 
 	for _, v := range res.Return {
-		util.MapDecode(v, &group)
+		util.MapDecode(v, &group, true)
 		result = append(result, group)
 	}
 	return result, nil
@@ -380,7 +379,7 @@ func (p *postgresStore) GetEvents() ([]EventBase, error) {
 	}
 
 	for _, v := range res.Return {
-		util.MapDecode(v, &base)
+		util.MapDecode(v, &base, true)
 		result = append(result, base)
 	}
 

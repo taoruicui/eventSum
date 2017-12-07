@@ -12,16 +12,16 @@ type Flags struct {
 
 // config are settings used ... XXX
 type EventsumConfig struct {
-	DataSourceInstance string `json:"data_source_instance"`
-	DataSourceSchema   string `json:"data_source_schema"`
-	LogConfigFile      string `json:"log_config_file"`
-	BatchSize          int    `json:"event_batch_limit"`
-	TimeLimit          int    `json:"event_time_limit"` // in seconds
-	ServerPort         int    `json:"server_port"`
-	TimeInterval       int    `json:"time_interval"` // in minutes
-	TimeFormat         string `json:"time_format"`
-	Services map[string]map[string]int `json:"services"`
-	Environments map[string]map[string]int `json:"environments"`
+	DataSourceInstance string                    `json:"data_source_instance"`
+	DataSourceSchema   string                    `json:"data_source_schema"`
+	LogConfigFile      string                    `json:"log_config_file"`
+	BatchSize          int                       `json:"event_batch_limit"`
+	TimeLimit          int                       `json:"event_time_limit"` // in seconds
+	ServerPort         int                       `json:"server_port"`
+	TimeInterval       int                       `json:"time_interval"` // in minutes
+	TimeFormat         string                    `json:"time_format"`
+	Services           map[string]map[string]int `json:"services"`
+	Environments       map[string]map[string]int `json:"environments"`
 }
 
 func DefaultConfig() EventsumConfig {
@@ -34,8 +34,8 @@ func DefaultConfig() EventsumConfig {
 		ServerPort:         8080,
 		TimeInterval:       15,
 		TimeFormat:         "2006-01-02 15:04:05",
-		Services: map[string]map[string]int{},
-		Environments: map[string]map[string]int{},
+		Services:           map[string]map[string]int{},
+		Environments:       map[string]map[string]int{},
 	}
 }
 
