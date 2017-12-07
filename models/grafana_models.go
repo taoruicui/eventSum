@@ -203,12 +203,12 @@ func (e EventResults) SortIncreased(mid int) EventResults {
 
 // Base event with histogram of occurrences
 type EventResult struct {
-	Id            int64       `json:"id"`
+	Id            int       `json:"id"`
 	EventType     string      `json:"event_type"`
 	EventName     string      `json:"event_name"`
 	TotalCount    int         `json:"total_count"`
 	ProcessedData EventData   `json:"processed_data"`
-	InstanceIds   []int64     `json:"instance_ids"`
+	InstanceIds   []int     `json:"instance_ids"`
 	Datapoints    EventBins   `json:"datapoints"`
 }
 

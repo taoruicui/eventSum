@@ -263,7 +263,7 @@ func (es *eventStore) GeneralQuery(
 	}()
 
 	var evts EventResults
-	var evtsMap = make(map[int64]int)
+	var evtsMap = make(map[int]int)
 	var evtPeriod EventInstancePeriod
 	var evtInstance EventInstance
 	var evtBase EventBase
@@ -295,10 +295,10 @@ func (es *eventStore) GeneralQuery(
 		if _, ok := serviceIdMap[evtBase.ServiceId]; !ok && len(serviceIdMap) != 0 {
 			continue
 		}
-		if _, ok := eventBaseMap[int(evtBase.Id)]; !ok && len(eventBaseMap) != 0 {
+		if _, ok := eventBaseMap[evtBase.Id]; !ok && len(eventBaseMap) != 0 {
 			continue
 		}
-		if _, ok := eventGroupMap[int(evtBase.EventGroupId)]; !ok && len(eventGroupMap) != 0 {
+		if _, ok := eventGroupMap[evtBase.EventGroupId]; !ok && len(eventGroupMap) != 0 {
 			continue
 		}
 
@@ -310,7 +310,7 @@ func (es *eventStore) GeneralQuery(
 				EventName:     evtBase.EventName,
 				TotalCount:    0,
 				ProcessedData: evtBase.ProcessedData,
-				InstanceIds:   []int64{},
+				InstanceIds:   []int{},
 				Datapoints:    EventBins{},
 			})
 			evtsMap[evtBase.Id] = len(evts) - 1
@@ -433,12 +433,12 @@ func (es *eventStore) GetBaseIds(service_id int) ([]int, error) {
 		return result, err
 	}
 
-	keys := make(map[int64]bool)
+	keys := make(map[int]bool)
 	for _, v := range res.Return {
 		util.MapDecode(v, &base)
 		if _, ok := keys[base.Id]; base.ServiceId == service_id && !ok {
 			keys[base.Id] = true
-			result = append(result, int(base.Id))
+			result = append(result, base.Id)
 		}
 	}
 	return result, nil

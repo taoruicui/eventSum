@@ -49,6 +49,10 @@
                 "service_id": {
                   "name": "service_id",
                   "field_type": "_int",
+                  "relation": {
+                    "collection": "event_service",
+                    "field": "_id"
+                  },
                   "provision_state": 3
                 }
               },
@@ -290,6 +294,42 @@
                 },
                 "event_instance_period_pkey": {
                   "name": "event_instance_period_pkey",
+                  "fields": [
+                    "_id"
+                  ],
+                  "unique": true,
+                  "primary": true,
+                  "provision_state": 3
+                }
+              },
+              "provision_state": 3
+            },
+            "event_service": {
+              "name": "event_service",
+              "fields": {
+                "_id": {
+                  "name": "_id",
+                  "field_type": "_serial",
+                  "not_null": true,
+                  "provision_state": 3
+                },
+                "name": {
+                  "name": "name",
+                  "field_type": "_string",
+                  "provision_state": 3
+                }
+              },
+              "indexes": {
+                "event_service_name_key": {
+                  "name": "event_service_name_key",
+                  "fields": [
+                    "name"
+                  ],
+                  "unique": true,
+                  "provision_state": 3
+                },
+                "event_service_pkey": {
+                  "name": "event_service_pkey",
                   "fields": [
                     "_id"
                   ],
