@@ -17,6 +17,11 @@
                   "not_null": true,
                   "provision_state": 3
                 },
+                "event_environment_id": {
+                  "name": "event_environment_id",
+                  "field_type": "_int",
+                  "provision_state": 3
+                },
                 "event_group_id": {
                   "name": "event_group_id",
                   "field_type": "_int",
@@ -49,10 +54,6 @@
                 "service_id": {
                   "name": "service_id",
                   "field_type": "_int",
-                  "relation": {
-                    "collection": "event_service",
-                    "field": "_id"
-                  },
                   "provision_state": 3
                 }
               },
@@ -66,12 +67,13 @@
                   "primary": true,
                   "provision_state": 3
                 },
-                "event_base_service_id_event_type_processed_data_hash_key": {
-                  "name": "event_base_service_id_event_type_processed_data_hash_key",
+                "event_base_service_id_event_type_processed_data_hash_event_envi": {
+                  "name": "event_base_service_id_event_type_processed_data_hash_event_envi",
                   "fields": [
                     "service_id",
                     "event_type",
-                    "processed_data_hash"
+                    "processed_data_hash",
+                    "event_environment_id"
                   ],
                   "unique": true,
                   "provision_state": 3
@@ -193,6 +195,11 @@
                   },
                   "provision_state": 3
                 },
+                "event_environment_id": {
+                  "name": "event_environment_id",
+                  "field_type": "_int",
+                  "provision_state": 3
+                },
                 "generic_data": {
                   "name": "generic_data",
                   "field_type": "_json",
@@ -210,10 +217,11 @@
                 }
               },
               "indexes": {
-                "event_instance_generic_data_hash_key": {
-                  "name": "event_instance_generic_data_hash_key",
+                "event_instance_generic_data_hash__event_environment_id_key": {
+                  "name": "event_instance_generic_data_hash__event_environment_id_key",
                   "fields": [
-                    "generic_data_hash"
+                    "generic_data_hash",
+                    "event_environment_id"
                   ],
                   "unique": true,
                   "provision_state": 3
@@ -294,42 +302,6 @@
                 },
                 "event_instance_period_pkey": {
                   "name": "event_instance_period_pkey",
-                  "fields": [
-                    "_id"
-                  ],
-                  "unique": true,
-                  "primary": true,
-                  "provision_state": 3
-                }
-              },
-              "provision_state": 3
-            },
-            "event_service": {
-              "name": "event_service",
-              "fields": {
-                "_id": {
-                  "name": "_id",
-                  "field_type": "_serial",
-                  "not_null": true,
-                  "provision_state": 3
-                },
-                "name": {
-                  "name": "name",
-                  "field_type": "_string",
-                  "provision_state": 3
-                }
-              },
-              "indexes": {
-                "event_service_name_key": {
-                  "name": "event_service_name_key",
-                  "fields": [
-                    "name"
-                  ],
-                  "unique": true,
-                  "provision_state": 3
-                },
-                "event_service_pkey": {
-                  "name": "event_service_pkey",
                   "fields": [
                     "_id"
                   ],

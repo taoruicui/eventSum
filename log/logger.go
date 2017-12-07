@@ -38,6 +38,7 @@ type Logger struct {
 	app      *log.Logger
 	data     *log.Logger
 	eventLog failedEventsLog
+	ds datastore.DataStore
 
 	appDir  string
 	dataDir string
@@ -134,10 +135,6 @@ func (l *Logger) SaveEventsToLogFile() {
 // Check if there is an open db connection, and anything to put in from the logs
 func (l *Logger) PeriodicCheck(conf config) {
 	datastore.GlobalRule = GlobalRule
-	ds, err := datastore.NewDataStore(conf.DataSourceInstance, conf.DataSourceSchema)
-	if err != nil {
-		return
-	}
 	filename := filepath.Join(l.dataDir, l.endOfDay.Format("2006-01-02"))
 	file, err := open(filename)
 	if err != nil {
@@ -165,13 +162,13 @@ func (l *Logger) PeriodicCheck(conf config) {
 		}
 		json.Unmarshal(line, &failedEvent)
 		// Add to DB
-		if err := ds.AddEvents(failedEvent.Bases); len(err) != 0 {
+		if err := l.ds.AddEvents(failedEvent.Bases); len(err) != 0 {
 			// TODO
 			l.App().Error(err)
 			return
 		}
 
-		if err := ds.AddEventDetails(failedEvent.Details); len(err) != 0 {
+		if err := l.ds.AddEventDetails(failedEvent.Details); len(err) != 0 {
 			// TODO
 			l.App().Error(err)
 			return
@@ -186,7 +183,7 @@ func (l *Logger) PeriodicCheck(conf config) {
 				failedEvent.Details[failedEvent.DetailMap[detailHash]].Id
 		}
 
-		if err := ds.AddEventInstances(failedEvent.Instances); len(err) != 0 {
+		if err := l.ds.AddEventInstances(failedEvent.Instances); len(err) != 0 {
 			// TODO
 			l.App().Error(err)
 			return
@@ -198,7 +195,7 @@ func (l *Logger) PeriodicCheck(conf config) {
 				failedEvent.Instances[failedEvent.InstanceMap[dataHash]].Id
 		}
 
-		if err := ds.AddEventinstancePeriods(failedEvent.Periods); len(err) != 0 {
+		if err := l.ds.AddEventinstancePeriods(failedEvent.Periods); len(err) != 0 {
 			// TODO
 			l.App().Error(err)
 			return
@@ -294,13 +291,14 @@ func parseConfig(file string) config {
 }
 
 // Return new logger given config file
-func NewLogger(configFile string) *Logger {
+func NewLogger(configFile string, ds datastore.DataStore) *Logger {
 	config := parseConfig(configFile)
 	_, endOfDay := util.FindBoundingTime(time.Now(), 1440)
 
 	l := Logger{
 		app:  log.New(),
 		data: log.New(),
+		ds: ds,
 		eventLog: failedEventsLog{
 			BaseMap:     make(map[string]int),
 			InstanceMap: make(map[string]int),

@@ -6,7 +6,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	. "github.com/ContextLogic/eventsum/models"
 	"net/http"
-	"strconv"
+	"github.com/pkg/errors"
 )
 
 
@@ -47,13 +47,9 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 
 	result := []GrafanaQueryResp{}
 	// maps name to id
-	serviceNameMap := make(map[string]int)
 	groupNameMap := make(map[string]int)
-	services, _ := h.es.GetAllServices()
-	for _, service := range services {
-		serviceNameMap[service.Name] = service.Id
-	}
-	groups, _ := h.es.GetAllGroups()
+	serviceNameMap := h.es.ds.GetServicesMap()
+	groups, _ := h.es.ds.GetGroups()
 	for _, group := range groups {
 		groupNameMap[group.Name] = group.Id
 	}
@@ -73,7 +69,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 		}
 
 		for _, v := range target.Target.ServiceName {
-			serviceIdMap[serviceNameMap[v]] = true
+			serviceIdMap[serviceNameMap[v].Id] = true
 		}
 
 		evts, err := h.es.GeneralQuery(query.Range.From, query.Range.To, groupIdMap, eventBaseMap, serviceIdMap)
@@ -130,20 +126,25 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 	switch search.Target {
 	// Get all service ids
 	case "service_name":
-		services, err := h.es.GetAllServices()
+		services := h.es.ds.GetServices()
 		names := []string{}
-
-		if err != nil {
-			h.sendError(w, http.StatusInternalServerError, err, "eventstore error")
-		}
 
 		for _, service := range services {
 			names = append(names, service.Name)
 		}
 		result = names
 
+	case "environment":
+		environments := h.es.ds.GetEnvironments()
+		names := []string{}
+
+		for _, service := range environments {
+			names = append(names, service.Name)
+		}
+		result = names
+
 	case "group_name":
-		groups, err := h.es.GetAllGroups()
+		groups, err := h.es.ds.GetGroups()
 		names := []string{}
 
 		if err != nil {
@@ -157,16 +158,26 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 
 	// Get all event ids that correspond to service_id
 	default:
-		service_id, err := strconv.Atoi(search.Target)
-		if err != nil {
-			h.sendError(w, http.StatusBadRequest, err, "target not an int")
+		services := h.es.ds.GetServicesMap()
+		service, ok := services[search.Target]
+
+		if !ok {
+			h.sendError(w, http.StatusBadRequest, errors.New("service name does not exist"), "")
 		}
 
-		result, err = h.es.GetBaseIds(service_id)
+		events, err := h.es.ds.GetEvents()
+		ids := []int{}
 
 		if err != nil {
 			h.sendError(w, http.StatusInternalServerError, err, "eventstore error")
 		}
+
+		for _, base := range events {
+			if base.ServiceId == service.Id {
+				ids = append(ids, base.Id)
+			}
+		}
+		result = ids
 	}
 
 	if err := json.NewEncoder(w).Encode(result); err != nil {

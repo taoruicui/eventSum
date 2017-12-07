@@ -5,6 +5,17 @@
   "event_batch_limit": 4,
   "event_time_limit": 5,
   "server_port": 8080,
-  "args": {},
+  "services": {
+    "Wish FE": {"service_id": 1},
+    "Wish BE": {"service_id": 2},
+    "Merchant FE": {"service_id": 3},
+    "Merchant BE": {"service_id": 4}
+  },
+  "environments": {
+    "PROD": {"environment_id": 1},
+    "TEST": {"environment_id": 2},
+    "STAGE": {"environment_id": 3},
+    "SANDBOX": {"environment_id": 4}
+  },
   "time_interval": 10
 }

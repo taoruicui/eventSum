@@ -3,6 +3,7 @@ package datastore
 import (
 	"context"
 	"encoding/json"
+	"github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/rules"
@@ -36,24 +37,36 @@ type DataStore interface {
 	AddEventinstancePeriods(evts []EventInstancePeriod) map[int]error
 	AddEventDetail(evt *EventDetail) error
 	AddEventDetails(evts []EventDetail) map[int]error
+	GetServices() []EventService
+	GetServicesMap() map[string]EventService
+	GetEnvironments() []EventEnvironment
+	GetEnvironmentsMap() map[string]EventEnvironment
+	GetGroups() ([]EventGroup, error)
+	GetEvents() ([]EventBase, error)
 }
 
 type postgresStore struct {
-	client *datamanclient.Client
+	Client *datamanclient.Client
+
+	// Variables stored in memory (for faster access)
+	Services []EventService
+	ServicesNameMap map[string]EventService
+	Environments []EventEnvironment
+	EnvironmentsNameMap map[string]EventEnvironment
 }
 
 // Create a new dataStore
-func NewDataStore(dataSourceInstance, dataSourceSchema string) (DataStore, error) {
+func NewDataStore(config config.EventsumConfig) (DataStore, error) {
 	// Create a connection to Postgres Database through Dataman
 
-	storagenodeConfig, err := storagenode.DatasourceInstanceConfigFromFile(dataSourceInstance)
+	storagenodeConfig, err := storagenode.DatasourceInstanceConfigFromFile(config.DataSourceInstance)
 	if err != nil {
 		return nil, err
 	}
 
 	// Load meta
 	meta := &metadata.Meta{}
-	metaBytes, err := ioutil.ReadFile(dataSourceSchema)
+	metaBytes, err := ioutil.ReadFile(config.DataSourceSchema)
 	if err != nil {
 		return nil, err
 	}
@@ -71,9 +84,30 @@ func NewDataStore(dataSourceInstance, dataSourceSchema string) (DataStore, error
 		return nil, err
 	}
 
+	// build services and environment variables from config file
+	services := []EventService{}
+	servicesNameMap := make(map[string]EventService)
+	environments := []EventEnvironment{}
+	environmentsNameMap := make(map[string]EventEnvironment)
+
+	for k, v := range config.Services {
+		service := EventService{Id: v["service_id"], Name: k}
+		services = append(services, service)
+		servicesNameMap[k] = service
+	}
+	for k, v := range config.Environments {
+		environment := EventEnvironment{Id: v["environment_id"], Name: k}
+		environments = append(environments, environment)
+		environmentsNameMap[k] = environment
+	}
+
 	client := &datamanclient.Client{Transport: transport}
 	return &postgresStore{
-		client: client,
+		Client: client,
+		Services: services,
+		ServicesNameMap: servicesNameMap,
+		Environments: environments,
+		EnvironmentsNameMap: environmentsNameMap,
 	}, nil
 }
 
@@ -116,7 +150,7 @@ func (p *postgresStore) Query(typ query.QueryType,
 	if join != nil {
 		q.Args["join"] = join
 	}
-	res, err := p.client.DoQuery(context.Background(), q)
+	res, err := p.Client.DoQuery(context.Background(), q)
 	//res, err := &query.Result{}, errors.New("asdf")
 	if err != nil {
 		metrics.DBError("transport")
@@ -297,4 +331,58 @@ func (p *postgresStore) AddEventDetails(evts []EventDetail) map[int]error {
 		}
 	}
 	return errs
+}
+
+
+func (p *postgresStore) GetServices() []EventService {
+	return p.Services
+}
+
+func (p *postgresStore) GetEnvironments() []EventEnvironment {
+	return p.Environments
+}
+
+func (p *postgresStore) GetServicesMap() map[string]EventService {
+	return p.ServicesNameMap
+}
+
+func (p *postgresStore) GetEnvironmentsMap() map[string]EventEnvironment {
+	return p.EnvironmentsNameMap
+}
+
+// Return all event group ids that appear in event_base
+func (p *postgresStore) GetGroups() ([]EventGroup, error) {
+
+	var result []EventGroup
+	var group EventGroup
+
+	res, err := p.Query(query.Filter, "event_group", nil, nil, nil, nil, -1, nil, nil)
+
+	if err != nil {
+		return result, err
+	}
+
+	for _, v := range res.Return {
+		util.MapDecode(v, &group)
+		result = append(result, group)
+	}
+	return result, nil
+}
+
+func (p *postgresStore) GetEvents() ([]EventBase, error) {
+	var result []EventBase
+	var base EventBase
+
+	res, err := p.Query(query.Filter, "event_base", nil, nil, nil, nil, -1, nil, nil)
+
+	if err != nil {
+		return result, err
+	}
+
+	for _, v := range res.Return {
+		util.MapDecode(v, &base)
+		result = append(result, base)
+	}
+
+	return result, nil
 }

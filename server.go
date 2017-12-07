@@ -106,10 +106,6 @@ func newServer(options func(server *EventSumServer)) *EventSumServer {
 	s := &EventSumServer{route: httprouter.New()}
 	options(s)
 
-	if s.logger == nil {
-		s.logger = log.NewLogger("")
-	}
-
 	/* ROUTING */
 	// GET requests
 	s.route.GET("/", latency("/recent", s.httpHandler.recentEventsHandler))
@@ -144,16 +140,18 @@ func New(configFilename string) *EventSumServer {
 	log.GlobalRule = &globalRule
 	datastore.GlobalRule = &globalRule
 
-	logger := log.NewLogger(config.LogConfigFile)
+	ds, err := datastore.NewDataStore(config)
+
+	if err != nil {
+		panic(err)
+	}
+
+	logger := log.NewLogger(config.LogConfigFile, ds)
 
 	if err := metrics.RegisterPromMetrics(); err != nil {
 		logger.App().Fatalf("Unable to register prometheus metrics: %v", err)
 	}
 
-	ds, err := datastore.NewDataStore(config.DataSourceInstance, config.DataSourceSchema)
-	if err != nil {
-		logger.App().Fatal(err)
-	}
 	es := newEventStore(ds, config, logger)
 
 	// create new http store

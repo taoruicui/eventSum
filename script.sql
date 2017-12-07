@@ -6,13 +6,14 @@ DROP TABLE IF EXISTS event_group;
 
 CREATE TABLE IF NOT EXISTS event_base (
   _id serial8 PRIMARY KEY,
-  service_id int8 REFERENCES event_service(_id),
+  service_id int8 DEFAULT NULL,
   event_type varchar(32),
   event_name varchar(512),
-  event_group_id int8 REFERENCES event_group(_id) DEFAULT NULL,
+  event_group_id int8 REFERENCES event_group(_id),
+  event_environment_id int8,
   processed_data json,
   processed_data_hash varchar(64),
-  UNIQUE (service_id, event_type, processed_data_hash)
+  UNIQUE (service_id, event_type, event_environment_id, processed_data_hash)
 );
 
 CREATE TABLE IF NOT EXISTS event_detail (
@@ -27,10 +28,11 @@ CREATE TABLE IF NOT EXISTS event_instance (
   _id serial8 PRIMARY KEY,
   event_base_id int8 REFERENCES event_base(_id),
   event_detail_id int8 REFERENCES event_detail(_id),
+  event_environment_id int8,
   raw_data json,
   generic_data json,
   generic_data_hash varchar(64),
-  UNIQUE (generic_data_hash)
+  UNIQUE (generic_data_hash, event_environment_id)
 );
 
 CREATE TABLE IF NOT EXISTS event_instance_period (
@@ -51,9 +53,5 @@ CREATE TABLE IF NOT EXISTS event_group (
   info text
 );
 
-CREATE TABLE IF NOT EXISTS event_service (
-  _id serial8 PRIMARY KEY,
-  name varchar(32) UNIQUE
-);
 
 CREATE INDEX IF NOT EXISTS updated_idx ON event_instance_period (updated);

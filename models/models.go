@@ -106,3 +106,8 @@ type EventService struct {
 	Id int  `mapstructure:"_id"`
 	Name string `mapstructure:"name"`
 }
+
+type EventEnvironment struct {
+	Id int
+	Name string
+}

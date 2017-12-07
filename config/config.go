@@ -20,6 +20,8 @@ type EventsumConfig struct {
 	ServerPort         int    `json:"server_port"`
 	TimeInterval       int    `json:"time_interval"` // in minutes
 	TimeFormat         string `json:"time_format"`
+	Services map[string]map[string]int `json:"services"`
+	Environments map[string]map[string]int `json:"environments"`
 }
 
 func DefaultConfig() EventsumConfig {
@@ -32,6 +34,8 @@ func DefaultConfig() EventsumConfig {
 		ServerPort:         8080,
 		TimeInterval:       15,
 		TimeFormat:         "2006-01-02 15:04:05",
+		Services: map[string]map[string]int{},
+		Environments: map[string]map[string]int{},
 	}
 }
 
