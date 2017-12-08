@@ -4,9 +4,9 @@ import (
 	"github.com/ContextLogic/eventsum"
 	c "github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/models"
-	logger "github.com/sirupsen/logrus"
 	"github.com/jessevdk/go-flags"
 	m "github.com/mitchellh/mapstructure"
+	logger "github.com/sirupsen/logrus"
 	"math"
 	"regexp"
 )

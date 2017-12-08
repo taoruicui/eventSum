@@ -175,11 +175,13 @@ func (p *postgresStore) AddEvent(evt *EventBase) error {
 	} else if len(res.Return) == 0 {
 		//TODO: fix uniqueness constraint
 		record := map[string]interface{}{
-			"service_id":          evt.ServiceId,
-			"event_type":          evt.EventType,
-			"event_name":          evt.EventName,
-			"processed_data":      evt.ProcessedData,
-			"processed_data_hash": evt.ProcessedDataHash,
+			"service_id":           evt.ServiceId,
+			"event_type":           evt.EventType,
+			"event_name":           evt.EventName,
+			"event_environment_id": evt.EventEnvironmentId,
+			"event_group_id":       evt.EventGroupId,
+			"processed_data":       evt.ProcessedData,
+			"processed_data_hash":  evt.ProcessedDataHash,
 		}
 
 		res, err = p.Query(query.Set, "event_base", nil, record, nil, nil, -1, nil, nil)
@@ -214,11 +216,12 @@ func (p *postgresStore) AddEventInstance(evt *EventInstance) error {
 	} else if len(res.Return) == 0 {
 		//TODO: fix uniqueness constraint
 		record := map[string]interface{}{
-			"event_base_id":     evt.EventBaseId,
-			"event_detail_id":   evt.EventDetailId,
-			"raw_data":          evt.RawData,
-			"generic_data":      evt.GenericData,
-			"generic_data_hash": evt.GenericDataHash,
+			"event_base_id":        evt.EventBaseId,
+			"event_detail_id":      evt.EventDetailId,
+			"raw_data":             evt.RawData,
+			"generic_data":         evt.GenericData,
+			"generic_data_hash":    evt.GenericDataHash,
+			"event_environment_id": evt.EventEnvironmentId,
 		}
 		res, err = p.Query(query.Set, "event_instance", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
@@ -277,7 +280,7 @@ func (p *postgresStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 			record["cas_value"] = tmp.CAS + 1
 			res, err = p.Query(query.Update, "event_instance_period", filter, record, nil, nil, -1, nil, nil)
 			// if update failed then CAS failed, must retry
-			if err != nil {
+			if err != nil || len(res.Return) == 0 {
 				continue
 			}
 		}

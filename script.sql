@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS event_group (
   info text
 );
 
+INSERT INTO event_group (_id, name, info) VALUES (0, 'default', 'default group');
+
 CREATE TABLE IF NOT EXISTS event_base (
   _id serial8 PRIMARY KEY,
   service_id int8 DEFAULT NULL,

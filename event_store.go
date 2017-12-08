@@ -100,6 +100,8 @@ func (es *eventStore) SummarizeBatchEvents() {
 	var eventClassInstancesMap = make(map[string]int)
 	var eventClassInstancePeriodsMap = make(map[KeyEventPeriod]int)
 	var eventDetailsMap = make(map[string]int)
+	var serviceNameMap = es.ds.GetServicesMap()
+	var envNameMap = es.ds.GetEnvironmentsMap()
 
 	for _, event := range evtsToAdd {
 		rawEvent := event // Used for grouping
@@ -133,11 +135,12 @@ func (es *eventStore) SummarizeBatchEvents() {
 		// they are not repeated in the array by checking the associated map.
 		if _, ok := eventClassesMap[processedDataHash]; !ok {
 			eventClasses = append(eventClasses, EventBase{
-				ServiceId:         event.ServiceId,
-				EventType:         event.Type,
-				EventName:         event.Name,
-				ProcessedData:     processedData,
-				ProcessedDataHash: processedDataHash,
+				ServiceId:          serviceNameMap[event.Service].Id,
+				EventType:          event.Type,
+				EventName:          event.Name,
+				EventEnvironmentId: envNameMap[event.Environment].Id,
+				ProcessedData:      processedData,
+				ProcessedDataHash:  processedDataHash,
 			})
 			eventClassesMap[processedDataHash] = len(eventClasses) - 1
 		}
@@ -149,6 +152,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 				RawData:             rawEvent.Data,
 				GenericData:         genericData,
 				GenericDataHash:     genericDataHash,
+				EventEnvironmentId:  envNameMap[event.Environment].Id,
 			})
 			eventClassInstancesMap[genericDataHash] = len(eventClassInstances) - 1
 		}

@@ -11,7 +11,8 @@ import (
 
 // UnaddedEvent is the first event that is sent to the server
 type UnaddedEvent struct {
-	ServiceId             int                    `json:"service_id"`
+	Service               string                 `json:"service"`
+	Environment           string                 `json:"environment"`
 	Name                  string                 `json:"event_name"`
 	Type                  string                 `json:"event_type"`
 	Data                  EventData              `json:"event_data"`
