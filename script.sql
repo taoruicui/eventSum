@@ -4,6 +4,13 @@ DROP TABLE IF EXISTS event_base;
 DROP TABLE IF EXISTS event_detail;
 DROP TABLE IF EXISTS event_group;
 
+
+CREATE TABLE IF NOT EXISTS event_group (
+  _id serial8 PRIMARY KEY,
+  name varchar(512) UNIQUE,
+  info text
+);
+
 CREATE TABLE IF NOT EXISTS event_base (
   _id serial8 PRIMARY KEY,
   service_id int8 DEFAULT NULL,
@@ -45,12 +52,6 @@ CREATE TABLE IF NOT EXISTS event_instance_period (
   counter_json jsonb,
   cas_value int8 DEFAULT 0,
   UNIQUE (event_instance_id, start_time, end_time)
-);
-
-CREATE TABLE IF NOT EXISTS event_group (
-  _id serial8 PRIMARY KEY,
-  name varchar(512) UNIQUE,
-  info text
 );
 
 

@@ -266,8 +266,8 @@ func (es *eventStore) GeneralQuery(
 	var evtsMap = make(map[int]int)
 	join := []interface{}{"event_instance_id", "event_instance_id.event_base_id"}
 	filter := []interface{}{
-		map[string]interface{}{"start_time": []interface{}{">", start}}, "AND",
-		map[string]interface{}{"end_time": []interface{}{"<", end}},
+		map[string]interface{}{"updated": []interface{}{">=", start}}, "AND",
+		map[string]interface{}{"updated": []interface{}{"<=", end}},
 	}
 	res, err := es.ds.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, join)
 	if err != nil {
