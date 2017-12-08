@@ -7,7 +7,7 @@ import (
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/rules"
 	"github.com/ContextLogic/eventsum/util"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"reflect"

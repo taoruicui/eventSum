@@ -2,12 +2,6 @@
 
 
 [[projects]]
-  name = "github.com/Sirupsen/logrus"
-  packages = ["."]
-  revision = "f006c2ac4710855cf0f916dd6b77acf6b048dc6e"
-  version = "v1.0.3"
-
-[[projects]]
   branch = "master"
   name = "github.com/armon/go-radix"
   packages = ["."]
@@ -29,7 +23,7 @@
   branch = "master"
   name = "github.com/jacksontj/dataman"
   packages = ["src/client","src/client/direct","src/datamantype","src/httputil","src/query","src/router_node/functiondefault","src/router_node/sharding","src/storage_node","src/storage_node/datasource","src/storage_node/datasource/pgstore","src/storage_node/metadata","src/storage_node/metadata/filter","src/storage_node/metadata/recordop"]
-  revision = "1ebcedb3e1887c5ca780146b2fb48805f6ccde22"
+  revision = "f08aa6d8319f581cb89696485f03214a2ef3d3d8"
 
 [[projects]]
   name = "github.com/jessevdk/go-flags"
@@ -122,6 +116,12 @@
   version = "1.0.1"
 
 [[projects]]
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  revision = "d682213848ed68c0a260ca37d6dd5ace8423f5ba"
+  version = "v1.0.4"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
@@ -142,6 +142,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8f6286ff2e6edbc9bb3e2b8e460d9aa6593dec139bf0ef4f1bb6e1185faf7561"
+  inputs-digest = "72f47b9f8ea4dded70f8b6eb5d3bdb5e342cbe5d01a5b48a22241e1e4ee672e3"
   solver-name = "gps-cdcl"
   solver-version = 1
