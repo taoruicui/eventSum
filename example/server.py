@@ -27,7 +27,8 @@ if __name__ == '__main__':
         c = client.captureException(id=3, time=datetime.now())
         data = {}
         data['timestamp'] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        data['service_id'] = 1
+        data['service'] = 'Wish FE'
+        data['environment'] = 'PROD'
         data['event_type'] = 'python'
         data['event_name'] = exc_typ.__name__
         data['extra_args'] = {}
