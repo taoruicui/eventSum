@@ -138,7 +138,7 @@ func (h *httpHandler) searchEventsHandler(w http.ResponseWriter, r *http.Request
 		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
 		return
 	}
-	h.sendResp(w, "recent_events", response)
+	h.sendResp(w, "events", response)
 }
 
 func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

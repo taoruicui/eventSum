@@ -161,19 +161,20 @@ func (e EventResults) SortRecent() EventResults {
 }
 
 // sort by events that have recently been increasing
-func (e EventResults) SortIncreased(mid int) EventResults {
+func (e EventResults) SortIncreased() EventResults {
 	evts := EventResults{}
+
 	for _, evt := range e {
 		if len(evt.Datapoints) <= 2 {
 			continue
 		}
-
 		countBegin := 0
 		countEnd := 0
+		mid := len(evt.Datapoints) / 2
 		// loop through all datapoints. Add to countBegin
 		// if before, else add to countEnd
-		for t, point := range evt.Datapoints {
-			if t <= mid {
+		for i, point := range evt.Datapoints {
+			if i <= mid {
 				countBegin += point.Count
 			} else {
 				countEnd += point.Count
@@ -194,7 +195,7 @@ type EventResult struct {
 	TotalCount    int       `json:"total_count"`
 	ProcessedData EventData `json:"processed_data"`
 	InstanceIds   []int     `json:"instance_ids"`
-	Datapoints    EventBins `json:"datapoints"`
+	Datapoints    []Bin `json:"datapoints"`
 }
 
 // returns formatted name of event

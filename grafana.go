@@ -95,8 +95,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 			evts = evts.SortRecent()
 		} else if target.Target.Sort == "increased" {
 			// TODO: implement increased
-			mid := int(1000 * (query.Range.From.Unix() + query.Range.To.Unix()) / 2)
-			evts = evts.SortIncreased(mid)
+			evts = evts.SortIncreased()
 			evts = evts.SortRecent()
 		}
 
@@ -106,8 +105,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 
 		for _, evt := range evts {
 			datapoints := [][]int{}
-			bins := evt.Datapoints.ToSlice()
-			for _, bin := range bins {
+			for _, bin := range evt.Datapoints {
 				datapoints = append(datapoints, []int{bin.Count, bin.Start})
 			}
 			result = append(result, GrafanaQueryResp{

@@ -268,6 +268,7 @@ func (es *eventStore) GeneralQuery(
 
 	var evts EventResults
 	var evtsMap = make(map[int]int)
+	var evtsDatapointMap = make(map[int]EventBins) // for storing datapoints map
 	join := []interface{}{"event_instance_id", "event_instance_id.event_base_id"}
 	filter := []interface{}{
 		map[string]interface{}{"updated": []interface{}{">=", start}}, "AND",
@@ -318,9 +319,10 @@ func (es *eventStore) GeneralQuery(
 				TotalCount:    0,
 				ProcessedData: evtBase.ProcessedData,
 				InstanceIds:   []int{},
-				Datapoints:    EventBins{},
+				Datapoints:    []Bin{},
 			})
 			evtsMap[evtBase.Id] = len(evts) - 1
+			evtsDatapointMap[evtBase.Id] = EventBins{}
 		}
 
 		start := int(evtPeriod.Updated.Unix() * 1000)
@@ -328,11 +330,16 @@ func (es *eventStore) GeneralQuery(
 		evt.TotalCount += evtPeriod.Count
 		evt.InstanceIds = append(evt.InstanceIds, evtInstance.Id)
 
-		if _, ok := evt.Datapoints[start]; !ok {
-			evt.Datapoints[start] = &Bin{Start: start, Count: 0}
+		// update datapoints map with new count
+		if _, ok := evtsDatapointMap[evtBase.Id][start]; !ok {
+			evtsDatapointMap[evtBase.Id][start] = &Bin{Start: start, Count: 0}
 		}
+		evtsDatapointMap[evtBase.Id][start].Count += evtPeriod.Count
+	}
 
-		evt.Datapoints[start].Count += evtPeriod.Count
+	// turning map into sorted array
+	for id, datapoints := range evtsDatapointMap {
+		evts[evtsMap[id]].Datapoints = datapoints.ToSlice()
 	}
 
 	return evts, nil
