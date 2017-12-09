@@ -24,8 +24,8 @@ type UnaddedEvent struct {
 
 // Data object, payload of UnaddedEvent
 type EventData struct {
-	Message string      `json:"message"`
-	Raw     interface{} `json:"raw_data"`
+	Message string      `json:"message" mapstructure:"message"`
+	Raw     interface{} `json:"raw_data" mapstructure:"raw_data"`
 }
 
 // Performs deepcopy
@@ -86,7 +86,7 @@ type EventInstancePeriod struct {
 	Updated         time.Time              `mapstructure:"updated"`
 	Count           int                    `mapstructure:"count"`
 	CounterJson     map[string]interface{} `mapstructure:"counter_json"`
-	CAS             int                    `mapstructure:"cas_value"`
+	CAS             int                    `json:"cas_value" mapstructure:"cas_value"`
 
 	// ignored fields, used internally
 	RawDataHash string

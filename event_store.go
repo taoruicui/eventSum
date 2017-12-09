@@ -360,7 +360,7 @@ func (es *eventStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) {
 	util.MapDecode(r.Return[0], &instance, false)
 	if t1, ok := r.Return[0]["event_base_id"].(map[string]interface{}); ok {
 		util.MapDecode(t1, &base, false)
-		if t2, ok := t1["event_detail_id"].(map[string]interface{}); ok {
+		if t2, ok := r.Return[0]["event_detail_id"].(map[string]interface{}); ok {
 			util.MapDecode(t2, &detail, false)
 		}
 	}

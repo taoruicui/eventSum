@@ -95,7 +95,7 @@ func (h *httpHandler) sendResp(w http.ResponseWriter, key string, val interface{
 	w.Write(response)
 }
 
-func (h *httpHandler) recentEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (h *httpHandler) searchEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	query := r.URL.Query()
 	endTime := time.Now()
 	startTime := endTime.Add(-1 * time.Hour)
