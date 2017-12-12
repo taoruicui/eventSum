@@ -195,7 +195,7 @@ type EventResult struct {
 	TotalCount    int       `json:"total_count"`
 	ProcessedData EventData `json:"processed_data"`
 	InstanceIds   []int     `json:"instance_ids"`
-	Datapoints    []Bin `json:"datapoints"`
+	Datapoints    []Bin     `json:"datapoints"`
 }
 
 // returns formatted name of event

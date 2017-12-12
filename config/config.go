@@ -14,6 +14,7 @@ type Flags struct {
 type EventsumConfig struct {
 	DataSourceInstance string                    `json:"data_source_instance"`
 	DataSourceSchema   string                    `json:"data_source_schema"`
+	DatabaseName       string                    `json:"database_name"`
 	LogConfigFile      string                    `json:"log_config_file"`
 	BatchSize          int                       `json:"event_batch_limit"`
 	TimeLimit          int                       `json:"event_time_limit"` // in seconds
@@ -28,6 +29,7 @@ func DefaultConfig() EventsumConfig {
 	return EventsumConfig{
 		DataSourceInstance: "config/datasourceinstance.yaml",
 		DataSourceSchema:   "config/schema.json",
+		DatabaseName:       "eventsum",
 		LogConfigFile:      "config/logconfig.json",
 		BatchSize:          5,
 		TimeLimit:          5,

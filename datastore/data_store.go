@@ -46,6 +46,7 @@ type DataStore interface {
 }
 
 type postgresStore struct {
+	Name   string
 	Client *datamanclient.Client
 
 	// Variables stored in memory (for faster access)
@@ -103,6 +104,7 @@ func NewDataStore(config config.EventsumConfig) (DataStore, error) {
 
 	client := &datamanclient.Client{Transport: transport}
 	return &postgresStore{
+		Name:                config.DatabaseName,
 		Client:              client,
 		Services:            services,
 		ServicesNameMap:     servicesNameMap,
@@ -124,7 +126,7 @@ func (p *postgresStore) Query(typ query.QueryType,
 	q := &query.Query{
 		Type: typ,
 		Args: map[string]interface{}{
-			"db":             "eventsum",
+			"db":             p.Name,
 			"collection":     collection,
 			"shard_instance": "public",
 		},
