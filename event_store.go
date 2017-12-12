@@ -313,13 +313,15 @@ func (es *eventStore) GeneralQuery(
 		// Aggregate similar events
 		if _, ok = evtsMap[evtBase.Id]; !ok {
 			evts = append(evts, EventResult{
-				Id:            evtBase.Id,
-				EventType:     evtBase.EventType,
-				EventName:     evtBase.EventName,
-				TotalCount:    0,
-				ProcessedData: evtBase.ProcessedData,
-				InstanceIds:   []int{},
-				Datapoints:    []Bin{},
+				Id:                 evtBase.Id,
+				EventType:          evtBase.EventType,
+				EventName:          evtBase.EventName,
+				EventGroupId:       evtBase.EventGroupId,
+				EventEnvironmentId: evtBase.EventEnvironmentId,
+				TotalCount:         0,
+				ProcessedData:      evtBase.ProcessedData,
+				InstanceIds:        []int{},
+				Datapoints:         []Bin{},
 			})
 			evtsMap[evtBase.Id] = len(evts) - 1
 			evtsDatapointMap[evtBase.Id] = EventBins{}
@@ -343,6 +345,27 @@ func (es *eventStore) GeneralQuery(
 	}
 
 	return evts, nil
+}
+
+// Get EventBase by processed_hash
+func (es *eventStore) GetEventByHash(hash string) (EventBase, error) {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("GetEventByHash", now)
+	}()
+
+	var base EventBase
+	filter := map[string]interface{}{"processed_data_hash": []interface{}{"=", hash}}
+	res, err := es.ds.Query(query.Get, "event_base", filter, nil, nil, nil, -1, nil, nil)
+
+	if err != nil {
+		return base, err
+	} else if len(res.Return) == 0 {
+		return base, errors.New("No base matches hash")
+	} else {
+		err = util.MapDecode(res.Return[0], &base, true)
+		return base, err
+	}
 }
 
 // Get the details of a single event instance

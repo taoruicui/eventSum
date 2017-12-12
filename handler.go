@@ -100,17 +100,49 @@ func (h *httpHandler) searchEventsHandler(w http.ResponseWriter, r *http.Request
 	query := r.URL.Query()
 	endTime := time.Now()
 	startTime := endTime.Add(-1 * time.Hour)
+	serviceIdMap := make(map[int]bool)
+	baseIdMap := make(map[int]bool)
+	groupIdMap := make(map[int]bool)
+	envIdMap := make(map[int]bool)
+	keywords := ""
+	sort := ""
+
 	serviceId, err := strconv.Atoi(query.Get("service_id"))
 	if err != nil {
 		h.sendError(w, http.StatusBadRequest, errors.New("service ID is missing or not an int"), "Error")
 		return
 	}
+	serviceIdMap[serviceId] = true
 
 	if str := query.Get("end_time"); str != "" {
 		endTime, err = time.Parse(h.timeFormat, str)
 		if err != nil {
 			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure end time is in correct format: %v", h.timeFormat))
 			return
+		}
+	}
+
+	if str := query.Get("hash"); str != "" {
+		if base, err := h.es.GetEventByHash(str); err != nil {
+			h.sendError(w, http.StatusBadRequest, err, "")
+		} else {
+			baseIdMap[base.Id] = true
+		}
+	}
+
+	if str := query.Get("group_id"); str != "" {
+		if id, err := strconv.Atoi(str); err != nil {
+			h.sendError(w, http.StatusBadRequest, err, "group_id must be an int")
+		} else {
+			groupIdMap[id] = true
+		}
+	}
+
+	if str := query.Get("env_id"); str != "" {
+		if id, err := strconv.Atoi(str); err != nil {
+			h.sendError(w, http.StatusBadRequest, err, "env_id must be an int")
+		} else {
+			envIdMap[id] = true
 		}
 	}
 
@@ -127,9 +159,25 @@ func (h *httpHandler) searchEventsHandler(w http.ResponseWriter, r *http.Request
 		limit = 100
 	}
 
-	serviceIdMap := map[int]bool{serviceId: true}
-	response, err := h.es.GeneralQuery(startTime, endTime, map[int]bool{}, map[int]bool{}, serviceIdMap, map[int]bool{})
-	response.SortRecent()
+	if str := query.Get("keywords"); str != "" {
+		keywords = str
+	}
+
+	if str := query.Get("sort"); str != "" {
+		sort = str
+	}
+
+	response, err := h.es.GeneralQuery(startTime, endTime, groupIdMap, baseIdMap, serviceIdMap, envIdMap)
+
+	if keywords != "" {
+		response = response.FilterBy(keywords)
+	}
+
+	if sort == "recent" {
+		response = response.SortRecent()
+	} else if sort == "increased" {
+		response = response.SortIncreased()
+	}
 
 	if len(response) > limit {
 		response = response[:limit]

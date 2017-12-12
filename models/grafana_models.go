@@ -180,7 +180,23 @@ func (e EventResults) SortIncreased() EventResults {
 				countEnd += point.Count
 			}
 		}
-		if countEnd > 2*countBegin {
+		if countEnd > countBegin {
+			evts = append(evts, evt)
+		}
+	}
+	return evts
+}
+
+// Simple filtering for any events that contain str
+func (e EventResults) FilterBy(str string) EventResults {
+	evts := EventResults{}
+
+	for _, evt := range e {
+		if strings.Contains(evt.EventType, str) {
+			evts = append(evts, evt)
+		}
+
+		if strings.Contains(evt.ProcessedData.Message, str) {
 			evts = append(evts, evt)
 		}
 	}
@@ -189,13 +205,15 @@ func (e EventResults) SortIncreased() EventResults {
 
 // Base event with histogram of occurrences
 type EventResult struct {
-	Id            int       `json:"id"`
-	EventType     string    `json:"event_type"`
-	EventName     string    `json:"event_name"`
-	TotalCount    int       `json:"total_count"`
-	ProcessedData EventData `json:"processed_data"`
-	InstanceIds   []int     `json:"instance_ids"`
-	Datapoints    []Bin     `json:"datapoints"`
+	Id                 int       `json:"id"`
+	EventType          string    `json:"event_type"`
+	EventName          string    `json:"event_name"`
+	EventGroupId       int       `json:"event_group_id"`
+	EventEnvironmentId int       `json:"event_environment_id"`
+	TotalCount         int       `json:"total_count"`
+	ProcessedData      EventData `json:"processed_data"`
+	InstanceIds        []int     `json:"instance_ids"`
+	Datapoints         []Bin     `json:"datapoints"`
 }
 
 // returns formatted name of event
