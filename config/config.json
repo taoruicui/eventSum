@@ -6,16 +6,18 @@
   "event_time_limit": 5,
   "server_port": 8080,
   "services": {
-    "Wish FE": {"service_id": 1},
-    "Wish BE": {"service_id": 2},
-    "Merchant FE": {"service_id": 3},
-    "Merchant BE": {"service_id": 4}
+    "default": {"service_id": 0},
+    "wish_fe": {"service_id": 1},
+    "wish_be": {"service_id": 2},
+    "merchant_fe": {"service_id": 3},
+    "merchant_be": {"service_id": 4}
   },
   "environments": {
-    "PROD": {"environment_id": 1},
-    "TEST": {"environment_id": 2},
-    "STAGE": {"environment_id": 3},
-    "SANDBOX": {"environment_id": 4}
+    "default": {"environment_id": 0},
+    "prod": {"environment_id": 1},
+    "dev": {"environment_id": 2},
+    "stage": {"environment_id": 3},
+    "sandbox": {"environment_id": 4}
   },
   "time_interval": 10
 }

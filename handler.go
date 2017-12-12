@@ -96,6 +96,7 @@ func (h *httpHandler) sendResp(w http.ResponseWriter, key string, val interface{
 }
 
 func (h *httpHandler) searchEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	// TODO: add text search param, processed_hash param
 	query := r.URL.Query()
 	endTime := time.Now()
 	startTime := endTime.Add(-1 * time.Hour)
