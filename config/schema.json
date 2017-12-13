@@ -308,6 +308,13 @@
                   "unique": true,
                   "primary": true,
                   "provision_state": 3
+                },
+                "updated_idx": {
+                  "name": "updated_idx",
+                  "fields": [
+                    "updated"
+                  ],
+                  "provision_state": 3
                 }
               },
               "provision_state": 3

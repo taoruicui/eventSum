@@ -184,6 +184,7 @@ func (e EventResults) SortIncreased() EventResults {
 			evts = append(evts, evt)
 		}
 	}
+	evts = evts.SortRecent()
 	return evts
 }
 

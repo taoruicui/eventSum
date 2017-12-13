@@ -94,9 +94,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 		if target.Target.Sort == "recent" {
 			evts = evts.SortRecent()
 		} else if target.Target.Sort == "increased" {
-			// TODO: implement increased
 			evts = evts.SortIncreased()
-			evts = evts.SortRecent()
 		}
 
 		if len(evts) > target.Target.Limit && target.Target.Limit > 0 {
