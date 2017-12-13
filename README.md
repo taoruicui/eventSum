@@ -30,16 +30,32 @@ cd $GOPATH/src/github.com/ContextLogic/eventsum
 dep ensure
 ```
 ### Setting up Postgres DB
-Run the following script in your Postgres cluster: 
+Create a Postgres cluster. Run the following script in your Postgres cluster: 
 ```
 createdb <DBNAME>
 psql <DBNAME> -a -f script.sql
 ```
-This should create 4 tables: `event_base`, `event_instance`, `event_instance_period`, and `event_detail`. 
+This should create 5 tables: `event_base`, `event_instance`, `event_instance_period`, `event_group', and `event_detail`. 
 
 Eventsum runs on dataman. We need to generate a schema.json and instance.yaml file corresponding to the DB. 
+```
+cd $GOPATH/src/github.com/jacksontj/dataman/src/schemaexport
+go build 
+./schemaexport --databases <DBNAME> > $GOPATH/src/github.com/ContextLogic/eventsum/config/schema.json
+```
+If this command generates an empty schema, that means dataman could not reach your DB. Modify the `src/storage_node/storagenode/config.yaml` file, and run the above command again. 
+
+### Setting up Config Files
+Eventsum requires a number of configuration files in order to run. Look in the `config/` directory for all config files you need. The main entry file is `config.json`. Other notable files are: 
+```
+datasourceinstance.yaml: db instance config file
+logconfig.json: log config
+schema.json: schema of db instance
+```
 
 ### Running the server
-See `example/example.go` for a working example. 
-
-A config file is required run the service. Look in the `config/` directory for an example. 
+Look at `example/example.go` for a working example. To run the service, type this:
+```
+cd $GOPATH/src/github.com/ContextLogic/eventsum
+go run cmd/example.go -c `pwd`/config/config.json
+```
