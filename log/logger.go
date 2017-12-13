@@ -27,8 +27,6 @@ type config struct {
 	Environment                string `json:"environment"`
 	AppDir                     string `json:"app_logging"`
 	DataDir                    string `json:"data_logging"`
-	DataSourceInstance         string `json:"data_source_instance"`
-	DataSourceSchema           string `json:"data_source_schema"`
 }
 
 // There are two types of logging in this service: App logginng and Data logging.
@@ -273,8 +271,6 @@ func parseConfig(file string) config {
 		"dev",
 		"log",
 		"log",
-		"config/datasourceinstance.yaml",
-		"config/schema.json",
 	}
 	f, err := os.Open(file)
 	if err != nil {
