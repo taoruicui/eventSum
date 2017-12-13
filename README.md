@@ -59,3 +59,6 @@ Look at `example/example.go` for a working example. To run the service, type thi
 cd $GOPATH/src/github.com/ContextLogic/eventsum
 go run cmd/example.go -c `pwd`/config/config.json
 ```
+
+## Documentation
+Please at the [docs](/docs) for the api and grafana integrations. 
