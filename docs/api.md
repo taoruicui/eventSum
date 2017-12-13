@@ -5,6 +5,7 @@ For the backend component, there is only one endpoint, to listen for incoming ev
 ### Capture
 ```
 POST /capture
+Content-Type: application/json
 ```
 
 Captures an incoming event.
