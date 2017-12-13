@@ -55,13 +55,19 @@ the the graphs should update accordingly. The syntax of the target is as follows
 ```
 
 For example, to select an event with a specific base_id and service_name:
-`service_name=$service_name&event_base_id=$event_base_id`
+```
+service_name=$service_name&event_base_id=$event_base_id
+```
 
 To select top 5 events with a specific service_name, sorted:
-`service_name=$service_name&sort=$sort&limit=5`
+```
+service_name=$service_name&sort=$sort&limit=5
+```
 
 To select events with a specific environment_name and group_name:
-`group_name=$group_name&environment_name=$environment_name`
+```
+group_name=$group_name&environment_name=$environment_name
+```
 
 The value of the `$<template_variable>` is whatever is currently selected on the dashboard. Note that this works even 
 for multi-value variables, where events will be filtered (val1 OR val2 OR etc.) on all values. 
