@@ -1,6 +1,6 @@
-#Grafana Integration
+# Grafana Integration
 
-###Setting up Eventsum as a Datasource
+### Setting up Eventsum as a Datasource
 Eventsum can act as a datasource in Grafana. All you need to do are a couple of steps: 
 1. Install a simple grafana plugin called ‘simple json datasource’.
 2. Launch `eventmaster`
@@ -38,7 +38,7 @@ Click `update` and the variable should appear on your dashboard. Do the same for
 
 All your template variables should be set now!
 
-###Creating a Graph
+### Creating a Graph
 Now we can make a graph. Click on `Add Row`, and then select the `graph` option. Once we have a graph, click the title, 
 press `Edit`, and then go to the `Metrics` panel:
 
