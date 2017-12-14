@@ -148,7 +148,7 @@ func New(configFilename string) *EventSumServer {
 
 	logger := log.NewLogger(config.LogConfigFile, ds)
 
-	if err := metrics.RegisterPromMetrics(); err != nil {
+	if err := metrics.RegisterPromMetrics(config.DatabaseName); err != nil {
 		logger.App().Fatalf("Unable to register prometheus metrics: %v", err)
 	}
 

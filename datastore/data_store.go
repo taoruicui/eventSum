@@ -363,6 +363,7 @@ func (p *postgresStore) GetGroups() ([]EventGroup, error) {
 	res, err := p.Query(query.Filter, "event_group", nil, nil, nil, nil, -1, nil, nil)
 
 	if err != nil {
+		metrics.DBError("read")
 		return result, err
 	}
 
@@ -380,6 +381,7 @@ func (p *postgresStore) GetEvents() ([]EventBase, error) {
 	res, err := p.Query(query.Filter, "event_base", nil, nil, nil, nil, -1, nil, nil)
 
 	if err != nil {
+		metrics.DBError("read")
 		return result, err
 	}
 
