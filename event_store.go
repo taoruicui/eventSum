@@ -89,17 +89,11 @@ func (es *eventStore) SummarizeBatchEvents() {
 
 	// Match events with each other to find similar ones
 
-	// Rows to add to Tables
-	var eventClasses []EventBase
-	var eventClassInstances []EventInstance
-	var eventClassInstancePeriods []EventInstancePeriod
-	var eventDetails []EventDetail
-
-	// Maps the hash to the index of the associated array
-	var eventClassesMap = make(map[string]int)
-	var eventClassInstancesMap = make(map[string]int)
-	var eventClassInstancePeriodsMap = make(map[KeyEventPeriod]int)
-	var eventDetailsMap = make(map[string]int)
+	// Event classes are maps for quick access
+	var eventBases = make(map[string]EventBase)
+	var eventInstances = make(map[string]EventInstance)
+	var eventInstancePeriods = make(map[KeyEventPeriod]EventInstancePeriod)
+	var eventDetails = make(map[string]EventDetail)
 	var serviceNameMap = es.ds.GetServicesMap()
 	var envNameMap = es.ds.GetEnvironmentsMap()
 
@@ -131,30 +125,27 @@ func (es *eventStore) SummarizeBatchEvents() {
 		processedDataHash := util.Hash(processedData)
 		processedDetailHash := util.Hash(processedDetail)
 
-		// Each hash should be unique in the database, and so we make sure
-		// they are not repeated in the array by checking the associated map.
-		if _, ok := eventClassesMap[processedDataHash]; !ok {
-			eventClasses = append(eventClasses, EventBase{
+		// Each hash should be unique in the database
+		if _, ok := eventBases[processedDataHash]; !ok {
+			eventBases[processedDataHash] = EventBase{
 				ServiceId:          serviceNameMap[event.Service].Id,
 				EventType:          event.Type,
 				EventName:          event.Name,
 				EventEnvironmentId: envNameMap[event.Environment].Id,
 				ProcessedData:      processedData,
 				ProcessedDataHash:  processedDataHash,
-			})
-			eventClassesMap[processedDataHash] = len(eventClasses) - 1
+			}
 		}
 
-		if _, ok := eventClassInstancesMap[genericDataHash]; !ok {
-			eventClassInstances = append(eventClassInstances, EventInstance{
+		if _, ok := eventInstances[genericDataHash]; !ok {
+			eventInstances[genericDataHash] = EventInstance{
 				ProcessedDataHash:   processedDataHash,   // Used to reference event_base_id later
 				ProcessedDetailHash: processedDetailHash, // Used to reference event_detail_id later
 				RawData:             rawEvent.Data,
 				GenericData:         genericData,
 				GenericDataHash:     genericDataHash,
 				EventEnvironmentId:  envNameMap[event.Environment].Id,
-			})
-			eventClassInstancesMap[genericDataHash] = len(eventClassInstances) - 1
+			}
 		}
 
 		// The unique key should be the raw data, and the time period,
@@ -165,90 +156,86 @@ func (es *eventStore) SummarizeBatchEvents() {
 			RawDataHash: genericDataHash,
 			StartTime:   startTime,
 		}
-		if _, ok := eventClassInstancePeriodsMap[key]; !ok {
-			eventClassInstancePeriods = append(eventClassInstancePeriods, EventInstancePeriod{
+		if _, ok := eventInstancePeriods[key]; !ok {
+			eventInstancePeriods[key] = EventInstancePeriod{
 				StartTime:   startTime,
 				Updated:     t,
 				EndTime:     endTime,
 				RawDataHash: genericDataHash, // Used to reference event_instance_id later
 				Count:       0,
 				CounterJson: make(map[string]interface{}),
-			})
-			eventClassInstancePeriodsMap[key] = len(eventClassInstancePeriods) - 1
+			}
 		}
-		e := &eventClassInstancePeriods[eventClassInstancePeriodsMap[key]]
+		e := eventInstancePeriods[key]
 		e.Count++
 		e.CounterJson, _ = globalRule.ProcessGrouping(rawEvent, e.CounterJson)
+		eventInstancePeriods[key] = e
 
-		if _, ok := eventDetailsMap[processedDataHash]; !ok {
-			eventDetails = append(eventDetails, EventDetail{
+		if _, ok := eventDetails[processedDetailHash]; !ok {
+			eventDetails[processedDetailHash] = EventDetail{
 				RawDetail:           rawDetail,
 				ProcessedDetail:     processedDetail,
 				ProcessedDetailHash: processedDetailHash,
-			})
-			eventDetailsMap[processedDataHash] = len(eventDetails) - 1
+			}
 		}
 	}
 
-	// Returns a map where the keys are the indices that an error occurred
-	errBase := es.ds.AddEvents(eventClasses)
-	if len(errBase) != 0 {
-		for i, v := range errBase {
-			es.log.EventLog().LogData(eventClasses[i])
-			es.log.App().Errorf("Error while inserting events: %v", v)
+	// Add the event bases into the db
+	for k, base := range eventBases {
+		if err := es.ds.AddEvent(&base); err != nil {
+			es.log.EventLog().LogData(base)
+			es.log.App().Errorf("Error while inserting events: %v", err)
 		}
+		eventBases[k] = base
 	}
 
-	errDetails := es.ds.AddEventDetails(eventDetails)
-	if len(errDetails) != 0 {
-		for i, v := range errDetails {
-			es.log.EventLog().LogData(eventDetails[i])
-			es.log.App().Errorf("Error while inserting event data: %v", v)
+	for k, detail := range eventDetails {
+		if err := es.ds.AddEventDetail(&detail); err != nil {
+			es.log.EventLog().LogData(detail)
+			es.log.App().Errorf("Error while inserting event data: %v", err)
 		}
+		eventDetails[k] = detail
 	}
 
 	// Add the ids generated from above
-	for _, idx := range eventClassInstancesMap {
-
-		dataHash := eventClassInstances[idx].ProcessedDataHash
-		detailHash := eventClassInstances[idx].ProcessedDetailHash
-		eventClassInstances[idx].EventBaseId =
-			eventClasses[eventClassesMap[dataHash]].Id
-		eventClassInstances[idx].EventDetailId =
-			eventDetails[eventDetailsMap[detailHash]].Id
+	for k, instance := range eventInstances {
+		instance.EventBaseId = eventBases[instance.ProcessedDataHash].Id
+		instance.EventDetailId = eventDetails[instance.ProcessedDetailHash].Id
 		// log instance if there was an error adding event base or event details
-		if _, ok := errBase[eventClassesMap[dataHash]]; ok {
-			es.log.EventLog().LogData(eventClassInstances[idx])
+		if instance.EventBaseId == 0 {
+			es.log.EventLog().LogData(instance)
 		}
-		if _, ok := errDetails[eventDetailsMap[detailHash]]; ok {
-			es.log.EventLog().LogData(eventClassInstances[idx])
+		if instance.EventDetailId == 0 {
+			es.log.EventLog().LogData(instance)
 		}
+		eventInstances[k] = instance
 	}
 
-	errInstances := es.ds.AddEventInstances(eventClassInstances)
-	if len(errInstances) != 0 {
-		for i, v := range errInstances {
-			es.log.EventLog().LogData(eventClassInstances[i])
-			es.log.App().Errorf("Error while inserting event instances: %v", v)
+	for k, instance := range eventInstances {
+		if err := es.ds.AddEventInstance(&instance); err != nil {
+			es.log.EventLog().LogData(instance)
+			es.log.App().Errorf("Error while inserting event instances: %v", err)
 		}
+		eventInstances[k] = instance
 	}
 
 	// Add the ids generated from above
-	for _, idx := range eventClassInstancePeriodsMap {
-		dataHash := eventClassInstancePeriods[idx].RawDataHash
-		eventClassInstancePeriods[idx].EventInstanceId =
-			eventClassInstances[eventClassInstancesMap[dataHash]].Id
+	for k, period := range eventInstancePeriods {
+		period.EventInstanceId = eventInstances[period.RawDataHash].Id
 
-		if _, ok := errInstances[eventClassInstancesMap[dataHash]]; ok {
-			es.log.EventLog().LogData(eventClassInstancePeriods[idx])
+		// log period if there was an error adding event instance
+		if period.EventInstanceId == 0 {
+			es.log.EventLog().LogData(period)
 		}
+		eventInstancePeriods[k] = period
 	}
 
-	if err := es.ds.AddEventinstancePeriods(eventClassInstancePeriods); len(err) != 0 {
-		for i, v := range err {
-			es.log.EventLog().LogData(eventClassInstancePeriods[i])
-			es.log.App().Errorf("Error while inserting event time periods: %v", v)
+	for k, period := range eventInstancePeriods {
+		if err := es.ds.AddEventInstancePeriod(&period); err != nil {
+			es.log.EventLog().LogData(period)
+			es.log.App().Errorf("Error while inserting event time periods: %v", err)
 		}
+		eventInstancePeriods[k] = period
 	}
 }
 
