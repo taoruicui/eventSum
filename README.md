@@ -35,7 +35,7 @@ Create a Postgres cluster. Run the following script in your Postgres cluster:
 createdb <DBNAME>
 psql <DBNAME> -a -f script.sql
 ```
-This should create 5 tables: `event_base`, `event_instance`, `event_instance_period`, `event_group', and `event_detail`. 
+This should create 5 tables: `event_base`, `event_instance`, `event_instance_period`, `event_group`, and `event_detail`. 
 
 Eventsum runs on dataman. We need to generate a schema.json and instance.yaml file corresponding to the DB. 
 ```
