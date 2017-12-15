@@ -75,6 +75,33 @@ Example Request:
 
 Response: `200` or `400` or `500` status code
 
+### Assign Group
+```
+POST /assign_group
+Content-Type: application/json
+```
+
+Assigns the event group for an event base. Can take in an array.
+
+Request format: 
+```
+{
+    "event_id": <id of event base>
+    "group_id": <id of event group>
+}
+``` 
+
+Example Request: 
+```
+[
+    {"event_id": 1, "group_id": 3},
+    {"event_id": 2, "group_id": 2},
+    {"event_id": 3, "group_id": 1}
+]
+```
+
+Response: `200` or `400 ` or `500` status code
+
 ## Frontend API
 For the frontend component, there will be a dashboard (similar to sentry and gator) that includes different ways of 
 viewing the events. The actual dashboard will be built using opsdb, while the go service will serve the content. 
