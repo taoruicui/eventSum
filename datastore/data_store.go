@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"fmt"
+	"time"
 )
 
 var GlobalRule *rules.Rule
@@ -40,7 +41,13 @@ type DataStore interface {
 	GetEnvironmentsMap() map[string]EventEnvironment
 	GetGroups() ([]EventGroup, error)
 	GetEvents() ([]EventBase, error)
+	GetEventByHash(hash string) (EventBase, error)
+	GetEventDetailsbyId(id int) (EventDetailsResult, error)
 	SetGroupId(eventBaseId, eventGroupId int) (EventBase, error)
+	GeneralQuery(
+		start, end time.Time,
+		eventGroupMap, eventBaseMap, serviceIdMap, envIdMap map[int]bool,
+	) (EventResults, error)
 }
 
 type postgresStore struct {
@@ -156,7 +163,6 @@ func (p *postgresStore) Query(typ query.QueryType,
 		metrics.DBError("transport")
 		return res, err
 	} else if res.Error != "" {
-		metrics.DBError("read")
 		return res, errors.New(res.Error)
 	}
 	return res, err
@@ -347,6 +353,156 @@ func (p *postgresStore) GetEvents() ([]EventBase, error) {
 	return result, nil
 }
 
+// GeneralQuery is used by various handlers (grafana queries,
+// web queries, etc). It takes in a time range, as well as query
+// params in the form of maps, which will filter out the events.
+// Empty maps indicate that there should be no filtering for that
+// parameter.
+func (p *postgresStore) GeneralQuery(
+	start, end time.Time,
+	eventGroupMap, eventBaseMap, serviceIdMap, envIdMap map[int]bool) (EventResults, error) {
+
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("GetRecentEvents", now)
+	}()
+
+	var evts EventResults
+	var evtsMap = make(map[int]int)
+	var evtsDatapointMap = make(map[int]EventBins) // for storing datapoints map
+	join := []interface{}{"event_instance_id", "event_instance_id.event_base_id"}
+	filter := []interface{}{
+		map[string]interface{}{"updated": []interface{}{">=", start}}, "AND",
+		map[string]interface{}{"updated": []interface{}{"<=", end}},
+	}
+	res, err := p.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, join)
+	if err != nil {
+		metrics.DBError("read")
+		return evts, err
+	}
+
+	// loop through results
+	for _, t1 := range res.Return {
+		evtPeriod := EventInstancePeriod{}
+		evtInstance := EventInstance{}
+		evtBase := EventBase{}
+		err = util.MapDecode(t1, &evtPeriod, true)
+		t2, ok := t1["event_instance_id"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		err = util.MapDecode(t2, &evtInstance, true)
+		t3, ok := t2["event_base_id"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		err = util.MapDecode(t3, &evtBase, true)
+
+		// check if event matches params. If map is empty then every event matches
+		if _, ok := serviceIdMap[evtBase.ServiceId]; !ok && len(serviceIdMap) != 0 {
+			continue
+		}
+		if _, ok := envIdMap[evtBase.EventEnvironmentId]; !ok && len(envIdMap) != 0 {
+			continue
+		}
+		if _, ok := eventBaseMap[evtBase.Id]; !ok && len(eventBaseMap) != 0 {
+			continue
+		}
+		if _, ok := eventGroupMap[evtBase.EventGroupId]; !ok && len(eventGroupMap) != 0 {
+			continue
+		}
+
+		// Aggregate similar events
+		if _, ok = evtsMap[evtBase.Id]; !ok {
+			evts = append(evts, EventResult{
+				Id:                 evtBase.Id,
+				EventType:          evtBase.EventType,
+				EventName:          evtBase.EventName,
+				EventGroupId:       evtBase.EventGroupId,
+				EventEnvironmentId: evtBase.EventEnvironmentId,
+				TotalCount:         0,
+				ProcessedData:      evtBase.ProcessedData,
+				InstanceIds:        []int{},
+				Datapoints:         []Bin{},
+			})
+			evtsMap[evtBase.Id] = len(evts) - 1
+			evtsDatapointMap[evtBase.Id] = EventBins{}
+		}
+
+		start := int(evtPeriod.Updated.Unix() * 1000)
+		evt := &evts[evtsMap[evtBase.Id]]
+		evt.TotalCount += evtPeriod.Count
+		evt.InstanceIds = append(evt.InstanceIds, evtInstance.Id)
+
+		// update datapoints map with new count
+		if _, ok := evtsDatapointMap[evtBase.Id][start]; !ok {
+			evtsDatapointMap[evtBase.Id][start] = &Bin{Start: start, Count: 0}
+		}
+		evtsDatapointMap[evtBase.Id][start].Count += evtPeriod.Count
+	}
+
+	// turning map into sorted array
+	for id, datapoints := range evtsDatapointMap {
+		evts[evtsMap[id]].Datapoints = datapoints.ToSlice()
+	}
+
+	return evts, nil
+}
+
+// Get EventBase by processed_hash
+func (p *postgresStore) GetEventByHash(hash string) (EventBase, error) {
+	var base EventBase
+	filter := map[string]interface{}{"processed_data_hash": []interface{}{"=", hash}}
+	res, err := p.Query(query.Get, "event_base", filter, nil, nil, nil, -1, nil, nil)
+
+	if err != nil {
+		metrics.DBError("read")
+		return base, err
+	} else if len(res.Return) == 0 {
+		return base, errors.New("No base matches hash")
+	} else {
+		err = util.MapDecode(res.Return[0], &base, true)
+		return base, err
+	}
+}
+
+// Get the details of a single event instance
+func (p *postgresStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) {
+	var result EventDetailsResult
+	var instance EventInstance
+	var detail EventDetail
+	var base EventBase
+	join := []interface{}{"event_base_id", "event_detail_id"}
+	pkey := map[string]interface{}{"_id": id}
+
+	res, err := p.Query(query.Get, "event_instance", nil, nil, nil, pkey, -1, nil, join)
+
+	if err != nil {
+		metrics.DBError("read")
+		return result, err
+	} else if len(res.Return) == 0 {
+		return result, errors.New(fmt.Sprintf("no event instance with id %v", id))
+	}
+
+	util.MapDecode(res.Return[0], &instance, false)
+	if t1, ok := res.Return[0]["event_base_id"].(map[string]interface{}); ok {
+		util.MapDecode(t1, &base, false)
+		if t2, ok := res.Return[0]["event_detail_id"].(map[string]interface{}); ok {
+			util.MapDecode(t2, &detail, false)
+		}
+	}
+	result = EventDetailsResult{
+		ServiceId:  base.ServiceId,
+		EventType:  base.EventType,
+		EventName:  base.EventName,
+		RawData:    instance.RawData,
+		RawDetails: detail.RawDetail,
+	}
+	return result, nil
+}
+
+// Sets the event_group_id of a event base, returning error if event base
+// does not exist or event group does not exist
 func (p *postgresStore) SetGroupId(eventBaseId, eventGroupId int) (EventBase, error) {
 	var base EventBase
 
@@ -360,6 +516,7 @@ func (p *postgresStore) SetGroupId(eventBaseId, eventGroupId int) (EventBase, er
 	res, err := p.Query(query.Update, "event_base", filter, record, nil, nil, -1, nil, nil)
 
 	if err != nil {
+		metrics.DBError("write")
 		return base, err
 	} else if len(res.Return) == 0 {
 		return base, errors.New(fmt.Sprintf("no event base with id %v", eventBaseId))
