@@ -29,14 +29,10 @@ type DataStore interface {
 		limit int,
 		sort []string,
 		join []interface{}) (*query.Result, error)
-	AddEvent(evt *EventBase) error
-	AddEvents(evts []EventBase) map[int]error
+	AddEventBase(evt *EventBase) error
 	AddEventInstance(evt *EventInstance) error
-	AddEventInstances(evts []EventInstance) map[int]error
 	AddEventInstancePeriod(evt *EventInstancePeriod) error
-	AddEventinstancePeriods(evts []EventInstancePeriod) map[int]error
 	AddEventDetail(evt *EventDetail) error
-	AddEventDetails(evts []EventDetail) map[int]error
 	GetServices() []EventService
 	GetServicesMap() map[string]EventService
 	GetEnvironments() []EventEnvironment
@@ -164,7 +160,7 @@ func (p *postgresStore) Query(typ query.QueryType,
 	return res, err
 }
 
-func (p *postgresStore) AddEvent(evt *EventBase) error {
+func (p *postgresStore) AddEventBase(evt *EventBase) error {
 	filter := map[string]interface{}{
 		"service_id":          []interface{}{"=", evt.ServiceId},
 		"event_type":          []interface{}{"=", evt.EventType},
@@ -196,17 +192,6 @@ func (p *postgresStore) AddEvent(evt *EventBase) error {
 	return nil
 }
 
-func (p *postgresStore) AddEvents(evts []EventBase) map[int]error {
-	var errs = make(map[int]error)
-	for i := range evts {
-		err := p.AddEvent(&evts[i])
-		if err != nil {
-			errs[i] = err
-		}
-	}
-	return errs
-}
-
 func (p *postgresStore) AddEventInstance(evt *EventInstance) error {
 	filter := map[string]interface{}{
 		"generic_data_hash": []interface{}{"=", evt.GenericDataHash},
@@ -233,17 +218,6 @@ func (p *postgresStore) AddEventInstance(evt *EventInstance) error {
 	}
 	util.MapDecode(res.Return[0], &evt, false)
 	return nil
-}
-
-func (p *postgresStore) AddEventInstances(evts []EventInstance) map[int]error {
-	var errs = make(map[int]error)
-	for i := range evts {
-		err := p.AddEventInstance(&evts[i])
-		if err != nil {
-			errs[i] = err
-		}
-	}
-	return errs
 }
 
 func (p *postgresStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
@@ -291,17 +265,6 @@ func (p *postgresStore) AddEventInstancePeriod(evt *EventInstancePeriod) error {
 	}
 }
 
-func (p *postgresStore) AddEventinstancePeriods(evts []EventInstancePeriod) map[int]error {
-	var errs = make(map[int]error)
-	for i := range evts {
-		err := p.AddEventInstancePeriod(&evts[i])
-		if err != nil {
-			errs[i] = err
-		}
-	}
-	return errs
-}
-
 func (p *postgresStore) AddEventDetail(evt *EventDetail) error {
 	filter := map[string]interface{}{
 		"processed_detail_hash": []interface{}{"=", evt.ProcessedDetailHash},
@@ -325,17 +288,6 @@ func (p *postgresStore) AddEventDetail(evt *EventDetail) error {
 	}
 	util.MapDecode(res.Return[0], &evt, false)
 	return err
-}
-
-func (p *postgresStore) AddEventDetails(evts []EventDetail) map[int]error {
-	var errs = make(map[int]error)
-	for i := range evts {
-		err := p.AddEventDetail(&evts[i])
-		if err != nil {
-			errs[i] = err
-		}
-	}
-	return errs
 }
 
 func (p *postgresStore) GetServices() []EventService {

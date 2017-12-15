@@ -73,9 +73,9 @@ func (es *eventStore) Send(exc UnaddedEvent) {
 
 // Process Batch from channel and bulk insert into Db
 func (es *eventStore) SummarizeBatchEvents() {
-	start := time.Now()
+	now := time.Now()
 	defer func() {
-		metrics.EventStoreLatency("SummarizeBatchEvents", start)
+		metrics.EventStoreLatency("SummarizeBatchEvents", now)
 	}()
 
 	var evtsToAdd []UnaddedEvent
@@ -182,7 +182,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 
 	// Add the event bases into the db
 	for k, base := range eventBases {
-		if err := es.ds.AddEvent(&base); err != nil {
+		if err := es.ds.AddEventBase(&base); err != nil {
 			es.log.EventLog().LogData(base)
 			es.log.App().Errorf("Error while inserting events: %v", err)
 		}

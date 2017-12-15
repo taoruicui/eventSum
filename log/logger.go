@@ -149,7 +149,7 @@ func (l *Logger) PeriodicCheck(conf config) {
 		json.Unmarshal(line, &failedEvent)
 		// Add to DB
 		for hash, base := range failedEvent.Bases {
-			if err := l.ds.AddEvent(&base); err != nil {
+			if err := l.ds.AddEventBase(&base); err != nil {
 				// TODO
 				l.App().Error(err)
 				return
