@@ -390,3 +390,14 @@ func (es *eventStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) {
 	}
 	return result, nil
 }
+
+// Sets the event_group_id of a event base, returning error if event base
+// does not exist or event group does not exist
+func (es *eventStore) SetGroupId(eventBaseId int, groupId int) (EventBase, error) {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("SetGroupId", now)
+	}()
+
+	return es.ds.SetGroupId(eventBaseId, groupId)
+}

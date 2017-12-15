@@ -96,7 +96,9 @@ func (h *httpHandler) sendResp(w http.ResponseWriter, key string, val interface{
 }
 
 func (h *httpHandler) searchEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var err error
 	query := r.URL.Query()
+	serviceId := 1
 	endTime := time.Now()
 	startTime := endTime.Add(-1 * time.Hour)
 	serviceIdMap := make(map[int]bool)
@@ -106,10 +108,13 @@ func (h *httpHandler) searchEventsHandler(w http.ResponseWriter, r *http.Request
 	keywords := ""
 	sort := ""
 
-	serviceId, err := strconv.Atoi(query.Get("service_id"))
-	if err != nil {
-		h.sendError(w, http.StatusBadRequest, errors.New("service ID is missing or not an int"), "Error")
-		return
+	if str := query.Get("service_id"); str != "" {
+		id, err := strconv.Atoi(str)
+		if err != nil {
+			h.sendError(w, http.StatusBadRequest, errors.New("service ID is not an int"), "Error")
+			return
+		}
+		serviceId = id
 	}
 	serviceIdMap[serviceId] = true
 
@@ -238,6 +243,22 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	h.sendResp(w, "histogram", response)
+}
+
+func (h *httpHandler) groupEventsHandler(w http.ResponseWriter, r * http.Request, _ httprouter.Params) {
+	var evts []UnaddedEventGroup
+	defer r.Body.Close()
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&evts); err != nil {
+		h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event")
+		return
+	}
+	for _, evt := range evts {
+		if _, err := h.es.SetGroupId(evt.EventId, evt.GroupId); err != nil {
+			h.sendError(w, http.StatusInternalServerError, err, "Error setting group id")
+			return
+		}
+	}
 }
 
 func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

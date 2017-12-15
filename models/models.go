@@ -9,6 +9,11 @@ import (
 /* MODELS CORRESPONDING TO EVENTS AND API RESULTS */
 ////////////////////////////////////////////////////
 
+type UnaddedEventGroup struct {
+	EventId int `json:"event_id"`
+	GroupId int `json:"group_id"`
+}
+
 // UnaddedEvent is the first event that is sent to the server
 type UnaddedEvent struct {
 	Service               string                 `json:"service"`

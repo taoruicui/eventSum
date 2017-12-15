@@ -15,6 +15,7 @@ import (
 	"github.com/jacksontj/dataman/src/storage_node/metadata"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	"fmt"
 )
 
 var GlobalRule *rules.Rule
@@ -39,6 +40,7 @@ type DataStore interface {
 	GetEnvironmentsMap() map[string]EventEnvironment
 	GetGroups() ([]EventGroup, error)
 	GetEvents() ([]EventBase, error)
+	SetGroupId(eventBaseId, eventGroupId int) (EventBase, error)
 }
 
 type postgresStore struct {
@@ -343,4 +345,26 @@ func (p *postgresStore) GetEvents() ([]EventBase, error) {
 	}
 
 	return result, nil
+}
+
+func (p *postgresStore) SetGroupId(eventBaseId, eventGroupId int) (EventBase, error) {
+	var base EventBase
+
+	filter := map[string]interface{}{
+		"_id": []interface{}{"=", eventBaseId},
+	}
+	record := map[string]interface{}{
+		"event_group_id": eventGroupId,
+	}
+
+	res, err := p.Query(query.Update, "event_base", filter, record, nil, nil, -1, nil, nil)
+
+	if err != nil {
+		return base, err
+	} else if len(res.Return) == 0 {
+		return base, errors.New(fmt.Sprintf("no event base with id %v", eventBaseId))
+	}
+
+	util.MapDecode(res.Return[0], &base, true)
+	return base, nil
 }

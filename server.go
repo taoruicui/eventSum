@@ -108,8 +108,8 @@ func newServer(options func(server *EventSumServer)) *EventSumServer {
 
 	/* ROUTING */
 	// GET requests
-	s.route.GET("/", latency("/recent", s.httpHandler.searchEventsHandler))
-	s.route.GET("/search", latency("/recent", s.httpHandler.searchEventsHandler))
+	s.route.GET("/", latency("/search", s.httpHandler.searchEventsHandler))
+	s.route.GET("/search", latency("/search", s.httpHandler.searchEventsHandler))
 	s.route.GET("/detail", latency("/detail", s.httpHandler.detailsEventsHandler))
 	s.route.GET("/histogram", latency("/histogram", s.httpHandler.histogramEventsHandler))
 	s.route.GET("/health", latency("/health", s.httpHandler.healthCheck))
@@ -117,6 +117,7 @@ func newServer(options func(server *EventSumServer)) *EventSumServer {
 
 	// POST requests
 	s.route.POST("/capture", latency("/capture", s.httpHandler.captureEventsHandler))
+	s.route.POST("/assign_group", latency("/assign_group", s.httpHandler.groupEventsHandler))
 
 	// Grafana endpoints
 	s.route.GET("/grafana", latency("/grafana", cors(s.httpHandler.grafanaOk)))
