@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"math"
 )
 
 /////////////////////////////////////
@@ -122,18 +123,46 @@ type Bin struct {
 // Represents a map of bins, where the key is the start time
 type EventBins map[int]*Bin
 
-// return the bins sorted in chronological order
-func (e EventBins) ToSlice() []Bin {
-	keys := []int{}
-	res := []Bin{}
-	for i := range e {
-		keys = append(keys, i)
+// return the bins sorted in chronological order. If the number
+// of bins is above n, bins will be merge equally of fixed length.
+func (e EventBins) ToSlice(n int) []Bin {
+	if len(e) > n {
+		res := make([]Bin, n)
+		min := 0
+		max := 0
+
+		for k := range e {
+			if k < min {
+				min = k
+			}
+			if k > max {
+				max = k
+			}
+		}
+		l := float64(max-min)
+
+		// group following the formula: floor((x-min)*n/l)
+		for _, bin := range e {
+			idx := int(math.Floor(float64(bin.Start-min)*float64(n)/l))
+			if idx >= n {
+				idx = n-1
+			}
+			res[idx].Count += bin.Count
+			res[idx].Start = bin.Start
+		}
+		return res
+	} else {
+		keys := []int{}
+		res := []Bin{}
+		for i := range e {
+			keys = append(keys, i)
+		}
+		sort.Ints(keys)
+		for _, k := range keys {
+			res = append(res, *e[k])
+		}
+		return res
 	}
-	sort.Ints(keys)
-	for _, k := range keys {
-		res = append(res, *e[k])
-	}
-	return res
 }
 
 // Recent events

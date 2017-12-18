@@ -443,7 +443,7 @@ func (p *postgresStore) GeneralQuery(
 
 	// turning map into sorted array
 	for id, datapoints := range evtsDatapointMap {
-		evts[evtsMap[id]].Datapoints = datapoints.ToSlice()
+		evts[evtsMap[id]].Datapoints = datapoints.ToSlice(1000)
 	}
 
 	return evts, nil
