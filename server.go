@@ -23,19 +23,19 @@ import (
 /* GLOBAL VARIABLES */
 var globalRule rules.Rule
 
-type EventSumServer struct {
+type EventsumServer struct {
 	logger      *log.Logger
 	route       *httprouter.Router
 	httpHandler httpHandler
 	port        string
 }
 
-func (s *EventSumServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *EventsumServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.route.ServeHTTP(w, r)
 }
 
 // Starts the evensum server
-func (s *EventSumServer) Start() {
+func (s *EventsumServer) Start() {
 	httpServer := &http.Server{
 		Addr:    s.port,
 		Handler: s,
@@ -55,7 +55,7 @@ func (s *EventSumServer) Start() {
 }
 
 // Graceful shutdown of the store
-func (s *EventSumServer) Stop(hs *http.Server, timeout time.Duration) {
+func (s *EventsumServer) Stop(hs *http.Server, timeout time.Duration) {
 	// listen for termination signal
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
@@ -79,7 +79,7 @@ func (s *EventSumServer) Stop(hs *http.Server, timeout time.Duration) {
 }
 
 // User Defined configurable filters
-func (s *EventSumServer) AddFilter(name string, filter func(EventData) (EventData, error)) error {
+func (s *EventsumServer) AddFilter(name string, filter func(EventData) (EventData, error)) error {
 	if name == "" {
 		return errors.New("Name must be a valid string")
 	}
@@ -87,7 +87,7 @@ func (s *EventSumServer) AddFilter(name string, filter func(EventData) (EventDat
 }
 
 // User Defined configurable groupings
-func (s *EventSumServer) AddGrouping(name string, grouping func(EventData, map[string]interface{}) (map[string]interface{}, error)) error {
+func (s *EventsumServer) AddGrouping(name string, grouping func(EventData, map[string]interface{}) (map[string]interface{}, error)) error {
 	if name == "" {
 		return errors.New("Name must be a valid string")
 	}
@@ -95,15 +95,15 @@ func (s *EventSumServer) AddGrouping(name string, grouping func(EventData, map[s
 }
 
 // User Defined configurable groupings
-func (s *EventSumServer) AddConsolidation(f func(map[string]interface{}, map[string]interface{}) (map[string]interface{}, error)) error {
+func (s *EventsumServer) AddConsolidation(f func(map[string]interface{}, map[string]interface{}) (map[string]interface{}, error)) error {
 	return globalRule.AddConsolidateFunc(f)
 }
 
 // Creates new HTTP Server given options.
 // Options is a function which will be applied to the new Server
 // Returns a pointer to Server
-func newServer(options func(server *EventSumServer)) *EventSumServer {
-	s := &EventSumServer{route: httprouter.New()}
+func newServer(options func(server *EventsumServer)) *EventsumServer {
+	s := &EventsumServer{route: httprouter.New()}
 	options(s)
 
 	/* ROUTING */
@@ -129,7 +129,7 @@ func newServer(options func(server *EventSumServer)) *EventSumServer {
 	return s
 }
 
-func New(configFilename string) *EventSumServer {
+func New(configFilename string) *EventsumServer {
 	// Get configurations
 	config, err := conf.ParseEventsumConfig(configFilename)
 	if err != nil {
@@ -156,7 +156,7 @@ func New(configFilename string) *EventSumServer {
 	es := newEventStore(ds, config, logger)
 
 	// create new http store
-	return newServer(func(s *EventSumServer) {
+	return newServer(func(s *EventsumServer) {
 		s.logger = logger
 		s.httpHandler = newHTTPHandler(es, logger, config.TimeFormat)
 		s.port = ":" + strconv.Itoa(config.ServerPort)

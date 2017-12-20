@@ -1,188 +1,167 @@
-# Eventsum API
-## Backend API
-For the backend component, there is only one endpoint, to listen for incoming events.
+## Eventsum API
+Eventsum is ultimately a tool to aggregate arbitrary events. In order to aggregate events, eventsum provides various 
+ways for the user to specify 'rules' or 'filters' to apply to the events. This way, eventsum can be used for any type 
+of data aggregation.  
 
-### Capture
+For a full working example, please look at [this example](/cmd/example.go).
+
+### `eventsum.New(configFilename string)`
+Initializes a new eventsum server using the config file. 
+
+Arguments: 
 ```
-POST /capture
-Content-Type: application/json
-```
-
-Captures an incoming event.
-
-Request Format:
-```
-{
-    "service": <string> tier name (eg. WISH_FE, WISH_BE, etc),
-    “environment”: <string> environment name(eg. prod, stage, etc),
-    "event_name": <string> user-friendly name of event (eg. exception),
-    "event_type": <string> subcategory of service_id (eg Go, Python etc),
-    "event_data": <reference to data object>,
-    "extra_args": <object> args (locals, globals, etc),
-    "timestamp": <string> time in UTC following ISO8601 format,
-    “configurable_filters”: {
-        “instance”: [string array], // filters to transform raw -> instance
-        “base”: [string array], // filters to transform instance -> base
-        “extra_args”: [string array] // filters applied to extra_args
-    },
-    “configurable_groupings”: [string array]
-}
-
+configFilename: string 
 ```
 
-Example Request: 
-
-```
-{
-    "extra_args": {},
-    "event_type": "python",
-    "service": "WISH FE",
-    "event_name": "ZeroDivisionError",
-    "environment": "PROD",
-    "timestamp": "2017-12-13 21:23:10",
-    "configurable_filters": {
-        "instance": ["exception_python_process_stack_vars"],
-        "base": ["exception_python_remove_line_no", "exception_python_remove_stack_vars"],
-        "extra_args": []
-    },
-    "event_data": {
-        "raw_data": {
-            "frames": [{
-                "function": "<module>",
-                "abs_path": "/home/jwen/ContextLogic/test/server.py",
-                "pre_context": ["def func4(a):", "    return func3(a)", "", "if __name__ == '__main__':", "    try:"],
-                "post_context": ["    except Exception as e:", "        exc_typ, exc_value, tb = sys.exc_info()", "        data = {}", "        data['timestamp'] = datetime.utcnow().strftime(\"%Y-%m-%d %H:%M:%S\")", "        data['service'] = 'WISH FE'"],
-                "module": "__main__",
-                "filename": "test/server.py",
-                "lineno": 21,
-                "context_line": "        print func4(3)"
-            }, {
-                "function": "func4",
-                "abs_path": "/home/jwen/ContextLogic/test/server.py",
-                "pre_context": ["", "def func3(a):", "    return func2(a)", "", "def func4(a):"],
-                "post_context": ["", "if __name__ == '__main__':", "    try:", "        print func4(3)", "    except Exception as e:"],
-                "module": "__main__",
-                "filename": "test/server.py",
-                "lineno": 17,
-                "context_line": "    return func3(a)"
-            }]
-        },
-        "message": "integer division or modulo by zero"
-    },
-    "configurable_groupings": []
-}
-```
-
-Response: `200` or `400` or `500` status code
-
-### Assign Group
-```
-POST /assign_group
-Content-Type: application/json
-```
-
-Assigns the event group for an event base. Can take in an array.
-
-Request format: 
-```
-{
-    "event_id": <id of event base>
-    "group_id": <id of event group>
-}
-``` 
-
-Example Request: 
-```
-[
-    {"event_id": 1, "group_id": 3},
-    {"event_id": 2, "group_id": 2},
-    {"event_id": 3, "group_id": 1}
-]
-```
-
-Response: `200` or `400 ` or `500` status code
-
-## Frontend API
-For the frontend component, there will be a dashboard (similar to sentry and gator) that includes different ways of 
-viewing the events. The actual dashboard will be built using opsdb, while the go service will serve the content. 
-
-### Search
-
-```
-GET /search
-```
-
-Returns events that match the search query params.
-
-Required Params:
-```
-{
-    "service_id": <Wish FE, BE, etc.>
-}
-```
-
-Optional Params:
-```
-{
-    "start_time": <start time in UTC>
-    "end_time": <end time in UTC>
-    “hash”: <hash of the event base>
-    “group_id”: <id of group to match by>
-    “env_id”: <id of environment to match by>
-    "limit": <limit the results>
-    “sort”: <recent, increased>
-    “keywords”: <word to match by>
-}
-```
+Returns: `*eventsum.EventsumServer` 
 
 Example: 
 ```
-http://localhost:8080/search?service_id=1&start_time=2006-01-02 15:04:05&end_time=2020-01-02 15:04:05
-```
-
-Returns:
-```
-{
-    "events": [{
-        "id": event base id,
-        "event_type": exception type,
-        "event_name": event message,
-        "event_group_id": group id,
-        "event_environment_id": environment id,
-        "total_count": occurrences of event,
-        "processed_data": event data,
-        "instance_ids”: instances matching base event,
-        "datapoints”: [{“count”: count, “start”: unix time in ms}],
-    }]
+package main
+    
+import (
+    "github.com/ContextLogic/eventsum"
+)
+    
+func main() {
+    e := eventsum.New("config_filename.json")
 }
 ```
 
-### Details
-```
-GET /detail
-```
-
-Returns the specific details of an event
-
-Required Params:
-```
-{
-    "event_instance_id": <id of specific event>
-}
-```
+## EventsumServer functions
+### `EventsumServer.Start()`
+Starts the server, listening on the port specified by config file.
 
 Example: 
 ```
-http://localhost:8080/detail?event_id=234
+func main() {
+    e := eventsum.New("config_filename.json")
+    e.Start()
+}
 ```
 
-Returns:
+### `EventsumServer.AddFilter(name, filter)`
+Adds a user-specified filter function to the eventsum server. The filter function will be called on `EventData` every
+time `name` is in the request. 
+
+Arguments: 
 ```
-{
-    "service_id": service id,
-    "event_type": event type,
-    "event_name": event message,
-    "raw_data": <object> event data,
-    "raw_details": <object> extra details (args)
+name: string 
+filter: func (EventData)(EventData, error)
+```
+
+Returns: `error` 
+
+Example: 
+```
+import (
+    "github.com/ContextLogic/eventsum"
+    "github.com/ContextLogic/eventsum/models"
+    "github.com/pkg/errors"
+)
+    
+func main() {
+    e := eventsum.New("config_filename.json")
+    e.AddFilter("filter1", filter1)
+    e.Start()
+}
+    
+func filter1(data models.EventData) (models.EventData, error) {
+    if d, ok := data.Raw.(int); !ok {
+        return data, errors.New("not an int!")
+    } else {
+        data.Raw = d + 1
+    }
+    
+    return data, nil
+}
+```
+
+### `EventsumServer.AddGrouping(name string, grouping func)`
+Adds a user-specified grouping function to the eventsum server. This function merges a single `EventData` to a 
+summarized group. This is useful if events need to be aggregated in a unique manner, rather than simply counting. For 
+example, if histogram information needs to be saved, this would be useful.
+
+ 
+The grouping function will be called on `EventData` after all the filter functions have been executed. 
+
+Arguments: 
+```
+name: string 
+grouping: func(EventData, map[string]interface{}) (map[string]interface{}, error)
+```
+
+Returns: `error` 
+
+Example: 
+```
+import (
+    "github.com/ContextLogic/eventsum"
+    "github.com/ContextLogic/eventsum/models"
+    "github.com/pkg/errors"
+)
+    
+func main() {
+    e := eventsum.New("config_filename.json")
+    e.AddGrouping("grouping1", grouping1)
+    e.Start()
+}
+    
+func grouping1(data models.EventData, group map[string]interface{}) (map[string]interface{}, error) {
+    if _, ok := group["b"]; !ok {
+        group["b"] = 0.0
+    }
+    
+    if d, ok := data.Raw.(float64); !ok {
+        return group, errors.New("not a float!")
+    } else {
+        i := group["b"].(float64)
+        group["b"] = i + d
+    }
+    
+    return group, nil
+}
+```
+
+### `EventsumServer.AddConsolidation(f func)`
+Adds a user-specified consolidation function to the eventsum server. This function merges two summarized groups into 
+one. This is useful if events need to be aggregated in a unique manner, rather than simply counting. For example, if 
+histogram information needs to be saved, this would be useful.
+
+ 
+The grouping function will be called after all the filter and grouping functions have been executed. This merges local
+groups into the remote groups in the db.
+
+Arguments: 
+```
+f: func(map[string]interface{}, map[string]interface{}) (map[string]interface{}, error)
+```
+
+Returns: `error` 
+
+Example: 
+```
+import (
+    "github.com/ContextLogic/eventsum"
+    "github.com/ContextLogic/eventsum/models"
+    "github.com/pkg/errors"
+    "math"
+)
+    
+func main() {
+    e := eventsum.New("config_filename.json")
+    e.AddConsolidation(consolidate1)
+    e.Start()
+}
+    
+func consolidate1(group1, group2 map[string]interface{}) (map[string]interface{}, error) {
+    for k, i := range group1 {
+        if v, ok := group2[k]; !ok {
+            group2[k] = v
+        } else {
+            group2[k] = math.Max(v.(float64), i.(float64))
+        }
+    }
+    return group2, nil
 }
 ```

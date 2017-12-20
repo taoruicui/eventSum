@@ -20,7 +20,7 @@ Now we want to be able to create template variables to filter out exceptions. Ri
 - `service_name`
 - `event_base_id`
 - `group_name`
-- `environment_name`
+- `environment`
 - `sort`
 - `limit` 
 
