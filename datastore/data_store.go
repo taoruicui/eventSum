@@ -40,7 +40,7 @@ type DataStore interface {
 	GetEnvironments() []EventEnvironment
 	GetEnvironmentsMap() map[string]EventEnvironment
 	GetGroups() ([]EventGroup, error)
-	GetEvents() ([]EventBase, error)
+	GetEventsByServiceId(id int) ([]EventBase, error)
 	GetEventByHash(hash string) (EventBase, error)
 	GetEventDetailsbyId(id int) (EventDetailsResult, error)
 	SetGroupId(eventBaseId, eventGroupId int) (EventBase, error)
@@ -334,11 +334,13 @@ func (p *postgresStore) GetGroups() ([]EventGroup, error) {
 	return result, nil
 }
 
-func (p *postgresStore) GetEvents() ([]EventBase, error) {
+func (p *postgresStore) GetEventsByServiceId(id int) ([]EventBase, error) {
 	var result []EventBase
 	var base EventBase
 
-	res, err := p.Query(query.Filter, "event_base", nil, nil, nil, nil, -1, nil, nil)
+	filter := map[string]interface{}{"service_id": []interface{}{"=", id}}
+
+	res, err := p.Query(query.Filter, "event_base", filter, nil, nil, nil, -1, nil, nil)
 
 	if err != nil {
 		metrics.DBError("read")

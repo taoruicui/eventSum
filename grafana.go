@@ -7,6 +7,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	"net/http"
+	"strings"
 )
 
 // cors adds headers that Grafana requires to work as a direct access data
@@ -163,16 +164,26 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		}
 		result = names
 
-	// Get all event ids that correspond to service_id
+	// Get all event ids that correspond to service names
 	default:
 		services := h.es.ds.GetServicesMap()
-		service, ok := services[search.Target]
+		name := search.Target
+		name = strings.TrimLeft(name, "(")
+		name = strings.TrimRight(name, ")")
+		split := strings.Split(name, "|")
+
+		if len(split) == 0 {
+			h.sendError(w, http.StatusBadRequest, errors.New("service name does not specified"), "")
+			return
+		}
+
+		service, ok := services[split[0]]
 
 		if !ok {
 			h.sendError(w, http.StatusBadRequest, errors.New("service name does not exist"), "")
 		}
 
-		events, err := h.es.ds.GetEvents()
+		events, err := h.es.ds.GetEventsByServiceId(service.Id)
 		ids := []int{}
 
 		if err != nil {
@@ -180,9 +191,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		}
 
 		for _, base := range events {
-			if base.ServiceId == service.Id {
-				ids = append(ids, base.Id)
-			}
+			ids = append(ids, base.Id)
 		}
 		result = ids
 	}
