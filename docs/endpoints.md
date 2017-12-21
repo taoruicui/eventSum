@@ -186,3 +186,34 @@ Returns:
     "raw_details": <object> extra details (args)
 }
 ```
+
+### Assign Group
+```
+POST /assign_group
+Content-Type: application/json
+```
+
+Assigns the group id for multiple event bases. 
+
+Required Params:
+```
+[{
+    "event_id": <id of specific event base>,
+    "group_id": <id of event group>
+}]
+```
+
+Example: 
+```
+[
+    {
+        "event_id": 12,
+        "groupd_id": 2
+    }, {
+        "event_id": 13,
+        "groupd_id": 2
+    }
+]
+```
+
+Returns: `200` or `400` or `500` status code
