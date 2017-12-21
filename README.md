@@ -39,6 +39,13 @@ This should create 5 tables: `event_base`, `event_instance`, `event_instance_per
 
 Eventsum runs on dataman. We need to generate a schema.json and instance.yaml file corresponding to the DB. 
 ```
+# install dependencies
+go get "github.com/jacksontj/dataman/src/client"
+go get "github.com/jacksontj/dataman/src/client/direct"
+go get "github.com/jacksontj/dataman/src/query"
+go get "github.com/jacksontj/dataman/src/storage_node"
+go get "github.com/jacksontj/dataman/src/storage_node/metadata"
+    
 cd $GOPATH/src/github.com/jacksontj/dataman/src/schemaexport
 go build 
 ./schemaexport --databases <DBNAME> > $GOPATH/src/github.com/ContextLogic/eventsum/config/schema.json
