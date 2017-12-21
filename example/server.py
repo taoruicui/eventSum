@@ -1,9 +1,7 @@
 from stacks import iter_traceback_frames, get_stack_info
 import sys
-from raven import Client
 import requests
 from datetime import datetime
-import traceback
 
 def func1(a, *args, **kwargs):
     d = {'a': 3, 'b': func2}
@@ -19,15 +17,13 @@ def func4(a):
     return func3(a)
 
 if __name__ == '__main__':
-    client = Client('http://008e8e98273346d782db8bc407917e76:dedc6b38b0dd484fa4db1543a19cb0f5@sentry.i.wish.com/2')
     try:
         print func4(3)
     except Exception as e:
         exc_typ, exc_value, tb = sys.exc_info()
-        c = client.captureException(id=3, time=datetime.now())
         data = {}
         data['timestamp'] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        data['service'] = 'Wish FE'
+        data['service'] = 'WISH FE'
         data['environment'] = 'PROD'
         data['event_type'] = 'python'
         data['event_name'] = exc_typ.__name__
