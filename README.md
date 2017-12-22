@@ -1,7 +1,9 @@
 # eventsum
 An event aggregate service 
 
-There are a lot of events that might occur throughout production (eg. exceptions, queries, etc). A lot of these events might be extremely similar to other events. We want a system that captures the events, aggregates them, and stores them in a datastore. This project: 
+There are a lot of events that might occur throughout production (eg. exceptions, queries, etc). A lot of these events 
+might be extremely similar to other events. We want a system that captures the events, aggregates them, and stores them 
+in a datastore. This project: 
 
 - Creates an eventsum store
 - Provides an API to capture / view events 
@@ -51,15 +53,12 @@ cd $GOPATH/src/github.com/jacksontj/dataman/src/schemaexport
 go build 
 ./schemaexport --databases <DBNAME> > $GOPATH/src/github.com/ContextLogic/eventsum/config/schema.json
 ```
-If this command generates an empty schema, that means dataman could not reach your DB. Modify the `src/storage_node/storagenode/config.yaml` file, and run the above command again. 
+If this command generates an empty schema, that means dataman could not reach your DB. Modify the 
+`src/storage_node/storagenode/config.yaml` file, and run the above command again. 
 
 ### Setting up Config Files
-Eventsum requires a number of configuration files in order to run. Look in the `config/` directory for all config files you need. The main entry file is `config.json`. Other notable files are: 
-```
-datasourceinstance.yaml: db instance config file
-logconfig.json: log config
-schema.json: schema of db instance
-```
+Eventsum requires a number of configuration files in order to run. Look in the `config/` directory for all config files 
+you need. You can look at the documentation of the files [here](/docs/config_files.md)
 
 ### Running the server
 Look at `example/example.go` for a working example. To run the service, type this:

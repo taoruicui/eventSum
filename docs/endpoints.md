@@ -19,7 +19,7 @@ Request Format:
     "event_type": <string> subcategory of service_id (eg Go, Python etc),
     "event_data": <reference to data object>,
     "extra_args": <object> args (locals, globals, etc),
-    "timestamp": <string> time in UTC following ISO8601 format,
+    "timestamp": <string> time in UTC. Time format is set in config, "2006-01-02 15:04:05" by default,
     “configurable_filters”: {
         “instance”: [string array], // filters to transform raw -> instance
         “base”: [string array], // filters to transform instance -> base
@@ -124,8 +124,8 @@ Required Params:
 Optional Params:
 ```
 {
-    "start_time": <start time in UTC>
-    "end_time": <end time in UTC>
+    "start_time": <start time in UTC. Time format is set in config, "2006-01-02 15:04:05" by default.>
+    "end_time": <end time in UTC. Time format is set in config, "2006-01-02 15:04:05" by default.>
     “hash”: <hash of the event base>
     “group_id”: <id of group to match by>
     “env_id”: <id of environment to match by>
