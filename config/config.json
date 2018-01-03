@@ -5,6 +5,7 @@
   "log_config_file": "config/logconfig.json",
   "event_batch_limit": 4,
   "event_time_limit": 5,
+  "time_format": "2006-01-02 15:04:05",
   "server_port": 8080,
   "services": {
     "default": {"service_id": 0},
