@@ -1,0 +1,367 @@
+{
+  "databases": {
+    "eventsum": {
+      "name": "eventsum",
+      "shard_instances": {
+        "public": {
+          "name": "public",
+          "count": 1,
+          "instance": 1,
+          "collections": {
+            "event_base": {
+              "name": "event_base",
+              "fields": {
+                "_id": {
+                  "name": "_id",
+                  "field_type": "_serial",
+                  "not_null": true,
+                  "provision_state": 3
+                },
+                "event_environment_id": {
+                  "name": "event_environment_id",
+                  "field_type": "_int",
+                  "provision_state": 3
+                },
+                "event_group_id": {
+                  "name": "event_group_id",
+                  "field_type": "_int",
+                  "relation": {
+                    "collection": "event_group",
+                    "field": "_id"
+                  },
+                  "provision_state": 3
+                },
+                "event_name": {
+                  "name": "event_name",
+                  "field_type": "_string",
+                  "provision_state": 3
+                },
+                "event_type": {
+                  "name": "event_type",
+                  "field_type": "_string",
+                  "provision_state": 3
+                },
+                "processed_data": {
+                  "name": "processed_data",
+                  "field_type": "_json",
+                  "provision_state": 3
+                },
+                "processed_data_hash": {
+                  "name": "processed_data_hash",
+                  "field_type": "_string",
+                  "provision_state": 3
+                },
+                "service_id": {
+                  "name": "service_id",
+                  "field_type": "_int",
+                  "provision_state": 3
+                }
+              },
+              "indexes": {
+                "event_base_pkey": {
+                  "name": "event_base_pkey",
+                  "fields": [
+                    "_id"
+                  ],
+                  "unique": true,
+                  "primary": true,
+                  "provision_state": 3
+                },
+                "event_base_service_id_event_type_event_environment_id_proce_key": {
+                  "name": "event_base_service_id_event_type_event_environment_id_proce_key",
+                  "fields": [
+                    "service_id",
+                    "event_type",
+                    "event_environment_id",
+                    "processed_data_hash"
+                  ],
+                  "unique": true,
+                  "provision_state": 3
+                }
+              },
+              "provision_state": 3
+            },
+            "event_detail": {
+              "name": "event_detail",
+              "fields": {
+                "_id": {
+                  "name": "_id",
+                  "field_type": "_serial",
+                  "not_null": true,
+                  "provision_state": 3
+                },
+                "processed_detail": {
+                  "name": "processed_detail",
+                  "field_type": "_json",
+                  "provision_state": 3
+                },
+                "processed_detail_hash": {
+                  "name": "processed_detail_hash",
+                  "field_type": "_string",
+                  "provision_state": 3
+                },
+                "raw_detail": {
+                  "name": "raw_detail",
+                  "field_type": "_json",
+                  "provision_state": 3
+                }
+              },
+              "indexes": {
+                "event_detail_pkey": {
+                  "name": "event_detail_pkey",
+                  "fields": [
+                    "_id"
+                  ],
+                  "unique": true,
+                  "primary": true,
+                  "provision_state": 3
+                },
+                "event_detail_processed_detail_hash_key": {
+                  "name": "event_detail_processed_detail_hash_key",
+                  "fields": [
+                    "processed_detail_hash"
+                  ],
+                  "unique": true,
+                  "provision_state": 3
+                }
+              },
+              "provision_state": 3
+            },
+            "event_group": {
+              "name": "event_group",
+              "fields": {
+                "_id": {
+                  "name": "_id",
+                  "field_type": "_serial",
+                  "not_null": true,
+                  "provision_state": 3
+                },
+                "info": {
+                  "name": "info",
+                  "field_type": "_text",
+                  "provision_state": 3
+                },
+                "name": {
+                  "name": "name",
+                  "field_type": "_string",
+                  "provision_state": 3
+                }
+              },
+              "indexes": {
+                "event_group_name_key": {
+                  "name": "event_group_name_key",
+                  "fields": [
+                    "name"
+                  ],
+                  "unique": true,
+                  "provision_state": 3
+                },
+                "event_group_pkey": {
+                  "name": "event_group_pkey",
+                  "fields": [
+                    "_id"
+                  ],
+                  "unique": true,
+                  "primary": true,
+                  "provision_state": 3
+                }
+              },
+              "provision_state": 3
+            },
+            "event_instance": {
+              "name": "event_instance",
+              "fields": {
+                "_id": {
+                  "name": "_id",
+                  "field_type": "_serial",
+                  "not_null": true,
+                  "provision_state": 3
+                },
+                "event_base_id": {
+                  "name": "event_base_id",
+                  "field_type": "_int",
+                  "relation": {
+                    "collection": "event_base",
+                    "field": "_id"
+                  },
+                  "provision_state": 3
+                },
+                "event_detail_id": {
+                  "name": "event_detail_id",
+                  "field_type": "_int",
+                  "relation": {
+                    "collection": "event_detail",
+                    "field": "_id"
+                  },
+                  "provision_state": 3
+                },
+                "event_environment_id": {
+                  "name": "event_environment_id",
+                  "field_type": "_int",
+                  "provision_state": 3
+                },
+                "generic_data": {
+                  "name": "generic_data",
+                  "field_type": "_json",
+                  "provision_state": 3
+                },
+                "generic_data_hash": {
+                  "name": "generic_data_hash",
+                  "field_type": "_string",
+                  "provision_state": 3
+                },
+                "raw_data": {
+                  "name": "raw_data",
+                  "field_type": "_json",
+                  "provision_state": 3
+                }
+              },
+              "indexes": {
+                "event_instance_generic_data_hash_event_environment_id_key": {
+                  "name": "event_instance_generic_data_hash_event_environment_id_key",
+                  "fields": [
+                    "generic_data_hash",
+                    "event_environment_id"
+                  ],
+                  "unique": true,
+                  "provision_state": 3
+                },
+                "event_instance_pkey": {
+                  "name": "event_instance_pkey",
+                  "fields": [
+                    "_id"
+                  ],
+                  "unique": true,
+                  "primary": true,
+                  "provision_state": 3
+                }
+              },
+              "provision_state": 3
+            },
+            "event_instance_period": {
+              "name": "event_instance_period",
+              "fields": {
+                "_id": {
+                  "name": "_id",
+                  "field_type": "_serial",
+                  "not_null": true,
+                  "provision_state": 3
+                },
+                "cas_value": {
+                  "name": "cas_value",
+                  "field_type": "_int",
+                  "default": 0,
+                  "provision_state": 3
+                },
+                "count": {
+                  "name": "count",
+                  "field_type": "_int",
+                  "default": 1,
+                  "provision_state": 3
+                },
+                "counter_json": {
+                  "name": "counter_json",
+                  "field_type": "_json",
+                  "provision_state": 3
+                },
+                "end_time": {
+                  "name": "end_time",
+                  "field_type": "_datetime",
+                  "provision_state": 3
+                },
+                "event_instance_id": {
+                  "name": "event_instance_id",
+                  "field_type": "_int",
+                  "relation": {
+                    "collection": "event_instance",
+                    "field": "_id"
+                  },
+                  "provision_state": 3
+                },
+                "start_time": {
+                  "name": "start_time",
+                  "field_type": "_datetime",
+                  "provision_state": 3
+                },
+                "updated": {
+                  "name": "updated",
+                  "field_type": "_datetime",
+                  "provision_state": 3
+                }
+              },
+              "indexes": {
+                "event_instance_period_event_instance_id_start_time_end_time_key": {
+                  "name": "event_instance_period_event_instance_id_start_time_end_time_key",
+                  "fields": [
+                    "event_instance_id",
+                    "start_time",
+                    "end_time"
+                  ],
+                  "unique": true,
+                  "provision_state": 3
+                },
+                "event_instance_period_pkey": {
+                  "name": "event_instance_period_pkey",
+                  "fields": [
+                    "_id"
+                  ],
+                  "unique": true,
+                  "primary": true,
+                  "provision_state": 3
+                },
+                "updated_idx": {
+                  "name": "updated_idx",
+                  "fields": [
+                    "updated"
+                  ],
+                  "provision_state": 3
+                }
+              },
+              "provision_state": 3
+            }
+          },
+          "provision_state": 3
+        }
+      },
+      "provision_state": 3
+    }
+  },
+  "field_types": {
+    "_bool": {
+      "name": "_bool",
+      "dataman_type": "bool"
+    },
+    "_datetime": {
+      "name": "_datetime",
+      "dataman_type": "datetime"
+    },
+    "_document": {
+      "name": "_document",
+      "dataman_type": "document"
+    },
+    "_float": {
+      "name": "_float",
+      "dataman_type": "float"
+    },
+    "_int": {
+      "name": "_int",
+      "dataman_type": "int"
+    },
+    "_json": {
+      "name": "_json",
+      "dataman_type": "json"
+    },
+    "_serial": {
+      "name": "_serial",
+      "dataman_type": "serial"
+    },
+    "_string": {
+      "name": "_string",
+      "dataman_type": "string"
+    },
+    "_text": {
+      "name": "_text",
+      "dataman_type": "text"
+    }
+  }
+}
