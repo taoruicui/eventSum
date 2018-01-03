@@ -102,6 +102,34 @@ Example Request:
 
 Response: `200` or `400 ` or `500` status code
 
+### Create Group
+```
+POST /group
+Content-Type: application/json
+```
+
+Created a/multiple event group. Can take in an array.
+
+Request format:
+```
+{
+    "name": <name of the group>,
+    "info": <group info>
+}
+```
+
+Example Request: 
+```
+[
+    {"name": "group 1", "info": "group 1 info"},
+    {"name": "group 2", "info": "group 2 info"},
+    {"name": "group 3", "info": "group 3 info"}
+
+]
+```
+
+Response: `200` or `400 ` or `500` status code
+
 ## Frontend Endpoint
 For the frontend component, there will be a dashboard (similar to sentry and gator) that includes different ways of 
 viewing the events. The actual dashboard will be built using opsdb, while the go service will serve the content. 
