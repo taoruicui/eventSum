@@ -277,5 +277,9 @@ func (es *eventStore) SetGroupId(eventBaseId int, groupId int) (EventBase, error
 }
 
 func (es *eventStore) AddEventGroup(group EventGroup) (EventGroup, error) {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("AddEventGroup", now)
+	}()
 	return es.ds.AddEventGroup(group)
 }

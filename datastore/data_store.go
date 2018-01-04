@@ -49,6 +49,7 @@ type DataStore interface {
 		eventGroupMap, eventBaseMap, serviceIdMap, envIdMap map[int]bool,
 	) (EventResults, error)
 	AddEventGroup(group EventGroup) (EventGroup, error)
+	GetEventTypes(match string) ([]string, error)
 }
 
 type postgresStore struct {
@@ -540,4 +541,17 @@ func (p *postgresStore) AddEventGroup(group EventGroup)(EventGroup, error){
 		return group, err
 	}
 	return group, nil
+}
+
+func (p *postgresStore) GetEventTypes(match string) ([]string, error){
+
+	//filter := map[string]interface{}{
+	//	"event_type":          []interface{}{"=", match},
+	//}
+	res, err := p.Query(query.Get, "event_base", nil, nil, nil,nil, -1, nil, nil)
+
+	fmt.Println(res.Return)
+
+
+	return nil, err
 }
