@@ -7,7 +7,7 @@ import time
 
 def func1(a, *args, **kwargs):
     d = {'a': 3, 'b': func2}
-    raise Exception("Test Exception {1}".format(random.randint(1,10)))
+    raise Exception("Test Exception {}".format(random.randint(1,10)))
 
 def func2(a):
     return func1(a, [1,2,3], hello={'a':2,'b':3})
