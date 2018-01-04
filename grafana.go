@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"net/http"
 	"strings"
+	"regexp"
 )
 
 // cors adds headers that Grafana requires to work as a direct access data
@@ -126,14 +127,18 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&search)
+	var isDefault bool
+	var idFilterMatch = regexp.MustCompile("\\w&&")
+	var eventTypeFilterMatch = regexp.MustCompile("(event_type=.*|event_type\\scontains\\s.*)")
 
 	if err != nil {
 		h.sendError(w, http.StatusBadRequest, err, "Incorrect request format")
 	}
 
-	switch search.Target {
+	fmt.Println(search.Target)
+	switch {
 	// Get all service ids
-	case "service_name":
+	case search.Target == "service_name":
 		services := h.es.ds.GetServices()
 		names := []string{}
 
@@ -142,7 +147,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		}
 		result = names
 
-	case "environment":
+	case search.Target == "environment":
 		environments := h.es.ds.GetEnvironments()
 		names := []string{}
 
@@ -151,7 +156,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		}
 		result = names
 
-	case "group_name":
+	case search.Target == "group_name":
 		groups, err := h.es.ds.GetGroups()
 		names := []string{}
 
@@ -164,8 +169,26 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		}
 		result = names
 
-	// Get all event ids that correspond to service names
-	default:
+	case eventTypeFilterMatch.MatchString(search.Target):
+		var filter = search.Target
+		if strings.Contains(filter, "=") {
+			filter = strings.Split(filter, "=")[1]
+		} else {
+			filter = strings.Split(filter, " contains ")[1]
+		}
+
+		h.es.ds.GetEventTypes(filter)
+		//names := []string{}
+		//
+		//if err != nil {
+		//	h.sendError(w, http.StatusInternalServerError, err, "eventstore error")
+		//}
+		//
+		//for _, eventType := range eventTypes {
+		//	names = append(names, eventTypes.Name)
+		//}
+
+	case idFilterMatch.MatchString(search.Target):
 		services := h.es.ds.GetServicesMap()
 		name := search.Target
 		name = strings.TrimLeft(name, "(")
@@ -194,9 +217,15 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 			ids = append(ids, base.Id)
 		}
 		result = ids
+
+	default:
+		w.WriteHeader(405)
+		isDefault = true
+	}
+	if !isDefault{
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			fmt.Printf("json encode failure: %+v", err)
+		}
 	}
 
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		fmt.Printf("json encode failure: %+v", err)
-	}
 }
