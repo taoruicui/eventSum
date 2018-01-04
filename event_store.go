@@ -275,3 +275,7 @@ func (es *eventStore) SetGroupId(eventBaseId int, groupId int) (EventBase, error
 
 	return es.ds.SetGroupId(eventBaseId, groupId)
 }
+
+func (es *eventStore) AddEventGroup(group EventGroup) (EventGroup, error) {
+	return es.ds.AddEventGroup(group)
+}

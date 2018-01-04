@@ -118,6 +118,7 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 	// POST requests
 	s.route.POST("/capture", latency("/capture", s.httpHandler.captureEventsHandler))
 	s.route.POST("/assign_group", latency("/assign_group", s.httpHandler.groupEventsHandler))
+	s.route.POST("/group", latency("/group", s.httpHandler.groupEventsHandler))
 
 	// Grafana endpoints
 	s.route.GET("/grafana", latency("/grafana", cors(s.httpHandler.grafanaOk)))

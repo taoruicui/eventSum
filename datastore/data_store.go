@@ -48,6 +48,7 @@ type DataStore interface {
 		start, end time.Time,
 		eventGroupMap, eventBaseMap, serviceIdMap, envIdMap map[int]bool,
 	) (EventResults, error)
+	AddEventGroup(group EventGroup) (EventGroup, error)
 }
 
 type postgresStore struct {
@@ -526,4 +527,17 @@ func (p *postgresStore) SetGroupId(eventBaseId, eventGroupId int) (EventBase, er
 
 	util.MapDecode(res.Return[0], &base, true)
 	return base, nil
+}
+
+func (p *postgresStore) AddEventGroup(group EventGroup)(EventGroup, error){
+	record := map[string]interface{}{
+		"name": group.Name,
+		"info": group.Info,
+	}
+	_, err := p.Query(query.Set, "event_group", nil, record, nil,nil, -1, nil, nil)
+	if err != nil {
+		metrics.DBError("write")
+		return group, err
+	}
+	return group, nil
 }
