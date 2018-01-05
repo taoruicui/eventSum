@@ -3,6 +3,12 @@ package datastore
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
@@ -14,11 +20,6 @@ import (
 	"github.com/jacksontj/dataman/src/storage_node"
 	"github.com/jacksontj/dataman/src/storage_node/metadata"
 	"github.com/pkg/errors"
-	"io/ioutil"
-	"fmt"
-	"time"
-	"strconv"
-	"strings"
 )
 
 var GlobalRule *rules.Rule
@@ -43,6 +44,7 @@ type DataStore interface {
 	GetEnvironmentsMap() map[string]EventEnvironment
 	GetGroups() ([]EventGroup, error)
 	GetEventsByServiceId(id int) ([]EventBase, error)
+	GetEventsByCriteria(serviceId string, eventType string, eventName string, environmentId string) ([]EventBase, error)
 	GetEventByHash(hash string) (EventBase, error)
 	GetEventDetailsbyId(id int) (EventDetailsResult, error)
 	SetGroupId(eventBaseId, eventGroupId int) (EventBase, error)
@@ -51,7 +53,7 @@ type DataStore interface {
 		eventGroupMap, eventBaseMap, serviceIdMap, envIdMap map[int]bool,
 	) (EventResults, error)
 	AddEventGroup(group EventGroup) (EventGroup, error)
-	ModifyEventGroup(name string, info string, newName string)  (error)
+	ModifyEventGroup(name string, info string, newName string) error
 	GetEventTypes(statement string) ([]string, error)
 	GetEventNames(statement string) ([]string, error)
 	GetEventsByGroup(group_id int, group_name string) ([]EventBase, error)
@@ -534,12 +536,12 @@ func (p *postgresStore) SetGroupId(eventBaseId, eventGroupId int) (EventBase, er
 	return base, nil
 }
 
-func (p *postgresStore) AddEventGroup(group EventGroup)(EventGroup, error){
+func (p *postgresStore) AddEventGroup(group EventGroup) (EventGroup, error) {
 	record := map[string]interface{}{
 		"name": group.Name,
 		"info": group.Info,
 	}
-	_, err := p.Query(query.Set, "event_group", nil, record, nil,nil, -1, nil, nil)
+	_, err := p.Query(query.Set, "event_group", nil, record, nil, nil, -1, nil, nil)
 	if err != nil {
 		metrics.DBError("write")
 		return group, err
@@ -547,7 +549,7 @@ func (p *postgresStore) AddEventGroup(group EventGroup)(EventGroup, error){
 	return group, nil
 }
 
-func (p *postgresStore) ModifyEventGroup(name string, info string, newName string) (error){
+func (p *postgresStore) ModifyEventGroup(name string, info string, newName string) error {
 
 	filter := map[string]interface{}{
 		"name": []interface{}{"=", name},
@@ -555,10 +557,10 @@ func (p *postgresStore) ModifyEventGroup(name string, info string, newName strin
 	record := map[string]interface{}{
 		"name": newName,
 	}
-	if info != ""{
+	if info != "" {
 		record["info"] = info
 	}
-	_, err := p.Query(query.Update, "event_group", filter, record, nil,nil, -1, nil, nil)
+	_, err := p.Query(query.Update, "event_group", filter, record, nil, nil, -1, nil, nil)
 	if err != nil {
 		metrics.DBError("write")
 		return err
@@ -566,7 +568,7 @@ func (p *postgresStore) ModifyEventGroup(name string, info string, newName strin
 	return nil
 }
 
-func (p *postgresStore) GetEventTypes(statement string) ([]string, error){
+func (p *postgresStore) GetEventTypes(statement string) ([]string, error) {
 	var result []string
 
 	if strings.Contains(statement, "=") {
@@ -574,25 +576,25 @@ func (p *postgresStore) GetEventTypes(statement string) ([]string, error){
 		filter := map[string]interface{}{
 			"event_type": []interface{}{"=", statement},
 		}
-		res, err := p.Query(query.Filter, "event_base", filter, nil, nil,nil, -1, nil, nil)
+		res, err := p.Query(query.Filter, "event_base", filter, nil, nil, nil, -1, nil, nil)
 		if err != nil {
 			metrics.DBError("read")
 			return result, err
-		} else if (len(res.Return) == 0){
+		} else if len(res.Return) == 0 {
 			return result, errors.New(fmt.Sprintf("no event type with %s", statement))
 		}
-		for _, r := range res.Return{
+		for _, r := range res.Return {
 			result = append(result, fmt.Sprintf("%s", r["event_type"]))
 		}
 		return result, nil
 	} else {
 		statement = strings.Split(statement, " contains ")[1]
-		res, err := p.Query(query.Filter, "event_base", nil, nil, nil,nil, -1, nil, nil)
+		res, err := p.Query(query.Filter, "event_base", nil, nil, nil, nil, -1, nil, nil)
 		if err != nil {
 			metrics.DBError("read")
 			return result, err
 		}
-		for _, r := range res.Return{
+		for _, r := range res.Return {
 			tmp := fmt.Sprintf("%s", r["event_type"])
 			if strings.Contains(tmp, statement) {
 				result = append(result, tmp)
@@ -602,7 +604,7 @@ func (p *postgresStore) GetEventTypes(statement string) ([]string, error){
 	}
 }
 
-func (p *postgresStore) GetEventNames(statement string) ([]string, error){
+func (p *postgresStore) GetEventNames(statement string) ([]string, error) {
 	var result []string
 
 	if strings.Contains(statement, "=") {
@@ -610,25 +612,25 @@ func (p *postgresStore) GetEventNames(statement string) ([]string, error){
 		filter := map[string]interface{}{
 			"event_name": []interface{}{"=", statement},
 		}
-		res, err := p.Query(query.Filter, "event_base", filter, nil, nil,nil, -1, nil, nil)
+		res, err := p.Query(query.Filter, "event_base", filter, nil, nil, nil, -1, nil, nil)
 		if err != nil {
 			metrics.DBError("read")
 			return result, err
-		} else if (len(res.Return) == 0){
+		} else if len(res.Return) == 0 {
 			return result, errors.New(fmt.Sprintf("no event name with %s", statement))
 		}
-		for _, r := range res.Return{
+		for _, r := range res.Return {
 			result = append(result, fmt.Sprintf("%s", r["event_name"]))
 		}
 		return result, nil
 	} else {
 		statement = strings.Split(statement, " contains ")[1]
-		res, err := p.Query(query.Filter, "event_base", nil, nil, nil,nil, -1, nil, nil)
+		res, err := p.Query(query.Filter, "event_base", nil, nil, nil, nil, -1, nil, nil)
 		if err != nil {
 			metrics.DBError("read")
 			return result, err
 		}
-		for _, r := range res.Return{
+		for _, r := range res.Return {
 			tmp := fmt.Sprintf("%s", r["event_name"])
 			if strings.Contains(tmp, statement) {
 				result = append(result, tmp)
@@ -638,7 +640,7 @@ func (p *postgresStore) GetEventNames(statement string) ([]string, error){
 	}
 }
 
-func (p *postgresStore) GetEventsByGroup(group_id int, group_name string) ([]EventBase, error){
+func (p *postgresStore) GetEventsByGroup(group_id int, group_name string) ([]EventBase, error) {
 	var evts []EventBase
 
 	if group_name != "" {
@@ -659,7 +661,11 @@ func (p *postgresStore) GetEventsByGroup(group_id int, group_name string) ([]Eve
 		"event_group_id": []interface{}{"=", group_id},
 	}
 
-	res, _ := p.Query(query.Filter, "event_base", idFilter, nil, nil, nil, -1, nil, nil)
+	res, err := p.Query(query.Filter, "event_base", idFilter, nil, nil, nil, -1, nil, nil)
+	if err != nil {
+		metrics.DBError("read")
+		return evts, err
+	}
 	var evt EventBase
 	for _, r := range res.Return {
 		if err := util.MapDecode(r, &evt, true); err != nil {
@@ -667,5 +673,39 @@ func (p *postgresStore) GetEventsByGroup(group_id int, group_name string) ([]Eve
 		}
 		evts = append(evts, evt)
 	}
+	return evts, nil
+}
+
+func (p *postgresStore) GetEventsByCriteria(serviceId string, eventType string, eventName string, environmentId string) ([]EventBase, error) {
+	var evts []EventBase
+	var filter = make(map[string]interface{})
+	if serviceId != "" {
+		sid, _ := strconv.Atoi(serviceId)
+		filter["service_id"] = []interface{}{"=", sid}
+	}
+	if eventType != "" {
+		filter["event_type"] = []interface{}{"=", eventType}
+	}
+	if eventName != "" {
+		filter["event_name"] = []interface{}{"=", eventName}
+	}
+	if environmentId != "" {
+		eid, _ := strconv.Atoi(environmentId)
+		filter["event_environment_id"] = []interface{}{"=", eid}
+	}
+	fmt.Println(filter)
+	res, err := p.Query(query.Filter, "event_base", filter, nil, nil, nil, -1, nil, nil)
+	if err != nil {
+		metrics.DBError("read")
+		return evts, err
+	}
+	var evt EventBase
+	for _, r := range res.Return {
+		if err := util.MapDecode(r, &evt, true); err != nil {
+			return evts, err
+		}
+		evts = append(evts, evt)
+	}
+
 	return evts, nil
 }

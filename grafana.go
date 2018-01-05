@@ -3,12 +3,16 @@ package eventsum
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"regexp"
+	"strings"
+	_ "strings"
+
+	"strconv"
+
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-	"net/http"
-	"strings"
-	"regexp"
 )
 
 // cors adds headers that Grafana requires to work as a direct access data
@@ -127,8 +131,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&search)
-	var isDefault bool
-	var idFilterMatch = regexp.MustCompile("filter\\([^,;]+,[^,;]+,[^,;]+,[^,;]+\\)")
+	var idFilterMatch = regexp.MustCompile("event_id\\([^,;]*,[^,;]*,[^,;]*,[^,;]*\\)")
 	var eventTypeFilterMatch = regexp.MustCompile("(event_type=.*|event_type\\scontains\\s.*)")
 	var eventNameFilterMatch = regexp.MustCompile("(event_name=.*|event_name\\scontains\\s.*)")
 
@@ -186,45 +189,91 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		}
 		result = names
 
-
 	case idFilterMatch.MatchString(search.Target):
-		services := h.es.ds.GetServicesMap()
-		name := search.Target
-		name = strings.TrimLeft(name, "(")
-		name = strings.TrimRight(name, ")")
-		split := strings.Split(name, "|")
+		statement := strings.TrimPrefix(search.Target, "event_id(")
+		statement = strings.TrimSuffix(statement, ")")
+		criteria := strings.Split(statement, ",")
+		var service, eventType, eventName, environment string
+		var serviceId, environmentId string
+		if criteria[0] != "" {
+			service = criteria[0]
+			services := h.es.ds.GetServicesMap()
+			serviceIdMap, ok := services[service]
+			serviceId = strconv.Itoa(serviceIdMap.Id)
+			if !ok {
+				h.sendError(w, http.StatusBadRequest, errors.New("service name does not exist"), "")
+				return
+			}
+		}
+		if criteria[1] != "" {
+			eventType = criteria[1]
+		}
+		if criteria[2] != "" {
+			eventName = criteria[2]
+		}
+		if criteria[3] != "" {
+			environment = criteria[3]
+			environments := h.es.ds.GetEnvironmentsMap()
+			environmentIdMap, ok := environments[environment]
+			environmentId = strconv.Itoa(environmentIdMap.Id)
+			if !ok {
+				h.sendError(w, http.StatusBadRequest, errors.New("service name does not exist"), "")
+				return
+			}
+		}
 
-		if len(split) == 0 {
-			h.sendError(w, http.StatusBadRequest, errors.New("service name does not specified"), "")
+		events, err := h.es.ds.GetEventsByCriteria(serviceId, eventType, eventName, environmentId)
+		if err != nil {
+			h.sendError(w, http.StatusBadRequest, errors.New("eventstore error"), "")
+			return
+		} else if len(events) == 0 {
 			return
 		}
 
-		service, ok := services[split[0]]
-
-		if !ok {
-			h.sendError(w, http.StatusBadRequest, errors.New("service name does not exist"), "")
-		}
-
-		events, err := h.es.ds.GetEventsByServiceId(service.Id)
-		ids := []int{}
-
-		if err != nil {
-			h.sendError(w, http.StatusInternalServerError, err, "eventstore error")
-		}
+		var ids []int
 
 		for _, base := range events {
 			ids = append(ids, base.Id)
 		}
 		result = ids
 
+		//services := h.es.ds.GetServicesMap()
+		//environments := h.es.ds.GetEnvironmentsMap()
+		//
+		//name := search.Target
+		//name = strings.TrimLeft(name, "(")
+		//name = strings.TrimRight(name, ")")
+		//split := strings.Split(name, "|")
+		//
+		//if len(split) == 0 {
+		//	h.sendError(w, http.StatusBadRequest, errors.New("service name does not specified"), "")
+		//	return
+		//}
+		//
+		//service, ok := services[split[0]]
+		//
+		//if !ok {
+		//	h.sendError(w, http.StatusBadRequest, errors.New("service name does not exist"), "")
+		//}
+		//
+		//events, err := h.es.ds.GetEventsByServiceId(service.Id)
+		//ids := []int{}
+		//
+		//if err != nil {
+		//	h.sendError(w, http.StatusInternalServerError, err, "eventstore error")
+		//}
+		//
+		//for _, base := range events {
+		//	ids = append(ids, base.Id)
+		//}
+		//result = ids
+
 	default:
-		w.WriteHeader(405)
-		isDefault = true
+		return
 	}
-	if !isDefault{
-		if err := json.NewEncoder(w).Encode(result); err != nil {
-			fmt.Printf("json encode failure: %+v", err)
-		}
+
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		fmt.Printf("json encode failure: %+v", err)
 	}
 
 }
