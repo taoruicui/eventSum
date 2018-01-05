@@ -291,3 +291,11 @@ func (es *eventStore) GetEventsByGroup(group_id int, group_name string) ([]Event
 	}()
 	return es.ds.GetEventsByGroup(group_id, group_name)
 }
+
+func (es *eventStore) ModifyEventGroup(name string, info string, newName string) (error){
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("ModifyEventGroup", now)
+	}()
+	return es.ds.ModifyEventGroup(name, info, newName)
+}

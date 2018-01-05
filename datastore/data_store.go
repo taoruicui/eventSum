@@ -50,6 +50,7 @@ type DataStore interface {
 		eventGroupMap, eventBaseMap, serviceIdMap, envIdMap map[int]bool,
 	) (EventResults, error)
 	AddEventGroup(group EventGroup) (EventGroup, error)
+	ModifyEventGroup(name string, info string, newName string)  (error)
 	GetEventTypes(match string) ([]string, error)
 	GetEventsByGroup(group_id int, group_name string) ([]EventBase, error)
 }
@@ -542,6 +543,25 @@ func (p *postgresStore) AddEventGroup(group EventGroup)(EventGroup, error){
 		return group, err
 	}
 	return group, nil
+}
+
+func (p *postgresStore) ModifyEventGroup(name string, info string, newName string) (error){
+
+	filter := map[string]interface{}{
+		"name": []interface{}{"=", name},
+	}
+	record := map[string]interface{}{
+		"name": newName,
+	}
+	if info != ""{
+		record["info"] = info
+	}
+	_, err := p.Query(query.Update, "event_group", filter, record, nil,nil, -1, nil, nil)
+	if err != nil {
+		metrics.DBError("write")
+		return err
+	}
+	return nil
 }
 
 func (p *postgresStore) GetEventTypes(match string) ([]string, error){

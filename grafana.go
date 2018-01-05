@@ -128,7 +128,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&search)
 	var isDefault bool
-	var idFilterMatch = regexp.MustCompile("\\w&&")
+	var idFilterMatch = regexp.MustCompile("filter\\([^,;]+,[^,;]+,[^,;]+,[^,;]+\\)")
 	var eventTypeFilterMatch = regexp.MustCompile("(event_type=.*|event_type\\scontains\\s.*)")
 
 	if err != nil {
