@@ -170,23 +170,12 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		result = names
 
 	case eventTypeFilterMatch.MatchString(search.Target):
-		var filter = search.Target
-		if strings.Contains(filter, "=") {
-			filter = strings.Split(filter, "=")[1]
-		} else {
-			filter = strings.Split(filter, " contains ")[1]
+		var statement = search.Target
+		names, err := h.es.ds.GetEventTypes(statement)
+		if err != nil {
+			h.sendError(w, http.StatusInternalServerError, err, "event_type error")
 		}
-
-		h.es.ds.GetEventTypes(filter)
-		//names := []string{}
-		//
-		//if err != nil {
-		//	h.sendError(w, http.StatusInternalServerError, err, "eventstore error")
-		//}
-		//
-		//for _, eventType := range eventTypes {
-		//	names = append(names, eventTypes.Name)
-		//}
+		result = names
 
 	case idFilterMatch.MatchString(search.Target):
 		services := h.es.ds.GetServicesMap()

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"time"
 	"strconv"
+	"strings"
 )
 
 var GlobalRule *rules.Rule
@@ -564,17 +565,40 @@ func (p *postgresStore) ModifyEventGroup(name string, info string, newName strin
 	return nil
 }
 
-func (p *postgresStore) GetEventTypes(match string) ([]string, error){
+func (p *postgresStore) GetEventTypes(statement string) ([]string, error){
+	var result []string
 
-	//filter := map[string]interface{}{
-	//	"event_type":          []interface{}{"=", match},
-	//}
-	res, err := p.Query(query.Get, "event_base", nil, nil, nil,nil, -1, nil, nil)
-
-	fmt.Println(res.Return)
-
-
-	return nil, err
+	if strings.Contains(statement, "=") {
+		statement = strings.Split(statement, "=")[1]
+		filter := map[string]interface{}{
+			"event_type": []interface{}{"=", statement},
+		}
+		res, err := p.Query(query.Filter, "event_base", filter, nil, nil,nil, -1, nil, nil)
+		if err != nil {
+			metrics.DBError("read")
+			return result, err
+		} else if (len(res.Return) == 0){
+			return result, errors.New(fmt.Sprintf("no event type with %s", statement))
+		}
+		for _, r := range res.Return{
+			result = append(result, fmt.Sprintf("%s", r["event_type"]))
+		}
+		return result, nil
+	} else {
+		statement = strings.Split(statement, " contains ")[1]
+		res, err := p.Query(query.Filter, "event_base", nil, nil, nil,nil, -1, nil, nil)
+		if err != nil {
+			metrics.DBError("read")
+			return result, err
+		}
+		for _, r := range res.Return{
+			tmp := fmt.Sprintf("%s", r["event_type"])
+			if strings.Contains(tmp, statement) {
+				result = append(result, tmp)
+			}
+		}
+		return result, nil
+	}
 }
 
 func (p *postgresStore) GetEventsByGroup(group_id int, group_name string) ([]EventBase, error){
