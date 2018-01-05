@@ -130,6 +130,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 	var isDefault bool
 	var idFilterMatch = regexp.MustCompile("filter\\([^,;]+,[^,;]+,[^,;]+,[^,;]+\\)")
 	var eventTypeFilterMatch = regexp.MustCompile("(event_type=.*|event_type\\scontains\\s.*)")
+	var eventNameFilterMatch = regexp.MustCompile("(event_name=.*|event_name\\scontains\\s.*)")
 
 	if err != nil {
 		h.sendError(w, http.StatusBadRequest, err, "Incorrect request format")
@@ -176,6 +177,15 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 			h.sendError(w, http.StatusInternalServerError, err, "event_type error")
 		}
 		result = names
+
+	case eventNameFilterMatch.MatchString(search.Target):
+		var statement = search.Target
+		names, err := h.es.ds.GetEventNames(statement)
+		if err != nil {
+			h.sendError(w, http.StatusInternalServerError, err, "event_name error")
+		}
+		result = names
+
 
 	case idFilterMatch.MatchString(search.Target):
 		services := h.es.ds.GetServicesMap()

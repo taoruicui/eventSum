@@ -52,7 +52,8 @@ type DataStore interface {
 	) (EventResults, error)
 	AddEventGroup(group EventGroup) (EventGroup, error)
 	ModifyEventGroup(name string, info string, newName string)  (error)
-	GetEventTypes(match string) ([]string, error)
+	GetEventTypes(statement string) ([]string, error)
+	GetEventNames(statement string) ([]string, error)
 	GetEventsByGroup(group_id int, group_name string) ([]EventBase, error)
 }
 
@@ -593,6 +594,42 @@ func (p *postgresStore) GetEventTypes(statement string) ([]string, error){
 		}
 		for _, r := range res.Return{
 			tmp := fmt.Sprintf("%s", r["event_type"])
+			if strings.Contains(tmp, statement) {
+				result = append(result, tmp)
+			}
+		}
+		return result, nil
+	}
+}
+
+func (p *postgresStore) GetEventNames(statement string) ([]string, error){
+	var result []string
+
+	if strings.Contains(statement, "=") {
+		statement = strings.Split(statement, "=")[1]
+		filter := map[string]interface{}{
+			"event_name": []interface{}{"=", statement},
+		}
+		res, err := p.Query(query.Filter, "event_base", filter, nil, nil,nil, -1, nil, nil)
+		if err != nil {
+			metrics.DBError("read")
+			return result, err
+		} else if (len(res.Return) == 0){
+			return result, errors.New(fmt.Sprintf("no event name with %s", statement))
+		}
+		for _, r := range res.Return{
+			result = append(result, fmt.Sprintf("%s", r["event_name"]))
+		}
+		return result, nil
+	} else {
+		statement = strings.Split(statement, " contains ")[1]
+		res, err := p.Query(query.Filter, "event_base", nil, nil, nil,nil, -1, nil, nil)
+		if err != nil {
+			metrics.DBError("read")
+			return result, err
+		}
+		for _, r := range res.Return{
+			tmp := fmt.Sprintf("%s", r["event_name"])
 			if strings.Contains(tmp, statement) {
 				result = append(result, tmp)
 			}
