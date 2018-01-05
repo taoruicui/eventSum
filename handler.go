@@ -320,3 +320,30 @@ func (h *httpHandler) healthCheck(w http.ResponseWriter, r *http.Request, _ http
 	// TODO: Make this useful
 	h.sendResp(w, "", "")
 }
+
+func (h *httpHandler) searchGroupHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params){
+	defer r.Body.Close()
+	query := r.URL.Query()
+	id := query.Get("id")
+	if id == ""{
+		id = "0"
+	}
+	idInt,err := strconv.Atoi(id)
+	if err != nil {
+		h.sendError(w, http.StatusBadRequest, err, "Group id must be a valid int")
+	}
+	name := query.Get("name")
+
+
+	var evts []EventBase
+
+	if evts, err= h.es.GetEventsByGroup(idInt, name); err != nil {
+		h.sendError(w, http.StatusBadRequest, err, "Cannot get events by group")
+	}
+
+	h.sendResp(w, "events", evts)
+
+
+}
+
+

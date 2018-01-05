@@ -17,6 +17,7 @@ import (
 	"io/ioutil"
 	"fmt"
 	"time"
+	"strconv"
 )
 
 var GlobalRule *rules.Rule
@@ -50,6 +51,7 @@ type DataStore interface {
 	) (EventResults, error)
 	AddEventGroup(group EventGroup) (EventGroup, error)
 	GetEventTypes(match string) ([]string, error)
+	GetEventsByGroup(group_id int, group_name string) ([]EventBase, error)
 }
 
 type postgresStore struct {
@@ -160,7 +162,6 @@ func (p *postgresStore) Query(typ query.QueryType,
 		q.Args["join"] = join
 	}
 	res, err := p.Client.DoQuery(context.Background(), q)
-	//res, err := &query.Result{}, errors.New("asdf")
 	if err != nil {
 		metrics.DBError("transport")
 		return res, err
@@ -554,4 +555,36 @@ func (p *postgresStore) GetEventTypes(match string) ([]string, error){
 
 
 	return nil, err
+}
+
+func (p *postgresStore) GetEventsByGroup(group_id int, group_name string) ([]EventBase, error){
+	var evts []EventBase
+
+	if group_name != "" {
+		nameFilter := map[string]interface{}{
+			"name": []interface{}{"=", "test"},
+		}
+		res, err := p.Query(query.Filter, "event_group", nameFilter, nil, nil, nil, -1, nil, nil)
+		if err != nil {
+			metrics.DBError("read")
+			return evts, err
+		} else if len(res.Return) == 0 {
+			return evts, nil
+		}
+		group_id, _ = strconv.Atoi(fmt.Sprintf("%v", res.Return[0]["_id"]))
+	}
+
+	idFilter := map[string]interface{}{
+		"event_group_id": []interface{}{"=", group_id},
+	}
+
+	res, _ := p.Query(query.Filter, "event_base", idFilter, nil, nil, nil, -1, nil, nil)
+	var evt EventBase
+	for _, r := range res.Return {
+		if err := util.MapDecode(r, &evt, true); err != nil {
+			return evts, err
+		}
+		evts = append(evts, evt)
+	}
+	return evts, nil
 }
