@@ -28,6 +28,7 @@ type EventsumServer struct {
 	route       *httprouter.Router
 	httpHandler httpHandler
 	port        string
+	config      conf.EventsumConfig
 }
 
 func (s *EventsumServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -36,6 +37,7 @@ func (s *EventsumServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Starts the evensum server
 func (s *EventsumServer) Start() {
+
 	httpServer := &http.Server{
 		Addr:    s.port,
 		Handler: s,
@@ -165,5 +167,6 @@ func New(configFilename string) *EventsumServer {
 		s.logger = logger
 		s.httpHandler = newHTTPHandler(es, logger, config.TimeFormat)
 		s.port = ":" + strconv.Itoa(config.ServerPort)
+		s.config = config
 	})
 }
