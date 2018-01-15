@@ -6,12 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"runtime/pprof"
 	"time"
 
 	"database/sql"
 
+	"bytes"
+
+	"strings"
+
 	"github.com/jacksontj/dataman/src/datamantype"
 	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 )
 
 // returns the start and end times of the interval bounding time t,
@@ -81,6 +87,17 @@ func DBHealthCheck(host string, port int, user string, password string, dbname s
 	return err
 }
 
-func ServiceHealthCheck() {
-
+func ServiceHealthCheck() error {
+	dump := bytes.NewBufferString("")
+	pprof.Lookup("goroutine").WriteTo(dump, 1)
+	if !strings.Contains(dump.String(), "eventsum/server.go") {
+		return errors.New("go routine: eventsumServer abnormal")
+	}
+	if !strings.Contains(dump.String(), "eventsum/event_store") {
+		return errors.New("go routine: event_store abnormal")
+	}
+	if !strings.Contains(dump.String(), "eventsum/log/logger") {
+		return errors.New("go routine: logger abnormal")
+	}
+	return nil
 }
