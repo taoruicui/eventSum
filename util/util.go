@@ -5,10 +5,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/jacksontj/dataman/src/datamantype"
-	"github.com/mitchellh/mapstructure"
 	"reflect"
 	"time"
+
+	"database/sql"
+
+	"github.com/jacksontj/dataman/src/datamantype"
+	"github.com/mitchellh/mapstructure"
 )
 
 // returns the start and end times of the interval bounding time t,
@@ -64,4 +67,20 @@ func MapDecode(source, target interface{}, zero bool) error {
 		return err
 	}
 	return decoder.Decode(source)
+}
+
+func DBHealthCheck(host string, port int, user string, password string, dbname string) error {
+	psql := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+	db, err := sql.Open("postgres", psql)
+	defer db.Close()
+	if err != nil {
+		return err
+	}
+	err = db.Ping()
+	return err
+}
+
+func ServiceHealthCheck() {
+
 }
