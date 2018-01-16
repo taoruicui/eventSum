@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ContextLogic/eventsum/log"
@@ -247,38 +246,36 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 	h.sendResp(w, "histogram", response)
 }
 
-func (h *httpHandler) groupEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-
-	if strings.HasPrefix(r.URL.String(), "/assign_group") {
-		var evts []UnaddedEventGroup
-		defer r.Body.Close()
-		decoder := json.NewDecoder(r.Body)
-		if err := decoder.Decode(&evts); err != nil {
-			h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event")
+func (h *httpHandler) assignGroupHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var evts []UnaddedEventGroup
+	defer r.Body.Close()
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&evts); err != nil {
+		h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event")
+		return
+	}
+	for _, evt := range evts {
+		if _, err := h.es.SetGroupId(evt.EventId, evt.GroupId); err != nil {
+			h.sendError(w, http.StatusInternalServerError, err, "Error setting group id")
 			return
-		}
-		for _, evt := range evts {
-			if _, err := h.es.SetGroupId(evt.EventId, evt.GroupId); err != nil {
-				h.sendError(w, http.StatusInternalServerError, err, "Error setting group id")
-				return
-			}
-		}
-	} else {
-		defer r.Body.Close()
-		decoder := json.NewDecoder(r.Body)
-		var groups []EventGroup
-		if err := decoder.Decode(&groups); err != nil {
-			h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON group")
-			return
-		}
-		for _, group := range groups {
-			if _, err := h.es.AddEventGroup(group); err != nil {
-				h.sendError(w, http.StatusInternalServerError, err, "Error creating a group")
-				return
-			}
 		}
 	}
+}
 
+func (h *httpHandler) createGroupHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	defer r.Body.Close()
+	decoder := json.NewDecoder(r.Body)
+	var groups []EventGroup
+	if err := decoder.Decode(&groups); err != nil {
+		h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON group")
+		return
+	}
+	for _, group := range groups {
+		if _, err := h.es.AddEventGroup(group); err != nil {
+			h.sendError(w, http.StatusInternalServerError, err, "Error creating a group")
+			return
+		}
+	}
 }
 
 func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
