@@ -1,13 +1,14 @@
 package eventsum
 
 import (
+	"time"
+
 	conf "github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/datastore"
 	"github.com/ContextLogic/eventsum/log"
 	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/util"
-	"time"
 )
 
 // Wrapper struct for Event Channel
@@ -284,7 +285,7 @@ func (es *eventStore) AddEventGroup(group EventGroup) (EventGroup, error) {
 	return es.ds.AddEventGroup(group)
 }
 
-func (es *eventStore) GetEventsByGroup(group_id int, group_name string) ([]EventBase, error){
+func (es *eventStore) GetEventsByGroup(group_id int, group_name string) ([]EventBase, error) {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("GetEventByGroup", now)
@@ -292,7 +293,7 @@ func (es *eventStore) GetEventsByGroup(group_id int, group_name string) ([]Event
 	return es.ds.GetEventsByGroup(group_id, group_name)
 }
 
-func (es *eventStore) ModifyEventGroup(name string, info string, newName string) (error){
+func (es *eventStore) ModifyEventGroup(name string, info string, newName string) error {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("ModifyEventGroup", now)

@@ -4,14 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/ContextLogic/eventsum/log"
 	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/julienschmidt/httprouter"
-	"net/http"
-	"strconv"
-	"time"
-	"strings"
 )
 
 // Base class for handling HTTP Requests
@@ -246,9 +247,9 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 	h.sendResp(w, "histogram", response)
 }
 
-func (h *httpHandler) groupEventsHandler(w http.ResponseWriter, r * http.Request, _ httprouter.Params) {
+func (h *httpHandler) groupEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
-	switch(r.Method){
+	switch r.Method {
 	case "POST":
 		if strings.HasPrefix(r.URL.String(), "/assign_group") {
 			var evts []UnaddedEventGroup
@@ -272,7 +273,7 @@ func (h *httpHandler) groupEventsHandler(w http.ResponseWriter, r * http.Request
 				h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON group")
 				return
 			}
-			for _, group := range groups{
+			for _, group := range groups {
 				if _, err := h.es.AddEventGroup(group); err != nil {
 					h.sendError(w, http.StatusInternalServerError, err, "Error creating a group")
 					return
@@ -289,7 +290,6 @@ func (h *httpHandler) groupEventsHandler(w http.ResponseWriter, r * http.Request
 		w.WriteHeader(405)
 		w.Write([]byte(`{method not allowed}`))
 	}
-
 
 }
 
@@ -316,28 +316,22 @@ func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Reques
 	h.es.Send(evt)
 }
 
-func (h *httpHandler) healthCheck(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	// TODO: Make this useful
-	h.sendResp(w, "", "")
-}
-
-func (h *httpHandler) searchGroupHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params){
+func (h *httpHandler) searchGroupHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	defer r.Body.Close()
 	query := r.URL.Query()
 	id := query.Get("id")
-	if id == ""{
+	if id == "" {
 		id = "0"
 	}
-	idInt,err := strconv.Atoi(id)
+	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		h.sendError(w, http.StatusBadRequest, err, "Group id must be a valid int")
 	}
 	name := query.Get("name")
 
-
 	var evts []EventBase
 
-	if evts, err= h.es.GetEventsByGroup(idInt, name); err != nil {
+	if evts, err = h.es.GetEventsByGroup(idInt, name); err != nil {
 		h.sendError(w, http.StatusBadRequest, err, "Cannot get events by group")
 	}
 
@@ -345,7 +339,7 @@ func (h *httpHandler) searchGroupHandler(w http.ResponseWriter, r *http.Request,
 
 }
 
-func (h *httpHandler) modifyGroupHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params){
+func (h *httpHandler) modifyGroupHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	defer r.Body.Close()
 	var groups []map[string]string
 	decoder := json.NewDecoder(r.Body)
@@ -362,5 +356,3 @@ func (h *httpHandler) modifyGroupHandler(w http.ResponseWriter, r *http.Request,
 		}
 	}
 }
-
-

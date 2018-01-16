@@ -75,10 +75,8 @@ func MapDecode(source, target interface{}, zero bool) error {
 	return decoder.Decode(source)
 }
 
-func DBHealthCheck(host string, port int, user string, password string, dbname string) error {
-	psql := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	db, err := sql.Open("postgres", psql)
+func DBHealthCheck(pgString string) error {
+	db, err := sql.Open("postgres", pgString)
 	defer db.Close()
 	if err != nil {
 		return err

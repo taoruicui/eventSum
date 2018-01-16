@@ -50,6 +50,8 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 		h.sendError(w, http.StatusBadRequest, err, "Incorrect request format")
 	}
 
+	fmt.Println(query)
+
 	result := []GrafanaQueryResp{}
 	// maps name to id
 	groupNameMap := make(map[string]int)
@@ -139,7 +141,6 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		h.sendError(w, http.StatusBadRequest, err, "Incorrect request format")
 	}
 
-	fmt.Println(search.Target)
 	switch {
 	// Get all service ids
 	case search.Target == "service_name":
@@ -236,37 +237,6 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 			ids = append(ids, base.Id)
 		}
 		result = ids
-
-		//services := h.es.ds.GetServicesMap()
-		//environments := h.es.ds.GetEnvironmentsMap()
-		//
-		//name := search.Target
-		//name = strings.TrimLeft(name, "(")
-		//name = strings.TrimRight(name, ")")
-		//split := strings.Split(name, "|")
-		//
-		//if len(split) == 0 {
-		//	h.sendError(w, http.StatusBadRequest, errors.New("service name does not specified"), "")
-		//	return
-		//}
-		//
-		//service, ok := services[split[0]]
-		//
-		//if !ok {
-		//	h.sendError(w, http.StatusBadRequest, errors.New("service name does not exist"), "")
-		//}
-		//
-		//events, err := h.es.ds.GetEventsByServiceId(service.Id)
-		//ids := []int{}
-		//
-		//if err != nil {
-		//	h.sendError(w, http.StatusInternalServerError, err, "eventstore error")
-		//}
-		//
-		//for _, base := range events {
-		//	ids = append(ids, base.Id)
-		//}
-		//result = ids
 
 	default:
 		return

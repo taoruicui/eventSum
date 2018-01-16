@@ -9,12 +9,15 @@ import (
 	"syscall"
 	"time"
 
+	"fmt"
+
 	conf "github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/datastore"
 	"github.com/ContextLogic/eventsum/log"
 	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/rules"
+	"github.com/ContextLogic/eventsum/util"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -114,7 +117,12 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 	s.route.GET("/search", latency("/search", s.httpHandler.searchEventsHandler))
 	s.route.GET("/detail", latency("/detail", s.httpHandler.detailsEventsHandler))
 	s.route.GET("/histogram", latency("/histogram", s.httpHandler.histogramEventsHandler))
-	s.route.GET("/health", latency("/health", s.httpHandler.healthCheck))
+	s.route.GET("/health", latency("/health", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
+		errMap := s.healthCheck()
+		s.httpHandler.sendResp(w, "errors", errMap)
+
+	}))
 	s.route.GET("/group", latency("/group", s.httpHandler.searchGroupHandler))
 	s.route.Handler("GET", "/metrics", promhttp.Handler())
 
@@ -169,4 +177,16 @@ func New(configFilename string) *EventsumServer {
 		s.port = ":" + strconv.Itoa(config.ServerPort)
 		s.config = config
 	})
+}
+
+func (s *EventsumServer) healthCheck() map[string]interface{} {
+
+	pgString := fmt.Sprintf("%s dbname=%s", s.httpHandler.es.ds.GetDBConfig().StorageConfig["pg_string"], s.config.DatabaseName)
+	errs := make(map[string]interface{})
+
+	errs["DBError"] = util.DBHealthCheck(pgString)
+
+	errs["ServiceError"] = util.ServiceHealthCheck()
+
+	return errs
 }

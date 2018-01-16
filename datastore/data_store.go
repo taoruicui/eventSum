@@ -57,11 +57,13 @@ type DataStore interface {
 	GetEventTypes(statement string) ([]string, error)
 	GetEventNames(statement string) ([]string, error)
 	GetEventsByGroup(group_id int, group_name string) ([]EventBase, error)
+	GetDBConfig() *storagenode.DatasourceInstanceConfig
 }
 
 type postgresStore struct {
-	Name   string
-	Client *datamanclient.Client
+	Name     string
+	Client   *datamanclient.Client
+	DBConfig *storagenode.DatasourceInstanceConfig
 
 	// Variables stored in memory (for faster access)
 	Services            []EventService
@@ -120,6 +122,7 @@ func NewDataStore(config config.EventsumConfig) (DataStore, error) {
 	return &postgresStore{
 		Name:                config.DatabaseName,
 		Client:              client,
+		DBConfig:            storagenodeConfig,
 		Services:            services,
 		ServicesNameMap:     servicesNameMap,
 		Environments:        environments,
@@ -693,7 +696,6 @@ func (p *postgresStore) GetEventsByCriteria(serviceId string, eventType string, 
 		eid, _ := strconv.Atoi(environmentId)
 		filter["event_environment_id"] = []interface{}{"=", eid}
 	}
-	fmt.Println(filter)
 	res, err := p.Query(query.Filter, "event_base", filter, nil, nil, nil, -1, nil, nil)
 	if err != nil {
 		metrics.DBError("read")
@@ -708,4 +710,8 @@ func (p *postgresStore) GetEventsByCriteria(serviceId string, eventType string, 
 	}
 
 	return evts, nil
+}
+
+func (p *postgresStore) GetDBConfig() *storagenode.DatasourceInstanceConfig {
+	return p.DBConfig
 }

@@ -1,8 +1,9 @@
 package models
 
 import (
-	"github.com/mohae/deepcopy"
 	"time"
+
+	"github.com/mohae/deepcopy"
 )
 
 ////////////////////////////////////////////////////
