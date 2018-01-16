@@ -59,6 +59,7 @@ type DataStore interface {
 	GetEventNames(statement string) ([]string, error)
 	GetEventsByGroup(group_id int, group_name string) ([]EventBase, error)
 	GetDBConfig() *storagenode.DatasourceInstanceConfig
+	CountEvents(string) (int, error)
 }
 
 type postgresStore struct {
@@ -742,4 +743,29 @@ func (p *postgresStore) GetEventsByCriteria(serviceId string, eventType string, 
 
 func (p *postgresStore) GetDBConfig() *storagenode.DatasourceInstanceConfig {
 	return p.DBConfig
+}
+
+func (p *postgresStore) CountEvents(id string) (int, error) {
+
+	var count int
+
+	filter := map[string]interface{}{
+		"event_instance_id": []interface{}{"=", id},
+	}
+
+	res, err := p.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, nil)
+	if err != nil {
+		metrics.DBError("read")
+		return count, err
+	}
+
+	var evt EventInstancePeriod
+	for _, e := range res.Return {
+		if err := util.MapDecode(e, &evt, true); err != nil {
+			return 0, err
+		}
+		count += evt.Count
+	}
+	return count, nil
+
 }

@@ -46,10 +46,10 @@ if __name__ == '__main__':
             }
             data['configurable_groupings'] = []
 
-            count = random.randint(50,500)
+            count = random.randint(1,30)
             for i in range (1, count):
                 res = requests.post('http://0.0.0.0:8080/capture', json=data)
                 print res
-        interval = random.randint(10,50)
+        interval = random.randint(1,60)
         time.sleep(interval)
 

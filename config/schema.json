@@ -67,13 +67,13 @@
                   "primary": true,
                   "provision_state": 3
                 },
-                "event_base_service_id_event_type_processed_data_hash_event_envi": {
-                  "name": "event_base_service_id_event_type_processed_data_hash_event_envi",
+                "event_base_service_id_event_type_event_environment_id_proce_key": {
+                  "name": "event_base_service_id_event_type_event_environment_id_proce_key",
                   "fields": [
                     "service_id",
                     "event_type",
-                    "processed_data_hash",
-                    "event_environment_id"
+                    "event_environment_id",
+                    "processed_data_hash"
                   ],
                   "unique": true,
                   "provision_state": 3
@@ -217,8 +217,8 @@
                 }
               },
               "indexes": {
-                "event_instance_generic_data_hash__event_environment_id_key": {
-                  "name": "event_instance_generic_data_hash__event_environment_id_key",
+                "event_instance_generic_data_hash_event_environment_id_key": {
+                  "name": "event_instance_generic_data_hash_event_environment_id_key",
                   "fields": [
                     "generic_data_hash",
                     "event_environment_id"
