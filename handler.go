@@ -332,11 +332,25 @@ func (h *httpHandler) modifyGroupHandler(w http.ResponseWriter, r *http.Request,
 		h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event")
 		return
 	}
-
-	fmt.Println(groups)
 	for _, g := range groups {
 		if err := h.es.ModifyEventGroup(g["name"], g["info"], g["new_name"]); err != nil {
 			h.sendError(w, http.StatusInternalServerError, err, "Error setting group id")
+			return
+		}
+	}
+}
+
+func (h *httpHandler) deleteGroupHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	defer r.Body.Close()
+	var groups []map[string]string
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&groups); err != nil {
+		h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event")
+		return
+	}
+	for _, g := range groups {
+		if err := h.es.DeleteEventGroup(g["name"]); err != nil {
+			h.sendError(w, http.StatusBadRequest, err, "Error deleting groups")
 			return
 		}
 	}

@@ -300,3 +300,11 @@ func (es *eventStore) ModifyEventGroup(name string, info string, newName string)
 	}()
 	return es.ds.ModifyEventGroup(name, info, newName)
 }
+
+func (es *eventStore) DeleteEventGroup(name string) error {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("DeleteEventGroup", now)
+	}()
+	return es.ds.DeleteEventGroup(name)
+}
