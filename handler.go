@@ -249,46 +249,34 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 
 func (h *httpHandler) groupEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
-	switch r.Method {
-	case "POST":
-		if strings.HasPrefix(r.URL.String(), "/assign_group") {
-			var evts []UnaddedEventGroup
-			defer r.Body.Close()
-			decoder := json.NewDecoder(r.Body)
-			if err := decoder.Decode(&evts); err != nil {
-				h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event")
+	if strings.HasPrefix(r.URL.String(), "/assign_group") {
+		var evts []UnaddedEventGroup
+		defer r.Body.Close()
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&evts); err != nil {
+			h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event")
+			return
+		}
+		for _, evt := range evts {
+			if _, err := h.es.SetGroupId(evt.EventId, evt.GroupId); err != nil {
+				h.sendError(w, http.StatusInternalServerError, err, "Error setting group id")
 				return
-			}
-			for _, evt := range evts {
-				if _, err := h.es.SetGroupId(evt.EventId, evt.GroupId); err != nil {
-					h.sendError(w, http.StatusInternalServerError, err, "Error setting group id")
-					return
-				}
-			}
-		} else {
-			defer r.Body.Close()
-			decoder := json.NewDecoder(r.Body)
-			var groups []EventGroup
-			if err := decoder.Decode(&groups); err != nil {
-				h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON group")
-				return
-			}
-			for _, group := range groups {
-				if _, err := h.es.AddEventGroup(group); err != nil {
-					h.sendError(w, http.StatusInternalServerError, err, "Error creating a group")
-					return
-				}
 			}
 		}
-	case "PUT":
-		//TODO: modify group info
-		fmt.Println(r.URL)
-	case "GET":
-		//TODO: get specific group
-		fmt.Println(r.URL)
-	default:
-		w.WriteHeader(405)
-		w.Write([]byte(`{method not allowed}`))
+	} else {
+		defer r.Body.Close()
+		decoder := json.NewDecoder(r.Body)
+		var groups []EventGroup
+		if err := decoder.Decode(&groups); err != nil {
+			h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON group")
+			return
+		}
+		for _, group := range groups {
+			if _, err := h.es.AddEventGroup(group); err != nil {
+				h.sendError(w, http.StatusInternalServerError, err, "Error creating a group")
+				return
+			}
+		}
 	}
 
 }
