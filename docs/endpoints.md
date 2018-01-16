@@ -124,7 +124,32 @@ Example Request:
     {"name": "group 1", "info": "group 1 info"},
     {"name": "group 2", "info": "group 2 info"},
     {"name": "group 3", "info": "group 3 info"}
+]
+```
 
+Response: `200` or `400 ` or `500` status code
+
+### Delete Group
+```
+DELETE /group
+Content-Type: application/json
+```
+
+Delete a/multiple event group. Can take in an array. Re-assign the events that were in the deleted groups back to default.
+
+Request format:
+```
+{
+    "name": <name of the group>,
+}
+```
+
+Example Request: 
+```
+[
+    {"name": "group 1"},
+    {"name": "group 2"},
+    {"name": "group 3"}
 ]
 ```
 
