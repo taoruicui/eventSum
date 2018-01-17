@@ -28,6 +28,25 @@ func FindBoundingTime(t time.Time, interval int) (time.Time, time.Time) {
 	return s, s.Add(duration)
 }
 
+type ByTime []map[string]interface{}
+
+func (t ByTime) Len() int {
+	return len(t)
+}
+
+func (t ByTime) Swap(i, j int) {
+	t[i], t[j] = t[j], t[i]
+}
+
+func (t ByTime) Less(i, j int) bool {
+	iEndTime := t[i]["end_time"].(string)
+	jEndTime := t[j]["end_time"].(string)
+	layout := "2006-01-02 04:05:00"
+	iTime, _ := time.Parse(layout, iEndTime)
+	jTime, _ := time.Parse(layout, jEndTime)
+	return iTime.After(jTime)
+}
+
 // Calculates the average
 func Avg(vals ...int) int {
 	//convert all to unix time

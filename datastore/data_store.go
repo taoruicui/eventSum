@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"sort"
+
 	"github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
@@ -760,7 +762,9 @@ func (p *postgresStore) CountEvents(id string) (int, error) {
 	}
 
 	var evt EventInstancePeriod
+	sort.Sort(util.ByTime(res.Return))
 	for _, e := range res.Return {
+		fmt.Println(e["end_time"])
 		if err := util.MapDecode(e, &evt, true); err != nil {
 			return 0, err
 		}

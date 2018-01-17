@@ -120,3 +120,9 @@ type EventEnvironment struct {
 	Id   int
 	Name string
 }
+
+type CountStat struct {
+	Count       int
+	CountPerMin float32
+	Increase    float32
+}

@@ -358,13 +358,6 @@ func (h *httpHandler) deleteGroupHandler(w http.ResponseWriter, r *http.Request,
 
 func (h *httpHandler) countEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	defer r.Body.Close()
-	//decoder := json.NewDecoder(r.Body)
-	//var event map[string]string
-	//if err := decoder.Decode(&event); err != nil {
-	//	h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event")
-	//	return
-	//}
-
 	query := r.URL.Query()
 	if id := query.Get("event_instance_id"); id != "" {
 		_, err := strconv.Atoi(id)
@@ -376,7 +369,6 @@ func (h *httpHandler) countEventsHandler(w http.ResponseWriter, r *http.Request,
 			h.sendError(w, http.StatusBadRequest, err, "Error counting events")
 			return
 		} else {
-			fmt.Println(count)
 			h.sendResp(w, "count", count)
 		}
 	}
