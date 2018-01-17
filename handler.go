@@ -359,17 +359,29 @@ func (h *httpHandler) deleteGroupHandler(w http.ResponseWriter, r *http.Request,
 func (h *httpHandler) countEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	defer r.Body.Close()
 	query := r.URL.Query()
-	if id := query.Get("event_instance_id"); id != "" {
-		_, err := strconv.Atoi(id)
-		if err != nil {
-			h.sendError(w, http.StatusBadRequest, errors.New("event instance ID is not an int"), "Error")
-			return
-		}
-		if count, err := h.es.CountEvents(id); err != nil {
-			h.sendError(w, http.StatusBadRequest, err, "Error counting events")
-			return
-		} else {
-			h.sendResp(w, "count", count)
-		}
+
+	filter := make(map[string]string)
+
+	id := query.Get("event_instance_id")
+	if id == "" {
+		h.sendError(w, http.StatusBadRequest, errors.New("event instance ID is missing"), "Error")
+		return
 	}
+	_, err := strconv.Atoi(id)
+	if err != nil {
+		h.sendError(w, http.StatusBadRequest, errors.New("event instance ID is not an int"), "Error")
+		return
+	}
+	filter["id"] = id
+
+	filter["start_time"] = query.Get("start_time")
+	filter["end_time"] = query.Get("end_time")
+
+	if count, err := h.es.CountEvents(filter); err != nil {
+		h.sendError(w, http.StatusBadRequest, err, "Error counting events")
+		return
+	} else {
+		h.sendResp(w, "count", count)
+	}
+
 }

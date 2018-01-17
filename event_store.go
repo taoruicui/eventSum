@@ -309,10 +309,10 @@ func (es *eventStore) DeleteEventGroup(name string) error {
 	return es.ds.DeleteEventGroup(name)
 }
 
-func (es *eventStore) CountEvents(id string) (CountStat, error) {
+func (es *eventStore) CountEvents(filter map[string]string) (CountStat, error) {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("CountEvents", now)
 	}()
-	return es.ds.CountEvents(id)
+	return es.ds.CountEvents(filter)
 }

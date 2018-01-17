@@ -61,7 +61,7 @@ type DataStore interface {
 	GetEventNames(statement string) ([]string, error)
 	GetEventsByGroup(group_id int, group_name string) ([]EventBase, error)
 	GetDBConfig() *storagenode.DatasourceInstanceConfig
-	CountEvents(string) (CountStat, error)
+	CountEvents(map[string]string) (CountStat, error)
 }
 
 type postgresStore struct {
@@ -747,15 +747,23 @@ func (p *postgresStore) GetDBConfig() *storagenode.DatasourceInstanceConfig {
 	return p.DBConfig
 }
 
-func (p *postgresStore) CountEvents(id string) (CountStat, error) {
+func (p *postgresStore) CountEvents(filterMap map[string]string) (CountStat, error) {
 
 	var result CountStat
+	var filter map[string]interface{}
+	//filter := map[string]interface{}{
+	//	"event_instance_id": []interface{}{"=", filterMap["id"]},
+	//}
 
-	filter := map[string]interface{}{
-		"event_instance_id": []interface{}{"=", id},
+	if filterMap["start_time"] != "" {
+		filter["updated"] = []interface{}{">=", filterMap["start_time"]}
+	}
+	if filterMap["end_time"] != "" {
+		filter["updated"] = []interface{}{"<=", filterMap["end_time"]}
 	}
 
 	res, err := p.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, nil)
+
 	if err != nil {
 		metrics.DBError("read")
 		return result, err
@@ -775,5 +783,4 @@ func (p *postgresStore) CountEvents(id string) (CountStat, error) {
 	diff := end.Sub(start).Minutes()
 	result.CountPerMin = float64(result.Count) / diff
 	return result, nil
-
 }
