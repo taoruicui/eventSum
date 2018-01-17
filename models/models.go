@@ -123,6 +123,6 @@ type EventEnvironment struct {
 
 type CountStat struct {
 	Count       int
-	CountPerMin float32
-	Increase    float32
+	CountPerMin float64
+	Increase    float64
 }
