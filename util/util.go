@@ -118,3 +118,21 @@ func ServiceHealthCheck() error {
 	}
 	return nil
 }
+
+func GetExptPerMinIncrease(mostRecent map[string]interface{}, secondRecent map[string]interface{}) float64 {
+	layout := "2006-01-02 15:04:05"
+	mostRecentStart, _ := time.Parse(layout, mostRecent["start_time"].(string))
+	mostRecentEnd, _ := time.Parse(layout, mostRecent["end_time"].(string))
+	duration := mostRecentEnd.Sub(mostRecentStart).Minutes()
+	mostRecentIncre := float64(mostRecent["count"].(int64)) / duration
+	//mostRecentIncre, _ := strconv.ParseFloat(mostRecent["count"].(string), 2)
+	if secondRecent == nil {
+		return mostRecentIncre
+	} else {
+		secondRecentStart, _ := time.Parse(layout, secondRecent["start_time"].(string))
+		secondRecentEnd, _ := time.Parse(layout, secondRecent["end_time"].(string))
+		duration = secondRecentEnd.Sub(secondRecentStart).Minutes()
+		secondRecentIncre := float64(secondRecent["count"].(int64)) / duration
+		return mostRecentIncre - secondRecentIncre
+	}
+}

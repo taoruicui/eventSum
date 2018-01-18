@@ -794,12 +794,17 @@ func (p *postgresStore) CountEvents(filterMap map[string]string) (CountStat, err
 	var evt EventInstancePeriod
 	sort.Sort(util.ByTime(res.Return))
 	for _, e := range res.Return {
-		fmt.Println(e["count"])
 		if err := util.MapDecode(e, &evt, true); err != nil {
 			return result, err
 		}
 		result.Count += evt.Count
 	}
+	mostRecent := res.Return[0]
+	var secondRecent map[string]interface{}
+	if len(res.Return) > 1 {
+		secondRecent = res.Return[1]
+	}
+	result.Increase = util.GetExptPerMinIncrease(mostRecent, secondRecent)
 
 	end, _ = time.Parse(layout, res.Return[0]["end_time"].(string))
 	start, _ = time.Parse(layout, res.Return[len(res.Return)-1]["end_time"].(string))
