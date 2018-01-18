@@ -787,6 +787,8 @@ func (p *postgresStore) CountEvents(filterMap map[string]string) (CountStat, err
 	if err != nil {
 		metrics.DBError("read")
 		return result, err
+	} else if len(res.Return) == 0 {
+		return result, nil
 	}
 
 	var evt EventInstancePeriod
