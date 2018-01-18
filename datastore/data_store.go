@@ -750,17 +750,37 @@ func (p *postgresStore) GetDBConfig() *storagenode.DatasourceInstanceConfig {
 func (p *postgresStore) CountEvents(filterMap map[string]string) (CountStat, error) {
 
 	var result CountStat
-	var filter map[string]interface{}
-	//filter := map[string]interface{}{
-	//	"event_instance_id": []interface{}{"=", filterMap["id"]},
-	//}
+	filter := []interface{}{
+		map[string]interface{}{
+			"event_instance_id": []interface{}{"=", filterMap["id"]},
+		},
+	}
 
+	layout := "2006-01-02 15:04:05"
+	var start, end time.Time
+	var err error
 	if filterMap["start_time"] != "" {
-		filter["updated"] = []interface{}{">=", filterMap["start_time"]}
+		start, err = time.Parse(layout, filterMap["start_time"])
+		if err != nil {
+			return result, err
+		}
+	} else {
+		start, _ = time.Parse(layout, "2006-01-02 00:00:00")
 	}
+	filter[0].(map[string]interface{})["updated"] = []interface{}{">=", start}
+
 	if filterMap["end_time"] != "" {
-		filter["updated"] = []interface{}{"<=", filterMap["end_time"]}
+		end, err = time.Parse(layout, filterMap["end_time"])
+		if err != nil {
+			return result, err
+		}
+	} else {
+		end = time.Now()
 	}
+	filter = append(filter, "AND")
+	filter = append(filter, map[string]interface{}{
+		"updated": []interface{}{"<=", end},
+	})
 
 	res, err := p.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, nil)
 
@@ -772,14 +792,15 @@ func (p *postgresStore) CountEvents(filterMap map[string]string) (CountStat, err
 	var evt EventInstancePeriod
 	sort.Sort(util.ByTime(res.Return))
 	for _, e := range res.Return {
+		fmt.Println(e["count"])
 		if err := util.MapDecode(e, &evt, true); err != nil {
 			return result, err
 		}
 		result.Count += evt.Count
 	}
-	layout := "2006-01-02 15:04:05"
-	end, _ := time.Parse(layout, res.Return[0]["end_time"].(string))
-	start, _ := time.Parse(layout, res.Return[len(res.Return)-1]["end_time"].(string))
+
+	end, _ = time.Parse(layout, res.Return[0]["end_time"].(string))
+	start, _ = time.Parse(layout, res.Return[len(res.Return)-1]["end_time"].(string))
 	diff := end.Sub(start).Minutes()
 	result.CountPerMin = float64(result.Count) / diff
 	return result, nil

@@ -373,7 +373,6 @@ func (h *httpHandler) countEventsHandler(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	filter["id"] = id
-
 	filter["start_time"] = query.Get("start_time")
 	filter["end_time"] = query.Get("end_time")
 
