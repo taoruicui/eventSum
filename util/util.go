@@ -125,7 +125,6 @@ func GetExptPerMinIncrease(mostRecent map[string]interface{}, secondRecent map[s
 	mostRecentEnd, _ := time.Parse(layout, mostRecent["end_time"].(string))
 	duration := mostRecentEnd.Sub(mostRecentStart).Minutes()
 	mostRecentIncre := float64(mostRecent["count"].(int64)) / duration
-	//mostRecentIncre, _ := strconv.ParseFloat(mostRecent["count"].(string), 2)
 	if secondRecent == nil {
 		return mostRecentIncre
 	} else {
