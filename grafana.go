@@ -50,8 +50,6 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 		h.sendError(w, http.StatusBadRequest, err, "Incorrect request format")
 	}
 
-	fmt.Println(query)
-
 	result := []GrafanaQueryResp{}
 	// maps name to id
 	groupNameMap := make(map[string]int)

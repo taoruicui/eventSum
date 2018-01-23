@@ -2,13 +2,14 @@ package models
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-	"math"
+
+	"github.com/pkg/errors"
 )
 
 /////////////////////////////////////
@@ -54,6 +55,8 @@ type GrafanaTargetParam struct {
 	EventBaseId     []int    `json:"event_base_id"`
 	Sort            string   `json:"sort"`
 	Limit           int      `json:"limit"`
+	EventType       []string `json:"event_type"`
+	EventName       []string `json:"event_name"`
 }
 
 // Since grafana sends a special data format, we need a custom
@@ -107,6 +110,10 @@ func (t *GrafanaTargetParam) UnmarshalJSON(b []byte) error {
 				return err
 			}
 			t.Limit = i
+		case "event_name":
+			t.EventName = split
+		case "event_type":
+			t.EventType = split
 		default:
 			return errors.New(fmt.Sprintf("No param named %v", param))
 		}
@@ -139,13 +146,13 @@ func (e EventBins) ToSlice(n int) []Bin {
 				max = k
 			}
 		}
-		l := float64(max-min)
+		l := float64(max - min)
 
 		// group following the formula: floor((x-min)*n/l)
 		for _, bin := range e {
-			idx := int(math.Floor(float64(bin.Start-min)*float64(n)/l))
+			idx := int(math.Floor(float64(bin.Start-min) * float64(n) / l))
 			if idx >= n {
-				idx = n-1
+				idx = n - 1
 			}
 			res[idx].Count += bin.Count
 			res[idx].Start = bin.Start
