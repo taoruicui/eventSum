@@ -54,6 +54,7 @@ type DataStore interface {
 		start, end time.Time,
 		eventGroupMap, eventBaseMap, serviceIdMap, envIdMap map[int]bool,
 	) (EventResults, error)
+	MyGeneralQuery(start, end time.Time, eventGroupId, eventBaseId, serviceId, envId int, eventName, eventType string) (EventResults, error)
 	AddEventGroup(group EventGroup) (EventGroup, error)
 	ModifyEventGroup(name string, info string, newName string) error
 	DeleteEventGroup(name string) error
@@ -464,6 +465,42 @@ func (p *postgresStore) GeneralQuery(
 	}
 
 	return evts, nil
+}
+
+func (p *postgresStore) MyGeneralQuery(start, end time.Time, eventGroupId, eventBaseId, serviceId, envId int, eventName, eventType string) (EventResults, error) {
+
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("GetRecentEvents", now)
+	}()
+
+	join := []interface{}{".event_instance_id"}
+	filter := []interface{}{
+		map[string]interface{}{"updated": []interface{}{">=", start}}, "AND",
+		map[string]interface{}{"updated": []interface{}{"<=", end}},
+	}
+	if eventGroupId != -1 {
+		filter[2].(map[string]interface{})["event_instance_id.event_base_id.event_group_id"] = []interface{}{"=", eventGroupId}
+	}
+	if eventBaseId != -1 {
+		filter[2].(map[string]interface{})["event_base_id"] = []interface{}{"=", eventBaseId}
+	}
+	if serviceId != -1 {
+		filter[2].(map[string]interface{})["service_id"] = []interface{}{"=", serviceId}
+	}
+	if envId != -1 {
+		filter[2].(map[string]interface{})["event_environment_id"] = []interface{}{"=", envId}
+	}
+	if eventName != "" {
+		filter[2].(map[string]interface{})["event_name"] = []interface{}{"=", eventName}
+	}
+	if eventType != "" {
+		filter[2].(map[string]interface{})["event_type"] = []interface{}{"=", eventType}
+	}
+
+	res, _ := p.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, join)
+	fmt.Println(res)
+	return nil, nil
 }
 
 // Get EventBase by processed_hash

@@ -50,78 +50,80 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 		h.sendError(w, http.StatusBadRequest, err, "Incorrect request format")
 	}
 
-	result := []GrafanaQueryResp{}
-	// maps name to id
-	groupNameMap := make(map[string]int)
-	serviceNameMap := h.es.ds.GetServicesMap()
-	environmentNameMap := h.es.ds.GetEnvironmentsMap()
-	groups, _ := h.es.ds.GetGroups()
-	for _, group := range groups {
-		groupNameMap[group.Name] = group.Id
-	}
+	h.es.ds.MyGeneralQuery(query.Range.From, query.Range.To, 1, -1, -1, -1, "", "")
 
-	for _, target := range query.Targets {
-		// create the maps that are needed later
-		eventBaseMap := make(map[int]bool)
-		groupIdMap := make(map[int]bool)
-		serviceIdMap := make(map[int]bool)
-		envIdMap := make(map[int]bool)
-
-		for _, v := range target.Target.EventBaseId {
-			eventBaseMap[v] = true
-		}
-
-		for _, v := range target.Target.GroupName {
-			groupIdMap[groupNameMap[v]] = true
-		}
-
-		for _, v := range target.Target.ServiceName {
-			serviceIdMap[serviceNameMap[v].Id] = true
-		}
-
-		for _, v := range target.Target.EnvironmentName {
-			envIdMap[environmentNameMap[v].Id] = true
-		}
-
-		evts, err := h.es.GeneralQuery(
-			query.Range.From,
-			query.Range.To,
-			groupIdMap,
-			eventBaseMap,
-			serviceIdMap,
-			envIdMap)
-
-		if err != nil {
-			h.sendError(w, http.StatusInternalServerError, err, "query error")
-			return
-		}
-
-		// Sort the events
-		if target.Target.Sort == "recent" {
-			evts = evts.SortRecent()
-		} else if target.Target.Sort == "increased" {
-			evts = evts.SortIncreased()
-		}
-
-		if len(evts) > target.Target.Limit && target.Target.Limit > 0 {
-			evts = evts[:target.Target.Limit]
-		}
-
-		for _, evt := range evts {
-			datapoints := [][]int{}
-			for _, bin := range evt.Datapoints {
-				datapoints = append(datapoints, []int{bin.Count, bin.Start})
-			}
-			result = append(result, GrafanaQueryResp{
-				Target:     evt.FormatName(),
-				Datapoints: datapoints,
-			})
-		}
-	}
-
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		fmt.Printf("json encode failure: %+v", err)
-	}
+	//result := []GrafanaQueryResp{}
+	//// maps name to id
+	//groupNameMap := make(map[string]int)
+	//serviceNameMap := h.es.ds.GetServicesMap()
+	//environmentNameMap := h.es.ds.GetEnvironmentsMap()
+	//groups, _ := h.es.ds.GetGroups()
+	//for _, group := range groups {
+	//	groupNameMap[group.Name] = group.Id
+	//}
+	//
+	//for _, target := range query.Targets {
+	//	// create the maps that are needed later
+	//	eventBaseMap := make(map[int]bool)
+	//	groupIdMap := make(map[int]bool)
+	//	serviceIdMap := make(map[int]bool)
+	//	envIdMap := make(map[int]bool)
+	//
+	//	for _, v := range target.Target.EventBaseId {
+	//		eventBaseMap[v] = true
+	//	}
+	//
+	//	for _, v := range target.Target.GroupName {
+	//		groupIdMap[groupNameMap[v]] = true
+	//	}
+	//
+	//	for _, v := range target.Target.ServiceName {
+	//		serviceIdMap[serviceNameMap[v].Id] = true
+	//	}
+	//
+	//	for _, v := range target.Target.EnvironmentName {
+	//		envIdMap[environmentNameMap[v].Id] = true
+	//	}
+	//
+	//	evts, err := h.es.GeneralQuery(
+	//		query.Range.From,
+	//		query.Range.To,
+	//		groupIdMap,
+	//		eventBaseMap,
+	//		serviceIdMap,
+	//		envIdMap)
+	//
+	//	if err != nil {
+	//		h.sendError(w, http.StatusInternalServerError, err, "query error")
+	//		return
+	//	}
+	//
+	//	// Sort the events
+	//	if target.Target.Sort == "recent" {
+	//		evts = evts.SortRecent()
+	//	} else if target.Target.Sort == "increased" {
+	//		evts = evts.SortIncreased()
+	//	}
+	//
+	//	if len(evts) > target.Target.Limit && target.Target.Limit > 0 {
+	//		evts = evts[:target.Target.Limit]
+	//	}
+	//
+	//	for _, evt := range evts {
+	//		datapoints := [][]int{}
+	//		for _, bin := range evt.Datapoints {
+	//			datapoints = append(datapoints, []int{bin.Count, bin.Start})
+	//		}
+	//		result = append(result, GrafanaQueryResp{
+	//			Target:     evt.FormatName(),
+	//			Datapoints: datapoints,
+	//		})
+	//	}
+	//}
+	//
+	//if err := json.NewEncoder(w).Encode(result); err != nil {
+	//	fmt.Printf("json encode failure: %+v", err)
+	//}
 }
 
 // grafanaSearch handles the searching of service ids and event ids for grafana template variables

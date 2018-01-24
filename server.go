@@ -51,6 +51,7 @@ func (s *EventsumServer) Start() {
 	// run the store in a goroutine
 	go func() {
 		s.logger.App().Printf("Listening on http://0.0.0.0%s", httpServer.Addr)
+		s.logger.App().Println("this is the latest version")
 		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
 			s.logger.App().Fatal(err)
 		}
