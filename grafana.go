@@ -79,7 +79,7 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 			serviceIds = append(serviceIds, serviceNameMap[serviceName].Id)
 		}
 
-		evts, err := h.es.ds.MyGeneralQuery(query.Range.From, query.Range.To, groupIds,
+		evts, err := h.es.ds.GrafanaQuery(query.Range.From, query.Range.To, groupIds,
 			target.Target.EventBaseId, serviceIds, envIds, target.Target.EventName, target.Target.EventType)
 
 		if err != nil {

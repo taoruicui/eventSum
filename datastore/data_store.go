@@ -53,7 +53,8 @@ type DataStore interface {
 		start, end time.Time,
 		eventGroupMap, eventBaseMap, serviceIdMap, envIdMap map[int]bool,
 	) (EventResults, error)
-	MyGeneralQuery(start, end time.Time, eventGroupId, eventBaseId, serviceId, envId []int, eventName, eventType []string) (EventResults, error)
+	GrafanaQuery(start, end time.Time, eventGroupId, eventBaseId, serviceId, envId []int, eventName,
+		eventType []string) (EventResults, error)
 	AddEventGroup(group EventGroup) (EventGroup, error)
 	ModifyEventGroup(name string, info string, newName string) error
 	DeleteEventGroup(name string) error
@@ -404,58 +405,65 @@ func (p *postgresStore) GeneralQuery(
 		evtInstance := EventInstance{}
 		evtBase := EventBase{}
 		err = util.MapDecode(t1, &evtPeriod, true)
-		t2, ok := t1["event_instance_id"].(map[string]interface{})
+		t2, ok := t1["event_instance_id."].([]map[string]interface{})
 		if !ok {
 			continue
 		}
-		err = util.MapDecode(t2, &evtInstance, true)
-		t3, ok := t2["event_base_id"].(map[string]interface{})
-		if !ok {
-			continue
-		}
-		err = util.MapDecode(t3, &evtBase, true)
+		for _, t := range t2 {
+			err = util.MapDecode(t, &evtInstance, true)
+			t3, ok := t["event_base_id."].([]map[string]interface{})
+			if !ok {
+				continue
+			}
 
-		// check if event matches params. If map is empty then every event matches
-		if _, ok := serviceIdMap[evtBase.ServiceId]; !ok && len(serviceIdMap) != 0 {
-			continue
-		}
-		if _, ok := envIdMap[evtBase.EventEnvironmentId]; !ok && len(envIdMap) != 0 {
-			continue
-		}
-		if _, ok := eventBaseMap[evtBase.Id]; !ok && len(eventBaseMap) != 0 {
-			continue
-		}
-		if _, ok := eventGroupMap[evtBase.EventGroupId]; !ok && len(eventGroupMap) != 0 {
-			continue
+			for _, t = range t3 {
+				err = util.MapDecode(t, &evtBase, true)
+
+				// check if event matches params. If map is empty then every event matches
+				if _, ok := serviceIdMap[evtBase.ServiceId]; !ok && len(serviceIdMap) != 0 {
+					continue
+				}
+				if _, ok := envIdMap[evtBase.EventEnvironmentId]; !ok && len(envIdMap) != 0 {
+					continue
+				}
+				if _, ok := eventBaseMap[evtBase.Id]; !ok && len(eventBaseMap) != 0 {
+					continue
+				}
+				if _, ok := eventGroupMap[evtBase.EventGroupId]; !ok && len(eventGroupMap) != 0 {
+					continue
+				}
+
+				// Aggregate similar events
+				if _, ok = evtsMap[evtBase.Id]; !ok {
+					evts = append(evts, EventResult{
+						Id:                 evtBase.Id,
+						EventType:          evtBase.EventType,
+						EventName:          evtBase.EventName,
+						EventGroupId:       evtBase.EventGroupId,
+						EventEnvironmentId: evtBase.EventEnvironmentId,
+						TotalCount:         0,
+						ProcessedData:      evtBase.ProcessedData,
+						InstanceIds:        []int{},
+						Datapoints:         []Bin{},
+					})
+					evtsMap[evtBase.Id] = len(evts) - 1
+					evtsDatapointMap[evtBase.Id] = EventBins{}
+				}
+
+				start := int(evtPeriod.Updated.Unix() * 1000)
+				evt := &evts[evtsMap[evtBase.Id]]
+				evt.TotalCount += evtPeriod.Count
+				evt.InstanceIds = append(evt.InstanceIds, evtInstance.Id)
+
+				// update datapoints map with new count
+				if _, ok := evtsDatapointMap[evtBase.Id][start]; !ok {
+					evtsDatapointMap[evtBase.Id][start] = &Bin{Start: start, Count: 0}
+				}
+				evtsDatapointMap[evtBase.Id][start].Count += evtPeriod.Count
+			}
+
 		}
 
-		// Aggregate similar events
-		if _, ok = evtsMap[evtBase.Id]; !ok {
-			evts = append(evts, EventResult{
-				Id:                 evtBase.Id,
-				EventType:          evtBase.EventType,
-				EventName:          evtBase.EventName,
-				EventGroupId:       evtBase.EventGroupId,
-				EventEnvironmentId: evtBase.EventEnvironmentId,
-				TotalCount:         0,
-				ProcessedData:      evtBase.ProcessedData,
-				InstanceIds:        []int{},
-				Datapoints:         []Bin{},
-			})
-			evtsMap[evtBase.Id] = len(evts) - 1
-			evtsDatapointMap[evtBase.Id] = EventBins{}
-		}
-
-		start := int(evtPeriod.Updated.Unix() * 1000)
-		evt := &evts[evtsMap[evtBase.Id]]
-		evt.TotalCount += evtPeriod.Count
-		evt.InstanceIds = append(evt.InstanceIds, evtInstance.Id)
-
-		// update datapoints map with new count
-		if _, ok := evtsDatapointMap[evtBase.Id][start]; !ok {
-			evtsDatapointMap[evtBase.Id][start] = &Bin{Start: start, Count: 0}
-		}
-		evtsDatapointMap[evtBase.Id][start].Count += evtPeriod.Count
 	}
 
 	// turning map into sorted array
@@ -466,7 +474,7 @@ func (p *postgresStore) GeneralQuery(
 	return evts, nil
 }
 
-func (p *postgresStore) MyGeneralQuery(start, end time.Time, eventGroupId, eventBaseId, serviceId, envId []int, eventName, eventType []string) (EventResults, error) {
+func (p *postgresStore) GrafanaQuery(start, end time.Time, eventGroupId, eventBaseId, serviceId, envId []int, eventName, eventType []string) (EventResults, error) {
 
 	now := time.Now()
 	defer func() {
