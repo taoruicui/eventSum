@@ -15,6 +15,7 @@ import (
 
 	"strings"
 
+	"github.com/ContextLogic/eventsum/models"
 	"github.com/jacksontj/dataman/src/datamantype"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
@@ -134,4 +135,31 @@ func GetExptPerMinIncrease(mostRecent map[string]interface{}, secondRecent map[s
 		secondRecentIncre := float64(secondRecent["count"].(int64)) / duration
 		return mostRecentIncre - secondRecentIncre
 	}
+}
+
+func IsInList(intls []int, intv int, stringls []string, stringv string) bool {
+	if intls != nil {
+		for _, l := range intls {
+			if l == intv {
+				return true
+			}
+		}
+		return false
+	} else {
+		for _, l := range stringls {
+			if l == stringv {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func GroupNameMapToId(name string, groups []models.EventGroup) int {
+	for _, g := range groups {
+		if name == g.Name {
+			return g.Id
+		}
+	}
+	return -1
 }

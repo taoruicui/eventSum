@@ -53,7 +53,7 @@ type DataStore interface {
 		start, end time.Time,
 		eventGroupMap, eventBaseMap, serviceIdMap, envIdMap map[int]bool,
 	) (EventResults, error)
-	MyGeneralQuery(start, end time.Time, eventGroupId, eventBaseId, serviceId, envId int, eventName, eventType string) (EventResults, error)
+	MyGeneralQuery(start, end time.Time, eventGroupId, eventBaseId, serviceId, envId []int, eventName, eventType []string) (EventResults, error)
 	AddEventGroup(group EventGroup) (EventGroup, error)
 	ModifyEventGroup(name string, info string, newName string) error
 	DeleteEventGroup(name string) error
@@ -466,7 +466,7 @@ func (p *postgresStore) GeneralQuery(
 	return evts, nil
 }
 
-func (p *postgresStore) MyGeneralQuery(start, end time.Time, eventGroupId, eventBaseId, serviceId, envId int, eventName, eventType string) (EventResults, error) {
+func (p *postgresStore) MyGeneralQuery(start, end time.Time, eventGroupId, eventBaseId, serviceId, envId []int, eventName, eventType []string) (EventResults, error) {
 
 	now := time.Now()
 	defer func() {
@@ -499,23 +499,22 @@ func (p *postgresStore) MyGeneralQuery(start, end time.Time, eventGroupId, event
 			for _, r3 := range r2["event_base_id."].([]map[string]interface{}) {
 
 				err = util.MapDecode(r3, &evtBase, true)
-
-				if eventGroupId != -1 && evtBase.EventGroupId != eventGroupId {
+				if len(eventGroupId) != 0 && !util.IsInList(eventGroupId, evtBase.EventGroupId, nil, "") {
 					continue
 				}
-				if eventBaseId != -1 && evtBase.Id != eventBaseId {
+				if len(eventBaseId) != 0 && !util.IsInList(eventBaseId, evtBase.Id, nil, "") {
 					continue
 				}
-				if serviceId != -1 && evtBase.ServiceId != serviceId {
+				if len(serviceId) != 0 && !util.IsInList(serviceId, evtBase.ServiceId, nil, "") {
 					continue
 				}
-				if envId != -1 && evtBase.EventEnvironmentId != envId {
+				if len(envId) != 0 && !util.IsInList(envId, evtBase.EventEnvironmentId, nil, "") {
 					continue
 				}
-				if eventName != "" && evtBase.EventName != eventName {
+				if len(eventName) != 0 && !util.IsInList(nil, 0, eventName, evtBase.EventName) {
 					continue
 				}
-				if eventType != "" && evtBase.EventType != eventType {
+				if len(eventType) != 0 && !util.IsInList(nil, 0, eventType, evtBase.EventType) {
 					continue
 				}
 

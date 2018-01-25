@@ -55,41 +55,32 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 	groupNameMap := make(map[string]int)
 	serviceNameMap := h.es.ds.GetServicesMap()
 	environmentNameMap := h.es.ds.GetEnvironmentsMap()
-	groups, _ := h.es.ds.GetGroups()
+
+	groups, err := h.es.ds.GetGroups()
+	if err != nil {
+		h.sendError(w, http.StatusInternalServerError, err, "Error in Querying Groups")
+		return
+	}
 	for _, group := range groups {
 		groupNameMap[group.Name] = group.Id
 	}
 
 	for _, target := range query.Targets {
-		// create the maps that are needed later
-		eventBaseMap := make(map[int]bool)
-		groupIdMap := make(map[int]bool)
-		serviceIdMap := make(map[int]bool)
-		envIdMap := make(map[int]bool)
 
-		for _, v := range target.Target.EventBaseId {
-			eventBaseMap[v] = true
+		var groupIds, serviceIds, envIds []int
+
+		for _, g := range target.Target.GroupName {
+			groupIds = append(groupIds, groupNameMap[g])
+		}
+		for _, env := range target.Target.EnvironmentName {
+			envIds = append(envIds, environmentNameMap[env].Id)
+		}
+		for _, serviceName := range target.Target.ServiceName {
+			serviceIds = append(serviceIds, serviceNameMap[serviceName].Id)
 		}
 
-		for _, v := range target.Target.GroupName {
-			groupIdMap[groupNameMap[v]] = true
-		}
-
-		for _, v := range target.Target.ServiceName {
-			serviceIdMap[serviceNameMap[v].Id] = true
-		}
-
-		for _, v := range target.Target.EnvironmentName {
-			envIdMap[environmentNameMap[v].Id] = true
-		}
-
-		evts, err := h.es.ds.MyGeneralQuery(
-			query.Range.From,
-			query.Range.To,
-			-1,
-			-1,
-			-1,
-			-1, "", "")
+		evts, err := h.es.ds.MyGeneralQuery(query.Range.From, query.Range.To, groupIds,
+			target.Target.EventBaseId, serviceIds, envIds, target.Target.EventName, target.Target.EventType)
 
 		if err != nil {
 			h.sendError(w, http.StatusInternalServerError, err, "query error")
