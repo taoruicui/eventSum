@@ -17,7 +17,6 @@ import (
 	"github.com/ContextLogic/eventsum/rules"
 	"github.com/ContextLogic/eventsum/util"
 	"github.com/jacksontj/dataman/src/client"
-	"github.com/jacksontj/dataman/src/client/direct"
 	"github.com/jacksontj/dataman/src/query"
 	"github.com/jacksontj/dataman/src/storage_node"
 	"github.com/jacksontj/dataman/src/storage_node/metadata"
@@ -100,7 +99,7 @@ func NewDataStore(config config.EventsumConfig) (DataStore, error) {
 	// TODO: remove
 	storagenodeConfig.SkipProvisionTrim = true
 
-	transport, err := datamandirect.NewStaticDatasourceInstanceTransport(storagenodeConfig, meta)
+	transport, err := storagenode.NewStaticDatasourceInstanceTransport(storagenodeConfig, meta)
 	if err != nil {
 		metrics.DBError("transport")
 		return nil, err
@@ -388,7 +387,7 @@ func (p *postgresStore) GeneralQuery(
 	var evts EventResults
 	var evtsMap = make(map[int]int)
 	var evtsDatapointMap = make(map[int]EventBins) // for storing datapoints map
-	join := []interface{}{"event_instance_id", "event_instance_id.event_base_id"}
+	join := []interface{}{".event_instance_id", ".event_instance_id.event_base_id"}
 	filter := []interface{}{
 		map[string]interface{}{"updated": []interface{}{">=", start}}, "AND",
 		map[string]interface{}{"updated": []interface{}{"<=", end}},
@@ -474,33 +473,92 @@ func (p *postgresStore) MyGeneralQuery(start, end time.Time, eventGroupId, event
 		metrics.EventStoreLatency("GetRecentEvents", now)
 	}()
 
-	join := []interface{}{".event_instance_id"}
+	join := []interface{}{".event_instance_id", ".event_instance_id.event_base_id"}
 	filter := []interface{}{
 		map[string]interface{}{"updated": []interface{}{">=", start}}, "AND",
 		map[string]interface{}{"updated": []interface{}{"<=", end}},
 	}
-	if eventGroupId != -1 {
-		filter[2].(map[string]interface{})["event_instance_id.event_base_id.event_group_id"] = []interface{}{"=", eventGroupId}
-	}
-	if eventBaseId != -1 {
-		filter[2].(map[string]interface{})["event_base_id"] = []interface{}{"=", eventBaseId}
-	}
-	if serviceId != -1 {
-		filter[2].(map[string]interface{})["service_id"] = []interface{}{"=", serviceId}
-	}
-	if envId != -1 {
-		filter[2].(map[string]interface{})["event_environment_id"] = []interface{}{"=", envId}
-	}
-	if eventName != "" {
-		filter[2].(map[string]interface{})["event_name"] = []interface{}{"=", eventName}
-	}
-	if eventType != "" {
-		filter[2].(map[string]interface{})["event_type"] = []interface{}{"=", eventType}
+
+	res, err := p.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, join)
+	if err != nil {
+		metrics.DBError("read")
+		return nil, err
 	}
 
-	res, _ := p.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, join)
-	fmt.Println(res)
-	return nil, nil
+	var evts EventResults
+	var evtsMap = make(map[int]int)
+	var evtsDatapointMap = make(map[int]EventBins) // for storing datapoints map
+
+	for _, r := range res.Return {
+		evtPeriod := EventInstancePeriod{}
+		evtInstance := EventInstance{}
+		evtBase := EventBase{}
+		err = util.MapDecode(r, &evtPeriod, true)
+		for _, r2 := range r["event_instance_id."].([]map[string]interface{}) {
+			err = util.MapDecode(r2, &evtInstance, true)
+			for _, r3 := range r2["event_base_id."].([]map[string]interface{}) {
+
+				err = util.MapDecode(r3, &evtBase, true)
+
+				if eventGroupId != -1 && evtBase.EventGroupId != eventGroupId {
+					continue
+				}
+				if eventBaseId != -1 && evtBase.Id != eventBaseId {
+					continue
+				}
+				if serviceId != -1 && evtBase.ServiceId != serviceId {
+					continue
+				}
+				if envId != -1 && evtBase.EventEnvironmentId != envId {
+					continue
+				}
+				if eventName != "" && evtBase.EventName != eventName {
+					continue
+				}
+				if eventType != "" && evtBase.EventType != eventType {
+					continue
+				}
+
+				// Aggregate similar events
+				if _, ok := evtsMap[evtBase.Id]; !ok {
+					evts = append(evts, EventResult{
+						Id:                 evtBase.Id,
+						EventType:          evtBase.EventType,
+						EventName:          evtBase.EventName,
+						EventGroupId:       evtBase.EventGroupId,
+						EventEnvironmentId: evtBase.EventEnvironmentId,
+						TotalCount:         0,
+						ProcessedData:      evtBase.ProcessedData,
+						InstanceIds:        []int{},
+						Datapoints:         []Bin{},
+					})
+					evtsMap[evtBase.Id] = len(evts) - 1
+					evtsDatapointMap[evtBase.Id] = EventBins{}
+				}
+
+				start := int(evtPeriod.Updated.Unix() * 1000)
+				evt := &evts[evtsMap[evtBase.Id]]
+				evt.TotalCount += evtPeriod.Count
+				evt.InstanceIds = append(evt.InstanceIds, evtInstance.Id)
+
+				// update datapoints map with new count
+				if _, ok := evtsDatapointMap[evtBase.Id][start]; !ok {
+					evtsDatapointMap[evtBase.Id][start] = &Bin{Start: start, Count: 0}
+				}
+				evtsDatapointMap[evtBase.Id][start].Count += evtPeriod.Count
+
+			}
+		}
+
+	}
+
+	// turning map into sorted array
+	for id, datapoints := range evtsDatapointMap {
+		evts[evtsMap[id]].Datapoints = datapoints.ToSlice(1000)
+	}
+
+	return evts, nil
+
 }
 
 // Get EventBase by processed_hash
@@ -526,7 +584,7 @@ func (p *postgresStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) 
 	var instance EventInstance
 	var detail EventDetail
 	var base EventBase
-	join := []interface{}{"event_base_id", "event_detail_id"}
+	join := []interface{}{".event_base_id", ".event_detail_id"}
 	pkey := map[string]interface{}{"_id": id}
 
 	res, err := p.Query(query.Get, "event_instance", nil, nil, nil, pkey, -1, nil, join)
