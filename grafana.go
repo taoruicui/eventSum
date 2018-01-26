@@ -123,15 +123,16 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&search)
 	var idFilterMatch = regexp.MustCompile("event_id\\([^,;]*,[^,;]*,[^,;]*,[^,;]*\\)")
-	var eventTypeFilterMatch = regexp.MustCompile("(event_type=.*|event_type\\scontains\\s.*)")
-	var eventNameFilterMatch = regexp.MustCompile("(event_name=.*|event_name\\scontains\\s.*)")
+	var eventTypeFilterMatch = regexp.MustCompile("(event_type=[^=]*|event_type\\.contains\\.[^\\.]*)")
+	var eventNameFilterMatch = regexp.MustCompile("(event_name=[^=]*|event_name\\.contains\\.[^\\.]*)")
 
 	if err != nil {
 		h.sendError(w, http.StatusBadRequest, err, "Incorrect request format")
 	}
 
 	switch {
-	// Get all service ids
+
+	// Get all service names
 	case search.Target == "service_name":
 		services := h.es.ds.GetServices()
 		names := []string{}
@@ -141,6 +142,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		}
 		result = names
 
+		//Get all environment names
 	case search.Target == "environment":
 		environments := h.es.ds.GetEnvironments()
 		names := []string{}
@@ -150,6 +152,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		}
 		result = names
 
+		//get all group names
 	case search.Target == "group_name":
 		groups, err := h.es.ds.GetGroups()
 		names := []string{}
@@ -163,6 +166,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		}
 		result = names
 
+		//get all event types given a filter
 	case eventTypeFilterMatch.MatchString(search.Target):
 		var statement = search.Target
 		names, err := h.es.ds.GetEventTypes(statement)
@@ -171,6 +175,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		}
 		result = names
 
+		//get all event names given a filter
 	case eventNameFilterMatch.MatchString(search.Target):
 		var statement = search.Target
 		names, err := h.es.ds.GetEventNames(statement)
@@ -179,6 +184,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		}
 		result = names
 
+		//get all event base ids given a filter
 	case idFilterMatch.MatchString(search.Target):
 		statement := strings.TrimPrefix(search.Target, "event_id(")
 		statement = strings.TrimSuffix(statement, ")")
@@ -228,6 +234,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		result = ids
 
 	default:
+		h.sendError(w, http.StatusBadRequest, errors.New("template variable creating error"), "")
 		return
 	}
 

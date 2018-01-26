@@ -64,6 +64,11 @@ type GrafanaTargetParam struct {
 //
 // ex: "service_id=(1|2)&event_group=(test)&limit=5"
 func (t *GrafanaTargetParam) UnmarshalJSON(b []byte) error {
+
+	if string(b) == "\"\"" {
+		return nil
+	}
+
 	s := strings.Trim(string(b), "\"")
 	groups := strings.Split(s, "&")
 

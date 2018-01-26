@@ -645,6 +645,7 @@ func (p *postgresStore) SetGroupId(eventBaseId, eventGroupId int) (EventBase, er
 	return base, nil
 }
 
+//given a group, add it into DB
 func (p *postgresStore) AddEventGroup(group EventGroup) (EventGroup, error) {
 	record := map[string]interface{}{
 		"name": group.Name,
@@ -658,6 +659,7 @@ func (p *postgresStore) AddEventGroup(group EventGroup) (EventGroup, error) {
 	return group, nil
 }
 
+//modify an existing group name and info given an old group name
 func (p *postgresStore) ModifyEventGroup(name string, info string, newName string) error {
 
 	filter := map[string]interface{}{
@@ -677,6 +679,7 @@ func (p *postgresStore) ModifyEventGroup(name string, info string, newName strin
 	return nil
 }
 
+//given a group name, delete the corresponding group in DB
 func (p *postgresStore) DeleteEventGroup(name string) error {
 
 	filter := map[string]interface{}{
@@ -704,6 +707,7 @@ func (p *postgresStore) DeleteEventGroup(name string) error {
 
 }
 
+//given event types, filter out the events
 func (p *postgresStore) GetEventTypes(statement string) ([]string, error) {
 	var result []string
 
@@ -740,6 +744,7 @@ func (p *postgresStore) GetEventTypes(statement string) ([]string, error) {
 	}
 }
 
+//given event names, filter out the events
 func (p *postgresStore) GetEventNames(statement string) ([]string, error) {
 	var result []string
 
@@ -776,6 +781,7 @@ func (p *postgresStore) GetEventNames(statement string) ([]string, error) {
 	}
 }
 
+//given group names, filter out events
 func (p *postgresStore) GetEventsByGroup(group_id int, group_name string) ([]EventBase, error) {
 	var evts []EventBase
 
@@ -812,6 +818,7 @@ func (p *postgresStore) GetEventsByGroup(group_id int, group_name string) ([]Eve
 	return evts, nil
 }
 
+//given a collection of filters, filter out the events and return their base IDs.
 func (p *postgresStore) GetEventsByCriteria(serviceId string, eventType string, eventName string, environmentId string) ([]EventBase, error) {
 	var evts []EventBase
 	var filter = make(map[string]interface{})
@@ -849,6 +856,8 @@ func (p *postgresStore) GetDBConfig() *storagenode.DatasourceInstanceConfig {
 	return p.DBConfig
 }
 
+//given a collection of filters, filter out the result exception and aggregate the count
+//and calculate the increase, count/min.
 func (p *postgresStore) CountEvents(filterMap map[string]string) (CountStat, error) {
 
 	var result CountStat
