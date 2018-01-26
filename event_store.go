@@ -301,12 +301,12 @@ func (es *eventStore) ModifyEventGroup(name string, info string, newName string)
 	return es.ds.ModifyEventGroup(name, info, newName)
 }
 
-func (es *eventStore) DeleteEventGroup(name string) error {
+func (es *eventStore) DeleteEventGroup(group_id int, name string) error {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("DeleteEventGroup", now)
 	}()
-	return es.ds.DeleteEventGroup(name)
+	return es.ds.DeleteEventGroup(group_id, name)
 }
 
 func (es *eventStore) CountEvents(filter map[string]string) (CountStat, error) {

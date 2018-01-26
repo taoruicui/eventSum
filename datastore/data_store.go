@@ -57,7 +57,7 @@ type DataStore interface {
 		eventType []string) (EventResults, error)
 	AddEventGroup(group EventGroup) (EventGroup, error)
 	ModifyEventGroup(name string, info string, newName string) error
-	DeleteEventGroup(name string) error
+	DeleteEventGroup(group_id int, name string) error
 	GetEventTypes(statement string) ([]string, error)
 	GetEventNames(statement string) ([]string, error)
 	GetEventsByGroup(group_id int, group_name string) ([]EventBase, error)
@@ -680,23 +680,42 @@ func (p *postgresStore) ModifyEventGroup(name string, info string, newName strin
 }
 
 //given a group name, delete the corresponding group in DB
-func (p *postgresStore) DeleteEventGroup(name string) error {
+func (p *postgresStore) DeleteEventGroup(group_id int, name string) error {
+
+	if group_id == 0 || name == "default" {
+		return errors.New("cannot delete default group")
+	}
+
+	//find group id if group id is not given while name is given
+	if group_id == -1 {
+		filter := map[string]interface{}{
+			"name": []interface{}{"=", name},
+		}
+		res, err := p.Query(query.Filter, "event_group", filter, nil, nil, nil, -1, nil, nil)
+		if err != nil {
+			metrics.DBError("read")
+			return err
+		} else if len(res.Return) == 0 {
+			return errors.New(fmt.Sprintf("no group with name %s", name))
+		}
+		group_id64 := res.Return[0]["_id"].(int64)
+		group_id = int(group_id64)
+	}
 
 	filter := map[string]interface{}{
-		"name": []interface{}{"=", name},
+		"event_group_id": []interface{}{"=", group_id},
 	}
-	res, err := p.Query(query.Filter, "event_group", filter, nil, nil, nil, -1, nil, nil)
+	record := map[string]interface{}{
+		"event_group_id": 0,
+	}
+
+	_, err := p.Query(query.Update, "event_base", filter, record, nil, nil, -1, nil, nil)
 	if err != nil {
-		metrics.DBError("read")
+		metrics.DBError("write")
 		return err
-	} else if len(res.Return) == 0 {
-		return errors.New(fmt.Sprintf("no group with name %s", name))
 	}
 
-	var group EventGroup
-	util.MapDecode(res.Return[0], &group, false)
-
-	pkey := map[string]interface{}{"_id": group.Id}
+	pkey := map[string]interface{}{"_id": group_id}
 
 	_, err = p.Query(query.Delete, "event_group", nil, nil, nil, pkey, -1, nil, nil)
 	if err != nil {

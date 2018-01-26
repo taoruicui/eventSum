@@ -342,18 +342,22 @@ func (h *httpHandler) modifyGroupHandler(w http.ResponseWriter, r *http.Request,
 
 func (h *httpHandler) deleteGroupHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	defer r.Body.Close()
-	var groups []map[string]string
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&groups); err != nil {
-		h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event")
+	query := r.URL.Query()
+	id := query.Get("id")
+	if id == "" {
+		id = "-1"
+	}
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		h.sendError(w, http.StatusBadRequest, err, "Group id must be a valid int")
+	}
+	name := query.Get("name")
+
+	if err := h.es.DeleteEventGroup(idInt, name); err != nil {
+		h.sendError(w, http.StatusBadRequest, err, "Error deleting groups")
 		return
 	}
-	for _, g := range groups {
-		if err := h.es.DeleteEventGroup(g["name"]); err != nil {
-			h.sendError(w, http.StatusBadRequest, err, "Error deleting groups")
-			return
-		}
-	}
+
 }
 
 func (h *httpHandler) countEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
