@@ -197,7 +197,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 			serviceIdMap, ok := services[service]
 			serviceId = strconv.Itoa(serviceIdMap.Id)
 			if !ok {
-				h.sendError(w, http.StatusBadRequest, errors.New("service name does not exist"), "")
+				h.sendError(w, http.StatusBadRequest, errors.New(fmt.Sprintf("service name %s does not exist", service)), "")
 				return
 			}
 		}
@@ -213,14 +213,14 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 			environmentIdMap, ok := environments[environment]
 			environmentId = strconv.Itoa(environmentIdMap.Id)
 			if !ok {
-				h.sendError(w, http.StatusBadRequest, errors.New("service name does not exist"), "")
+				h.sendError(w, http.StatusBadRequest, errors.New(fmt.Sprintf("environment name %s does not exist", environment)), "")
 				return
 			}
 		}
 
 		events, err := h.es.ds.GetEventsByCriteria(serviceId, eventType, eventName, environmentId)
 		if err != nil {
-			h.sendError(w, http.StatusBadRequest, errors.New("eventstore error"), "")
+			h.sendError(w, http.StatusBadRequest, errors.New("event store error"), "")
 			return
 		} else if len(events) == 0 {
 			return
@@ -234,7 +234,7 @@ func (h *httpHandler) grafanaSearch(w http.ResponseWriter, r *http.Request, _ ht
 		result = ids
 
 	default:
-		h.sendError(w, http.StatusBadRequest, errors.New("template variable creating error"), "")
+		h.sendError(w, http.StatusBadRequest, errors.New(fmt.Sprintf("template variable %s creating error", search.Target)), "")
 		return
 	}
 

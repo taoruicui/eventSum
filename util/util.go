@@ -15,6 +15,8 @@ import (
 
 	"strings"
 
+	"strconv"
+
 	"github.com/ContextLogic/eventsum/models"
 	"github.com/jacksontj/dataman/src/datamantype"
 	"github.com/mitchellh/mapstructure"
@@ -162,4 +164,13 @@ func GroupNameMapToId(name string, groups []models.EventGroup) int {
 		}
 	}
 	return -1
+}
+
+func EpochToTime(epoch string) (time.Time, error) {
+	t, err := strconv.ParseInt(epoch, 10, 64)
+	if err != nil {
+		return time.Now(), err
+	}
+	tm := time.Unix(t, 0)
+	return tm, nil
 }

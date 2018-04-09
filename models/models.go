@@ -126,3 +126,11 @@ type CountStat struct {
 	CountPerMin float64
 	Increase    float64
 }
+
+type OpsdbResult struct {
+	Id         int
+	LastSeen   time.Time
+	EvtName    string
+	Count      int
+	EvtMessage string
+}

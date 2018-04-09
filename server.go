@@ -51,7 +51,6 @@ func (s *EventsumServer) Start() {
 	// run the store in a goroutine
 	go func() {
 		s.logger.App().Printf("Listening on http://0.0.0.0%s", httpServer.Addr)
-		s.logger.App().Println("this is the latest version")
 		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
 			s.logger.App().Fatal(err)
 		}
@@ -126,6 +125,7 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 	}))
 	s.route.GET("/group", latency("/group", s.httpHandler.searchGroupHandler))
 	s.route.GET("/count", latency("/count", s.httpHandler.countEventsHandler))
+	s.route.GET("/opsdb", latency("/opsdb", s.httpHandler.opsdbEventsHandler))
 	s.route.Handler("GET", "/metrics", promhttp.Handler())
 
 	// PUT requests

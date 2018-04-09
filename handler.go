@@ -279,6 +279,7 @@ func (h *httpHandler) createGroupHandler(w http.ResponseWriter, r *http.Request,
 }
 
 func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
 	var evt UnaddedEvent
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
@@ -385,6 +386,59 @@ func (h *httpHandler) countEventsHandler(w http.ResponseWriter, r *http.Request,
 		return
 	} else {
 		h.sendResp(w, "count", count)
+	}
+
+}
+
+func (h *httpHandler) opsdbEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	defer r.Body.Close()
+	query := r.URL.Query()
+
+	filter := make(map[string]string)
+
+	service := query.Get("service")
+	if service == "" {
+		h.sendError(w, http.StatusBadRequest, errors.New("service is missing"), "Error")
+		return
+	}
+	if _, ok := h.es.ds.GetServicesMap()[service]; !ok {
+		h.sendError(w, http.StatusBadRequest, errors.New("wrong service query"), "Error")
+		return
+	}
+
+	env := query.Get("environment")
+	if env == "" {
+		h.sendError(w, http.StatusBadRequest, errors.New("environment is missing"), "Error")
+		return
+	}
+	if _, ok := h.es.ds.GetEnvironmentsMap()[env]; !ok {
+		h.sendError(w, http.StatusBadRequest, errors.New("wrong environment query"), "Error")
+		return
+	}
+
+	group := query.Get("group")
+	if group == "" {
+		h.sendError(w, http.StatusBadRequest, errors.New("group is missing"), "Error")
+		return
+	}
+	groupId, err := h.es.ds.GetGroupIdByGroupName(group)
+	if err != nil {
+		h.sendError(w, http.StatusBadRequest, errors.New("wrong group query"), "Error")
+		return
+	}
+
+	filter["service"] = strconv.Itoa(h.es.ds.GetServicesMap()[service].Id)
+	filter["environment"] = strconv.Itoa(h.es.ds.GetEnvironmentsMap()[env].Id)
+	filter["group"] = groupId
+
+	filter["start_time"] = query.Get("start_time")
+	filter["end_time"] = query.Get("end_time")
+
+	if res, err := h.es.OpsdbQuery(filter); err != nil {
+		h.sendError(w, http.StatusBadRequest, err, "Error counting events")
+		return
+	} else {
+		h.sendResp(w, "opsdbQuery", res)
 	}
 
 }

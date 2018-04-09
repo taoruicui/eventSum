@@ -44,6 +44,7 @@ type DataStore interface {
 	GetEnvironments() []EventEnvironment
 	GetEnvironmentsMap() map[string]EventEnvironment
 	GetGroups() ([]EventGroup, error)
+	GetGroupIdByGroupName(name string) (string, error)
 	GetEventsByServiceId(id int) ([]EventBase, error)
 	GetEventsByCriteria(serviceId string, eventType string, eventName string, environmentId string) ([]EventBase, error)
 	GetEventByHash(hash string) (EventBase, error)
@@ -63,6 +64,7 @@ type DataStore interface {
 	GetEventsByGroup(group_id int, group_name string) ([]EventBase, error)
 	GetDBConfig() *storagenode.DatasourceInstanceConfig
 	CountEvents(map[string]string) (CountStat, error)
+	OpsdbQuery(filtermap map[string]string) ([]OpsdbResult, error)
 }
 
 type postgresStore struct {
@@ -348,6 +350,23 @@ func (p *postgresStore) GetGroups() ([]EventGroup, error) {
 		result = append(result, group)
 	}
 	return result, nil
+}
+
+func (p *postgresStore) GetGroupIdByGroupName(name string) (string, error) {
+	filter := map[string]interface{}{"name": []interface{}{"=", name}}
+	var result string
+	res, err := p.Query(query.Filter, "event_group", filter, nil, nil, nil, -1, nil, nil)
+	if err != nil {
+		metrics.DBError("read")
+		return result, err
+	} else if len(res.Return) == 0 {
+		return result, err
+	}
+
+	result = strconv.FormatInt(res.Return[0]["_id"].(int64), 10)
+
+	return result, nil
+
 }
 
 func (p *postgresStore) GetEventsByServiceId(id int) ([]EventBase, error) {
@@ -747,7 +766,7 @@ func (p *postgresStore) GetEventTypes(statement string) ([]string, error) {
 		}
 		return result, nil
 	} else {
-		statement = strings.Split(statement, " contains ")[1]
+		statement = strings.Split(statement, ".contains.")[1]
 		res, err := p.Query(query.Filter, "event_base", nil, nil, nil, nil, -1, nil, nil)
 		if err != nil {
 			metrics.DBError("read")
@@ -784,7 +803,7 @@ func (p *postgresStore) GetEventNames(statement string) ([]string, error) {
 		}
 		return result, nil
 	} else {
-		statement = strings.Split(statement, " contains ")[1]
+		statement = strings.Split(statement, ".contains.")[1]
 		res, err := p.Query(query.Filter, "event_base", nil, nil, nil, nil, -1, nil, nil)
 		if err != nil {
 			metrics.DBError("read")
@@ -936,9 +955,95 @@ func (p *postgresStore) CountEvents(filterMap map[string]string) (CountStat, err
 	}
 	result.Increase = util.GetExptPerMinIncrease(mostRecent, secondRecent)
 
-	end, _ = time.Parse(layout, res.Return[0]["end_time"].(string))
-	start, _ = time.Parse(layout, res.Return[len(res.Return)-1]["end_time"].(string))
 	diff := end.Sub(start).Minutes()
 	result.CountPerMin = float64(result.Count) / diff
+	return result, nil
+}
+
+func (p *postgresStore) OpsdbQuery(filterMap map[string]string) ([]OpsdbResult, error) {
+	var tmp = make(map[int]OpsdbResult)
+	var result []OpsdbResult
+
+	var start, end time.Time
+	var err error
+	if filterMap["start_time"] != "" {
+		start, err = util.EpochToTime(filterMap["start_time"])
+		if err != nil {
+			return result, err
+		}
+	} else {
+		start = time.Now()
+	}
+
+	if filterMap["end_time"] != "" {
+		end, err = util.EpochToTime(filterMap["end_time"])
+		if err != nil {
+			return result, err
+		}
+	} else {
+		end = time.Now()
+	}
+	filter := []interface{}{
+		map[string]interface{}{"updated": []interface{}{">=", start}}, "AND",
+		map[string]interface{}{"updated": []interface{}{"<=", end}},
+	}
+
+	join := []interface{}{".event_instance_id", ".event_instance_id.event_base_id"}
+	res, err := p.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, join)
+	if err != nil {
+		metrics.DBError("read")
+
+	} else if len(res.Return) == 0 {
+		return result, nil
+	}
+
+	for _, t1 := range res.Return {
+		evtPeriod := EventInstancePeriod{}
+		evtInstance := EventInstance{}
+		evtBase := EventBase{}
+		opsdbResult := OpsdbResult{}
+		err = util.MapDecode(t1, &evtPeriod, true)
+		t2, ok := t1["event_instance_id."].([]map[string]interface{})
+		if !ok {
+			continue
+		}
+		for _, t := range t2 {
+			err = util.MapDecode(t, &evtInstance, true)
+			t3, ok := t["event_base_id."].([]map[string]interface{})
+			if !ok {
+				continue
+			}
+			for _, t = range t3 {
+				err = util.MapDecode(t, &evtBase, true)
+
+				if val, ok := filterMap["service"]; ok && strconv.Itoa(evtBase.ServiceId) != val {
+					continue
+				}
+				if val, ok := filterMap["environment"]; ok && strconv.Itoa(evtBase.EventEnvironmentId) != val {
+					continue
+				}
+				if val, ok := filterMap["group"]; ok && strconv.Itoa(evtBase.EventGroupId) != val {
+					continue
+				}
+			}
+		}
+		if val, ok := tmp[evtBase.Id]; !ok {
+			opsdbResult.Id = evtBase.Id
+			opsdbResult.EvtName = evtBase.EventName
+			opsdbResult.EvtMessage = evtBase.ProcessedData.Message
+			opsdbResult.LastSeen = evtPeriod.Updated
+			opsdbResult.Count = evtPeriod.Count
+			tmp[evtBase.Id] = opsdbResult
+		} else {
+			val.Count = tmp[evtBase.Id].Count + evtPeriod.Count
+			if evtPeriod.Updated.Sub(val.LastSeen) > 0 {
+				val.LastSeen = evtPeriod.Updated
+			}
+		}
+	}
+	for _, val := range tmp {
+		result = append(result, val)
+	}
+
 	return result, nil
 }
