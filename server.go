@@ -117,6 +117,7 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 	s.route.GET("/search", latency("/search", s.httpHandler.searchEventsHandler))
 	s.route.GET("/detail", latency("/detail", s.httpHandler.detailsEventsHandler))
 	s.route.GET("/histogram", latency("/histogram", s.httpHandler.histogramEventsHandler))
+	s.route.GET("/test", latency("/test", s.httpHandler.test))
 	s.route.GET("/health", latency("/health", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 		errMap := s.healthCheck()
@@ -143,7 +144,7 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 	s.route.GET("/grafana", latency("/grafana", cors(s.httpHandler.grafanaOk)))
 	s.route.GET("/grafana/", latency("/grafana/", cors(s.httpHandler.grafanaOk)))
 	s.route.OPTIONS("/grafana/:route", latency("/grafana", cors(s.httpHandler.grafanaOk)))
-	s.route.POST("/grafana/query", latency("/grafana/query", cors(s.httpHandler.grafanaQuery)))
+	s.route.POST("/grafana/query", latency("/grafana/query", cors(s.httpHandler.grafanaTest)))
 	s.route.POST("/grafana/search", latency("/grafana/search", cors(s.httpHandler.grafanaSearch)))
 
 	return s

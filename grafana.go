@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	_ "strings"
 
 	"strconv"
+
+	"time"
 
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/julienschmidt/httprouter"
@@ -35,6 +38,62 @@ func (h *httpHandler) grafanaOk(w http.ResponseWriter, r *http.Request, _ httpro
 
 }
 
+func (h *httpHandler) grafanaTest(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var query GrafanaQueryReq
+	defer r.Body.Close()
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&query); err != nil {
+		h.sendError(w, http.StatusBadRequest, err, "Incorrect request format")
+	}
+
+	start := query.Range.From.Format("2006-01-02 15:04:05")
+	end := query.Range.To.Format("2006-01-02 15:04:05")
+
+	result := []GrafanaQueryResp{}
+
+	for _, target := range query.Targets {
+		serviceString := strconv.Itoa(h.es.ds.GetServicesMap()[target.Target.ServiceName[0]].Id)
+		envString := strconv.Itoa(h.es.ds.GetEnvironmentsMap()[target.Target.EnvironmentName[0]].Id)
+		groupId, err := h.es.ds.GetGroupIdByGroupName(target.Target.GroupName[0])
+		if err != nil {
+			h.sendError(w, http.StatusInternalServerError, err, "group name not found")
+			return
+		}
+
+		resList, err := h.es.ds.OpsdbQuery(start, end, envString, serviceString, groupId)
+		sort.Slice(resList, func(i, j int) bool {
+			return resList[i].CountSum > resList[j].CountSum
+		})
+		if len(resList) > target.Target.Limit {
+			resList = resList[:target.Target.Limit]
+		}
+
+		for _, r := range resList {
+			evtFormatName := fmt.Sprintf("%s: %s", r.EvtName, r.EvtMessage)
+			datapoints := [][]int{}
+			for i, bin := range r.Count {
+				t, _ := time.Parse("2006-01-02 15:04:05", r.TimeStamp[i])
+				tUnix := int(t.Add(7*time.Duration(time.Hour)).Unix() * 1000)
+				datapoints = append(datapoints, []int{bin, tUnix})
+			}
+			sort.Slice(datapoints, func(i, j int) bool {
+				return datapoints[i][1] < datapoints[j][1]
+			})
+
+			result = append(result, GrafanaQueryResp{
+				Target:     evtFormatName,
+				Datapoints: datapoints,
+			})
+
+		}
+
+	}
+
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		fmt.Printf("json encode failure: %+v", err)
+	}
+}
+
 // grafanaQuery handles all grafana metric requests. This means it handles 3 main
 // request types:
 //
@@ -42,6 +101,7 @@ func (h *httpHandler) grafanaOk(w http.ResponseWriter, r *http.Request, _ httpro
 // 2) Top n recent events and their metrics
 // 3) Top n new/increased events and their metrics
 func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
 	var query GrafanaQueryReq
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
@@ -55,8 +115,8 @@ func (h *httpHandler) grafanaQuery(w http.ResponseWriter, r *http.Request, _ htt
 	groupNameMap := make(map[string]int)
 	serviceNameMap := h.es.ds.GetServicesMap()
 	environmentNameMap := h.es.ds.GetEnvironmentsMap()
-
 	groups, err := h.es.ds.GetGroups()
+
 	if err != nil {
 		h.sendError(w, http.StatusInternalServerError, err, "Error in Querying Groups")
 		return

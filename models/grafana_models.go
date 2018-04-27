@@ -70,6 +70,7 @@ func (t *GrafanaTargetParam) UnmarshalJSON(b []byte) error {
 	}
 
 	s := strings.Trim(string(b), "\"")
+
 	groups := strings.Split(s, "&")
 
 	for _, group := range groups {

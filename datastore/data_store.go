@@ -11,6 +11,10 @@ import (
 
 	"sort"
 
+	"bytes"
+
+	_ "database/sql"
+
 	"github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
@@ -21,6 +25,10 @@ import (
 	"github.com/jacksontj/dataman/src/storage_node"
 	"github.com/jacksontj/dataman/src/storage_node/metadata"
 	"github.com/pkg/errors"
+
+	"database/sql"
+
+	_ "github.com/lib/pq"
 )
 
 var GlobalRule *rules.Rule
@@ -64,13 +72,15 @@ type DataStore interface {
 	GetEventsByGroup(group_id int, group_name string) ([]EventBase, error)
 	GetDBConfig() *storagenode.DatasourceInstanceConfig
 	CountEvents(map[string]string) (CountStat, error)
-	OpsdbQuery(filtermap map[string]string) ([]OpsdbResult, error)
+	OpsdbQuery(from string, to string, envId string, serviceId string, groupId string) ([]OpsdbResult, error)
+	Test(from string, to string, evtId int) (DataPointArrays, error)
 }
 
 type postgresStore struct {
 	Name     string
 	Client   *datamanclient.Client
 	DBConfig *storagenode.DatasourceInstanceConfig
+	DB       *sql.DB
 
 	// Variables stored in memory (for faster access)
 	Services            []EventService
@@ -125,6 +135,13 @@ func NewDataStore(config config.EventsumConfig) (DataStore, error) {
 		environmentsNameMap[k] = environment
 	}
 
+	connStr := "host=eventsum.cnhd0jvdgiok.us-west-1.rds.amazonaws.com user=eventsum password=7eb498c039ce176d4da31183d06cc314ff930b68 port=5432"
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		metrics.DBError("transport")
+		return nil, err
+	}
+
 	client := &datamanclient.Client{Transport: transport}
 	return &postgresStore{
 		Name:                config.DatabaseName,
@@ -134,6 +151,7 @@ func NewDataStore(config config.EventsumConfig) (DataStore, error) {
 		ServicesNameMap:     servicesNameMap,
 		Environments:        environments,
 		EnvironmentsNameMap: environmentsNameMap,
+		DB:                  db,
 	}, nil
 }
 
@@ -621,12 +639,11 @@ func (p *postgresStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) 
 	} else if len(res.Return) == 0 {
 		return result, errors.New(fmt.Sprintf("no event instance with id %v", id))
 	}
-
 	util.MapDecode(res.Return[0], &instance, false)
-	if t1, ok := res.Return[0]["event_base_id"].(map[string]interface{}); ok {
-		util.MapDecode(t1, &base, false)
-		if t2, ok := res.Return[0]["event_detail_id"].(map[string]interface{}); ok {
-			util.MapDecode(t2, &detail, false)
+	if t1, ok := res.Return[0]["event_base_id."]; ok {
+		util.MapDecode(t1.([]map[string]interface{})[0], &base, false)
+		if t2, ok := res.Return[0]["event_detail_id."]; ok {
+			util.MapDecode(t2.([]map[string]interface{})[0], &detail, false)
 		}
 	}
 	result = EventDetailsResult{
@@ -636,6 +653,26 @@ func (p *postgresStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) 
 		RawData:    instance.RawData,
 		RawDetails: detail.RawDetail,
 	}
+
+	fmt.Println(result)
+
+	for _, frame := range result.RawData.(EventData).Raw.(map[string]interface{})["frames"].([]interface{}) {
+		var buffer bytes.Buffer
+		for _, s := range frame.(map[string]interface{})["pre_context"].([]interface{}) {
+			buffer.WriteString(s.(string))
+			buffer.WriteString("\n")
+		}
+		buffer.WriteString(frame.(map[string]interface{})["context_line"].(string))
+		buffer.WriteString("\n")
+		for _, s := range frame.(map[string]interface{})["post_context"].([]interface{}) {
+			buffer.WriteString(s.(string))
+			buffer.WriteString("\n")
+		}
+		frame.(map[string]interface{})["code_snippet"] = buffer.String()
+		frame.(map[string]interface{})["start_lineno"] = int(frame.(map[string]interface{})["lineno"].(float64)) - len(frame.(map[string]interface{})["pre_context"].([]interface{}))
+		frame.(map[string]interface{})["highlight_lineno"] = len(frame.(map[string]interface{})["pre_context"].([]interface{})) + 1
+	}
+
 	return result, nil
 }
 
@@ -960,90 +997,226 @@ func (p *postgresStore) CountEvents(filterMap map[string]string) (CountStat, err
 	return result, nil
 }
 
-func (p *postgresStore) OpsdbQuery(filterMap map[string]string) ([]OpsdbResult, error) {
+func (p *postgresStore) OpsdbQuery(start string, end string, envId string, serviceId string, groupId string) ([]OpsdbResult, error) {
+	////var tmp = make(map[int]OpsdbResult)
+	////var dataPointTmp = make(map[int]DataPoint)
+	////var result []OpsdbResult
+	////
+	////var start, end time.Time
+	////var err error
+	////if filterMap["start_time"] != "" {
+	////	start, err = util.EpochToTime(filterMap["start_time"])
+	////	if err != nil {
+	////		return result, err
+	////	}
+	////} else {
+	////	start = time.Now()
+	////}
+	////
+	////if filterMap["end_time"] != "" {
+	////	end, err = util.EpochToTime(filterMap["end_time"])
+	////	if err != nil {
+	////		return result, err
+	////	}
+	////} else {
+	////	end = time.Now()
+	////}
+	////fmt.Println(start, end)
+	////filter := []interface{}{
+	////	map[string]interface{}{"updated": []interface{}{">=", start}}, "AND",
+	////	map[string]interface{}{"updated": []interface{}{"<=", end}},
+	////}
+	////
+	////join := []interface{}{".event_instance_id", ".event_instance_id.event_base_id"}
+	////res, err := p.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, join)
+	////if err != nil {
+	////	metrics.DBError("read")
+	////} else if len(res.Return) == 0 {
+	////	return result, nil
+	////}
+	////
+	////fmt.Println(len(res.Return))
+	////c := 0
+	////
+	////for _, t1 := range res.Return {
+	////	evtPeriod := EventInstancePeriod{}
+	////	evtInstance := EventInstance{}
+	////	evtBase := EventBase{}
+	////	evtGroup := EventGroup{}
+	////	opsdbResult := OpsdbResult{}
+	////	err = util.MapDecode(t1, &evtPeriod, true)
+	////	t2, ok := t1["event_instance_id."].([]map[string]interface{})
+	////	if !ok {
+	////		fmt.Println(t1)
+	////		continue
+	////	}
+	////	for _, t := range t2 {
+	////		err = util.MapDecode(t, &evtInstance, true)
+	////		t3, ok := t["event_base_id."].([]map[string]interface{})
+	////		if !ok {
+	////			continue
+	////		}
+	////		for _, t = range t3 {
+	////			err = util.MapDecode(t, &evtBase, true)
+	////			if val, ok := filterMap["service"]; ok && strconv.Itoa(evtBase.ServiceId) != val {
+	////				continue
+	////			}
+	////			if val, ok := filterMap["environment"]; ok && strconv.Itoa(evtBase.EventEnvironmentId) != val {
+	////				continue
+	////			}
+	////			if val, ok := filterMap["group"]; ok && strconv.Itoa(evtBase.EventGroupId) != val {
+	////				continue
+	////			}
+	////			c = c + 1
+	////
+	////			if val, ok := tmp[evtBase.Id]; !ok {
+	////				opsdbResult.EventInstanceId = evtInstance.Id
+	////				opsdbResult.EventBaseId = evtBase.Id
+	////				opsdbResult.EvtName = evtBase.EventName
+	////				opsdbResult.EvtMessage = evtBase.ProcessedData.Message
+	////				opsdbResult.LastSeen = evtPeriod.Updated
+	////				opsdbResult.Count = evtPeriod.Count
+	////				opsdbResult.Group = evtGroup.Name
+	////				tmp[evtBase.Id] = opsdbResult
+	////
+	////				dataPoint := DataPoint{}
+	////				dataPoint.Count = []int{evtPeriod.Count}
+	////				dataPoint.TimeStamp = []time.Time{evtPeriod.Updated}
+	////				dataPointTmp[evtBase.Id] = dataPoint
+	////
+	////			} else {
+	////				v := dataPointTmp[evtBase.Id]
+	////				v.Update(evtPeriod.Count, evtPeriod.Updated)
+	////				dataPointTmp[evtBase.Id] = v
+	////				val.Count += evtPeriod.Count
+	////				if evtPeriod.Updated.Sub(val.LastSeen) > 0 {
+	////					val.SetUpdate(evtPeriod.Updated)
+	////				}
+	////				val.SetCount(val.Count)
+	////
+	////			}
+	////
+	////		}
+	////	}
+	//}
+	//
+	//fmt.Println(c)
+	//for _, val := range tmp {
+	//	result = append(result, val)
+	//}
+	//
+	//return result, nil
+
 	var tmp = make(map[int]OpsdbResult)
-	var result []OpsdbResult
+	var opsdbResult []OpsdbResult
 
-	var start, end time.Time
-	var err error
-	if filterMap["start_time"] != "" {
-		start, err = util.EpochToTime(filterMap["start_time"])
-		if err != nil {
-			return result, err
-		}
-	} else {
-		start = time.Now()
-	}
+	var sqlString = fmt.Sprintf(
+		"select event_instance_id, event_base_id, event_name, updated, event_instance_period.count, event_instance.raw_data, event_group.name "+
+			"from event_instance_period "+
+			"join event_instance on event_instance_id = event_instance._id "+
+			"join event_base on event_base_id = event_base._id "+
+			"join event_group on event_base.event_group_id = event_group._id "+
+			"where updated >= '%s' "+
+			"and updated <= '%s' "+
+			"and event_base.event_environment_id = %s and "+
+			"service_id = %s and event_group_id = %s;", start, end, envId, serviceId, groupId)
 
-	if filterMap["end_time"] != "" {
-		end, err = util.EpochToTime(filterMap["end_time"])
-		if err != nil {
-			return result, err
-		}
-	} else {
-		end = time.Now()
-	}
-	filter := []interface{}{
-		map[string]interface{}{"updated": []interface{}{">=", start}}, "AND",
-		map[string]interface{}{"updated": []interface{}{"<=", end}},
-	}
-
-	join := []interface{}{".event_instance_id", ".event_instance_id.event_base_id"}
-	res, err := p.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, nil, join)
+	rows, err := p.DB.Query(sqlString)
 	if err != nil {
-		metrics.DBError("read")
-
-	} else if len(res.Return) == 0 {
-		return result, nil
+		return nil, err
 	}
 
-	for _, t1 := range res.Return {
-		evtPeriod := EventInstancePeriod{}
-		evtInstance := EventInstance{}
-		evtBase := EventBase{}
-		opsdbResult := OpsdbResult{}
-		err = util.MapDecode(t1, &evtPeriod, true)
-		t2, ok := t1["event_instance_id."].([]map[string]interface{})
-		if !ok {
-			continue
-		}
-		for _, t := range t2 {
-			err = util.MapDecode(t, &evtInstance, true)
-			t3, ok := t["event_base_id."].([]map[string]interface{})
-			if !ok {
-				continue
-			}
-			for _, t = range t3 {
-				err = util.MapDecode(t, &evtBase, true)
+	defer rows.Close()
 
-				if val, ok := filterMap["service"]; ok && strconv.Itoa(evtBase.ServiceId) != val {
-					continue
-				}
-				if val, ok := filterMap["environment"]; ok && strconv.Itoa(evtBase.EventEnvironmentId) != val {
-					continue
-				}
-				if val, ok := filterMap["group"]; ok && strconv.Itoa(evtBase.EventGroupId) != val {
-					continue
-				}
-			}
+	for rows.Next() {
+		opsdbResult := OpsdbResult{}
+
+		var eventBaseId, eventInstanceId int
+		var updated time.Time
+		var count int
+		var eventName, rawData, groupName, lastSeen string
+		var raw map[string]interface{}
+
+		if err := rows.Scan(&eventInstanceId, &eventBaseId, &eventName, &updated, &count, &rawData, &groupName); err != nil {
+			return nil, err
 		}
-		if val, ok := tmp[evtBase.Id]; !ok {
-			opsdbResult.Id = evtBase.Id
-			opsdbResult.EvtName = evtBase.EventName
-			opsdbResult.EvtMessage = evtBase.ProcessedData.Message
-			opsdbResult.LastSeen = evtPeriod.Updated
-			opsdbResult.Count = evtPeriod.Count
-			tmp[evtBase.Id] = opsdbResult
+
+		in := []byte(rawData)
+		json.Unmarshal(in, &raw)
+
+		lastSeen = updated.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
+
+		if val, ok := tmp[eventBaseId]; !ok {
+			opsdbResult.EventInstanceId = eventInstanceId
+			opsdbResult.EventBaseId = eventBaseId
+			opsdbResult.EvtName = eventName
+			opsdbResult.EvtMessage = raw["message"].(string)
+			opsdbResult.LastSeen = lastSeen
+			opsdbResult.CountSum = count
+			opsdbResult.Group = groupName
+			opsdbResult.Count = []int{count}
+			opsdbResult.TimeStamp = []string{lastSeen}
+
+			tmp[eventBaseId] = opsdbResult
 		} else {
-			val.Count = tmp[evtBase.Id].Count + evtPeriod.Count
-			if evtPeriod.Updated.Sub(val.LastSeen) > 0 {
-				val.LastSeen = evtPeriod.Updated
+			val.Update(count, lastSeen)
+			val.CountSum += count
+			if lastSeen > val.LastSeen {
+				val.SetUpdate(lastSeen)
 			}
+			val.SetCount(val.CountSum)
+			tmp[eventBaseId] = val
 		}
 	}
 	for _, val := range tmp {
-		result = append(result, val)
+		opsdbResult = append(opsdbResult, val)
 	}
 
-	return result, nil
+	return opsdbResult, nil
+
+}
+
+func (p *postgresStore) Test(from string, to string, evtId int) (DataPointArrays, error) {
+	res := DataPointArrays{}
+
+	var sqlString = fmt.Sprintf(
+		"select updated, event_instance_period.count "+
+			"from event_instance_period "+
+			"join event_instance on event_instance_id = event_instance._id "+
+			"where updated >= '%s' "+
+			"and updated <= '%s' "+
+			"and event_instance_id = %d", from, to, evtId)
+
+	rows, err := p.DB.Query(sqlString)
+	if err != nil {
+		fmt.Println(err)
+		return res, err
+	}
+
+	defer rows.Close()
+
+	var counts, timeStamps bytes.Buffer
+	counts.WriteString("['data1',")
+	timeStamps.WriteString("['x1',")
+
+	for rows.Next() {
+		var updated time.Time
+		var count int
+
+		if err := rows.Scan(&updated, &count); err != nil {
+			return res, err
+		}
+
+		lastSeen := updated.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
+
+		counts.WriteString(fmt.Sprintf("%d,", count))
+		timeStamps.WriteString(fmt.Sprintf("'%s',", lastSeen))
+
+	}
+	counts.WriteString("]")
+	timeStamps.WriteString("]")
+
+	res.TimeStamp = timeStamps.String()
+	res.Count = counts.String()
+	return res, nil
 }

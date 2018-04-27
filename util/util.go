@@ -172,5 +172,14 @@ func EpochToTime(epoch string) (time.Time, error) {
 		return time.Now(), err
 	}
 	tm := time.Unix(t, 0)
-	return tm, nil
+	return tm.UTC(), nil
+}
+
+func EpochToTime2(epoch string) (string, error) {
+	t, err := strconv.ParseInt(epoch, 10, 64)
+	if err != nil {
+		return time.Now().Format("2006-01-02 15:04:05"), err
+	}
+	tm := time.Unix(t, 0)
+	return tm.UTC().Format("2006-01-02 15:04:05"), nil
 }

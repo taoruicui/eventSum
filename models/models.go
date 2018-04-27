@@ -128,9 +128,31 @@ type CountStat struct {
 }
 
 type OpsdbResult struct {
-	Id         int
-	LastSeen   time.Time
-	EvtName    string
-	Count      int
-	EvtMessage string
+	EventInstanceId int
+	EventBaseId     int
+	LastSeen        string
+	EvtName         string
+	CountSum        int
+	Group           string
+	EvtMessage      string
+	Count           []int
+	TimeStamp       []string
+}
+
+func (o *OpsdbResult) SetCount(count int) {
+	o.CountSum = count
+}
+
+func (o *OpsdbResult) SetUpdate(update string) {
+	o.LastSeen = update
+}
+
+func (o *OpsdbResult) Update(c int, t string) {
+	o.Count = append(o.Count, c)
+	o.TimeStamp = append(o.TimeStamp, t)
+}
+
+type DataPointArrays struct {
+	Count     string
+	TimeStamp string
 }

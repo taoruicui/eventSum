@@ -11,6 +11,7 @@ import (
 	"github.com/ContextLogic/eventsum/log"
 	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
+	"github.com/ContextLogic/eventsum/util"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -43,6 +44,7 @@ func (sr *statusRecorder) Status() int {
 // WriteHeader caches the status, then calls the underlying ResponseWriter.
 func (sr *statusRecorder) WriteHeader(status int) {
 	sr.status = status
+	sr.Header().Set("Content-Type", "application/json")
 	sr.ResponseWriter.WriteHeader(status)
 }
 
@@ -213,36 +215,28 @@ func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Reques
 
 func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	query := r.URL.Query()
-	endTime := time.Now()
-	startTime := endTime.Add(-1 * time.Hour)
-	eventBaseId, err := strconv.Atoi(query.Get("event_base_id"))
+
+	evtId, err := strconv.Atoi(query.Get("evt_id"))
 	if err != nil {
 		h.sendError(w, http.StatusBadRequest, errors.New("event base ID is missing or not an int"), "Error")
 		return
 	}
 
-	if str := query.Get("end_time"); str != "" {
-		endTime, err = time.Parse(h.timeFormat, str)
-		if err != nil {
-			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure end time is in correct format: %v", h.timeFormat))
-			return
-		}
-	}
-
-	if str := query.Get("start_time"); str != "" {
-		startTime, err = time.Parse(h.timeFormat, str)
-		if err != nil {
-			h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure start time is in correct format: %v", h.timeFormat))
-			return
-		}
-	}
-
-	eventMap := map[int]bool{eventBaseId: true}
-	response, err := h.es.GeneralQuery(startTime, endTime, map[int]bool{}, eventMap, map[int]bool{}, map[int]bool{})
+	from := query.Get("start_time")
+	startTime, err := util.EpochToTime2(from)
 	if err != nil {
-		h.sendError(w, http.StatusInternalServerError, err, "Cannot query event periods")
+		h.sendError(w, http.StatusBadRequest, errors.New("from is missing or not an epoch time"), "Error")
 		return
 	}
+
+	to := query.Get("end_time")
+	endTime, err := util.EpochToTime2(to)
+	if err != nil {
+		h.sendError(w, http.StatusBadRequest, errors.New("to is missing or not an epoch time"), "Error")
+		return
+	}
+
+	response, err := h.es.ds.Test(startTime, endTime, evtId)
 	h.sendResp(w, "histogram", response)
 }
 
@@ -394,8 +388,6 @@ func (h *httpHandler) opsdbEventsHandler(w http.ResponseWriter, r *http.Request,
 	defer r.Body.Close()
 	query := r.URL.Query()
 
-	filter := make(map[string]string)
-
 	service := query.Get("service")
 	if service == "" {
 		h.sendError(w, http.StatusBadRequest, errors.New("service is missing"), "Error")
@@ -405,7 +397,6 @@ func (h *httpHandler) opsdbEventsHandler(w http.ResponseWriter, r *http.Request,
 		h.sendError(w, http.StatusBadRequest, errors.New("wrong service query"), "Error")
 		return
 	}
-
 	env := query.Get("environment")
 	if env == "" {
 		h.sendError(w, http.StatusBadRequest, errors.New("environment is missing"), "Error")
@@ -427,18 +418,24 @@ func (h *httpHandler) opsdbEventsHandler(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	filter["service"] = strconv.Itoa(h.es.ds.GetServicesMap()[service].Id)
-	filter["environment"] = strconv.Itoa(h.es.ds.GetEnvironmentsMap()[env].Id)
-	filter["group"] = groupId
+	serviceString := strconv.Itoa(h.es.ds.GetServicesMap()[service].Id)
+	envString := strconv.Itoa(h.es.ds.GetEnvironmentsMap()[env].Id)
+	groupString := groupId
+	from := query.Get("start_time")
+	to := query.Get("end_time")
 
-	filter["start_time"] = query.Get("start_time")
-	filter["end_time"] = query.Get("end_time")
+	start, _ := util.EpochToTime2(from)
+	end, _ := util.EpochToTime2(to)
 
-	if res, err := h.es.OpsdbQuery(filter); err != nil {
+	if res, err := h.es.OpsdbQuery(start, end, envString, serviceString, groupString); err != nil {
 		h.sendError(w, http.StatusBadRequest, err, "Error counting events")
 		return
 	} else {
 		h.sendResp(w, "opsdbQuery", res)
 	}
 
+}
+
+func (h *httpHandler) test(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	fmt.Println(r.Header)
 }

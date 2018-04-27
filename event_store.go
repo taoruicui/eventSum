@@ -317,10 +317,10 @@ func (es *eventStore) CountEvents(filter map[string]string) (CountStat, error) {
 	return es.ds.CountEvents(filter)
 }
 
-func (es *eventStore) OpsdbQuery(filter map[string]string) ([]OpsdbResult, error) {
+func (es *eventStore) OpsdbQuery(from string, to string, envId string, serviceId string, groupId string) ([]OpsdbResult, error) {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("CountEvents", now)
 	}()
-	return es.ds.OpsdbQuery(filter)
+	return es.ds.OpsdbQuery(from, to, envId, serviceId, groupId)
 }
