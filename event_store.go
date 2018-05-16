@@ -144,6 +144,7 @@ func (es *eventStore) SummarizeBatchEvents() {
 				GenericData:         genericData,
 				GenericDataHash:     genericDataHash,
 				EventEnvironmentId:  envNameMap[event.Environment].Id,
+				EventMessage:        rawEvent.Data.Message,
 			}
 		}
 

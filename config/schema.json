@@ -27,7 +27,8 @@
                   "field_type": "_int",
                   "relation": {
                     "collection": "event_group",
-                    "field": "_id"
+                    "field": "_id",
+                    "foreign_key": true
                   },
                   "provision_state": 3
                 },
@@ -182,7 +183,8 @@
                   "field_type": "_int",
                   "relation": {
                     "collection": "event_base",
-                    "field": "_id"
+                    "field": "_id",
+                    "foreign_key": true
                   },
                   "provision_state": 3
                 },
@@ -191,13 +193,19 @@
                   "field_type": "_int",
                   "relation": {
                     "collection": "event_detail",
-                    "field": "_id"
+                    "field": "_id",
+                    "foreign_key": true
                   },
                   "provision_state": 3
                 },
                 "event_environment_id": {
                   "name": "event_environment_id",
                   "field_type": "_int",
+                  "provision_state": 3
+                },
+                "event_message": {
+                  "name": "event_message",
+                  "field_type": "_text",
                   "provision_state": 3
                 },
                 "generic_data": {
@@ -274,7 +282,8 @@
                   "field_type": "_int",
                   "relation": {
                     "collection": "event_instance",
-                    "field": "_id"
+                    "field": "_id",
+                    "foreign_key": true
                   },
                   "provision_state": 3
                 },

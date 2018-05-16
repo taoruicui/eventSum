@@ -135,7 +135,7 @@ func NewDataStore(config config.EventsumConfig) (DataStore, error) {
 		environmentsNameMap[k] = environment
 	}
 
-	connStr := "host=eventsum.cnhd0jvdgiok.us-west-1.rds.amazonaws.com user=eventsum password=7eb498c039ce176d4da31183d06cc314ff930b68 port=5432"
+	connStr := "host=eventsum-prod.cnhd0jvdgiok.us-west-1.rds.amazonaws.com user=eventsum password=7eb498c039ce176d4da31183d06cc314ff930b68 port=5432"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		metrics.DBError("transport")
@@ -253,6 +253,7 @@ func (p *postgresStore) AddEventInstance(evt *EventInstance) error {
 			"generic_data":         evt.GenericData,
 			"generic_data_hash":    evt.GenericDataHash,
 			"event_environment_id": evt.EventEnvironmentId,
+			"event_message":        evt.EventMessage,
 		}
 		res, err = p.Query(query.Set, "event_instance", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
@@ -646,15 +647,30 @@ func (p *postgresStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) 
 			util.MapDecode(t2.([]map[string]interface{})[0], &detail, false)
 		}
 	}
+
+	filter := map[string]interface{}{"event_instance_id": []interface{}{"=", id}}
+	res, err = p.Query(query.Filter, "event_instance_period", filter, nil, nil, nil, -1, []string{"updated"}, nil)
+	if err != nil {
+		metrics.DBError("read")
+		return result, err
+	} else if len(res.Return) == 0 {
+		return result, errors.New(fmt.Sprintf("no event instance with id %v", id))
+	}
+	var firstEvtInsPeriod, lastEvtInsPeriod EventInstancePeriod
+	util.MapDecode(res.Return[0], &firstEvtInsPeriod, false)
+	util.MapDecode(res.Return[len(res.Return)-1], &lastEvtInsPeriod, false)
+	firstSeen := firstEvtInsPeriod.Updated.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
+	lastSeen := lastEvtInsPeriod.Updated.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
+
 	result = EventDetailsResult{
 		ServiceId:  base.ServiceId,
 		EventType:  base.EventType,
 		EventName:  base.EventName,
 		RawData:    instance.RawData,
 		RawDetails: detail.RawDetail,
+		LastSeen:   lastSeen,
+		FirstSeen:  firstSeen,
 	}
-
-	fmt.Println(result)
 
 	for _, frame := range result.RawData.(EventData).Raw.(map[string]interface{})["frames"].([]interface{}) {
 		var buffer bytes.Buffer
@@ -1111,7 +1127,7 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 	var opsdbResult []OpsdbResult
 
 	var sqlString = fmt.Sprintf(
-		"select event_instance_id, event_base_id, event_name, updated, event_instance_period.count, event_instance.raw_data, event_group.name "+
+		"select event_instance_id, event_base_id, event_name, updated, event_instance_period.count, event_message, event_group.name "+
 			"from event_instance_period "+
 			"join event_instance on event_instance_id = event_instance._id "+
 			"join event_base on event_base_id = event_base._id "+
@@ -1123,6 +1139,7 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 
 	rows, err := p.DB.Query(sqlString)
 	if err != nil {
+		fmt.Println(err)
 		return nil, err
 	}
 
@@ -1134,15 +1151,11 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 		var eventBaseId, eventInstanceId int
 		var updated time.Time
 		var count int
-		var eventName, rawData, groupName, lastSeen string
-		var raw map[string]interface{}
+		var eventName, eventMessage, groupName, lastSeen string
 
-		if err := rows.Scan(&eventInstanceId, &eventBaseId, &eventName, &updated, &count, &rawData, &groupName); err != nil {
+		if err := rows.Scan(&eventInstanceId, &eventBaseId, &eventName, &updated, &count, &eventMessage, &groupName); err != nil {
 			return nil, err
 		}
-
-		in := []byte(rawData)
-		json.Unmarshal(in, &raw)
 
 		lastSeen = updated.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
 
@@ -1150,7 +1163,7 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 			opsdbResult.EventInstanceId = eventInstanceId
 			opsdbResult.EventBaseId = eventBaseId
 			opsdbResult.EvtName = eventName
-			opsdbResult.EvtMessage = raw["message"].(string)
+			opsdbResult.EvtMessage = eventMessage
 			opsdbResult.LastSeen = lastSeen
 			opsdbResult.CountSum = count
 			opsdbResult.Group = groupName

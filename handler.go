@@ -199,9 +199,9 @@ func (h *httpHandler) searchEventsHandler(w http.ResponseWriter, r *http.Request
 
 func (h *httpHandler) detailsEventsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	query := r.URL.Query()
-	eventId, err := strconv.Atoi(query.Get("event_id"))
+	eventId, err := strconv.ParseInt(query.Get("event_id"), 10, 64)
 	if err != nil {
-		h.sendError(w, http.StatusBadRequest, errors.New("event ID is missing or not an int"), "Error")
+		h.sendError(w, http.StatusBadRequest, errors.New("event ID is missing or could not be parsed"), "Error")
 		return
 	}
 

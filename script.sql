@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS event_instance (
   raw_data json,
   generic_data json,
   generic_data_hash varchar(64),
+  event_message text,
   UNIQUE (generic_data_hash, event_environment_id)
 );
 

@@ -53,6 +53,8 @@ type EventDetailsResult struct {
 	ServiceId  int         `json:"service_id"`
 	RawData    interface{} `json:"raw_data"`
 	RawDetails interface{} `json:"raw_details"`
+	FirstSeen  string      `json:"first_seen"`
+	LastSeen   string      `json:"last_seen"`
 }
 
 /////////////////////////////////////////////
@@ -78,6 +80,7 @@ type EventInstance struct {
 	RawData            EventData `mapstructure:"raw_data"`
 	GenericData        EventData `mapstructure:"generic_data"`
 	GenericDataHash    string    `mapstructure:"generic_data_hash"`
+	EventMessage       string    `mapstructure: "event_message"`
 
 	// ignored fields, used internally
 	ProcessedDataHash   string

@@ -1,3 +1,3 @@
 storage_type: postgres
 storage_config:
-  pg_string: host=eventsum.cnhd0jvdgiok.us-west-1.rds.amazonaws.com user=eventsum password=7eb498c039ce176d4da31183d06cc314ff930b68 port=5432
+  pg_string: host=eventsum-prod.cnhd0jvdgiok.us-west-1.rds.amazonaws.com user=eventsum password=7eb498c039ce176d4da31183d06cc314ff930b68 port=5432
