@@ -44,6 +44,7 @@ type DataStore interface {
 		sort []string,
 		join []interface{}) (*query.Result, error)
 	AddEventBase(evt *EventBase) error
+	AddEventBaseRework(evt EventBase) (int, error)
 	AddEventInstance(evt *EventInstance) error
 	AddEventInstancePeriod(evt *EventInstancePeriod) error
 	AddEventDetail(evt *EventDetail) error
@@ -228,12 +229,44 @@ func (p *postgresStore) AddEventBase(evt *EventBase) error {
 
 		res, err = p.Query(query.Set, "event_base", nil, record, nil, nil, -1, nil, nil)
 		if err != nil {
+
 			metrics.DBError("write")
 			return err
 		}
 	}
 	util.MapDecode(res.Return[0], &evt, false)
 	return nil
+}
+
+func (p *postgresStore) AddEventBaseRework(evt EventBase) (int, error) {
+	filter := map[string]interface{}{
+		"service_id":          []interface{}{"=", evt.ServiceId},
+		"event_type":          []interface{}{"=", evt.EventType},
+		"processed_data_hash": []interface{}{"=", evt.ProcessedDataHash},
+	}
+	res, err := p.Query(query.Filter, "event_base", filter, nil, nil, nil, 1, nil, nil)
+	if err != nil {
+		metrics.DBError("read")
+		return 0, err
+	} else if len(res.Return) == 0 {
+		record := map[string]interface{}{
+			"service_id":           evt.ServiceId,
+			"event_type":           evt.EventType,
+			"event_name":           evt.EventName,
+			"event_environment_id": evt.EventEnvironmentId,
+			"event_group_id":       evt.EventGroupId,
+			"processed_data":       evt.ProcessedData,
+			"processed_data_hash":  evt.ProcessedDataHash,
+		}
+
+		res, err = p.Query(query.Set, "event_base", nil, record, nil, nil, -1, nil, nil)
+		if err != nil {
+			metrics.DBError("write")
+			return 0, err
+		}
+	}
+	util.MapDecode(res.Return[0], &evt, false)
+	return evt.Id, nil
 }
 
 func (p *postgresStore) AddEventInstance(evt *EventInstance) error {
