@@ -129,6 +129,10 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 	s.route.GET("/opsdb", latency("/opsdb", s.httpHandler.opsdbEventsHandler))
 	s.route.Handler("GET", "/metrics", promhttp.Handler())
 
+	s.route.GET("/types/env", latency("/types/env", s.httpHandler.envTypesHandler))
+	s.route.GET("/types/tier", latency("/types/tier", s.httpHandler.tierTypesHandler))
+	s.route.GET("/types/group", latency("/types/group", s.httpHandler.groupTypesHandler))
+
 	// PUT requests
 	s.route.PUT("/group", latency("/group", s.httpHandler.modifyGroupHandler))
 

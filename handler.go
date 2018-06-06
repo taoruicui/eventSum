@@ -439,3 +439,20 @@ func (h *httpHandler) opsdbEventsHandler(w http.ResponseWriter, r *http.Request,
 func (h *httpHandler) test(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	fmt.Println(r.Header)
 }
+
+func (h *httpHandler) envTypesHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	h.sendResp(w, "envs", h.es.EnvsQuery())
+}
+
+func (h *httpHandler) tierTypesHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	h.sendResp(w, "tiers", h.es.TiersQuery())
+}
+
+func (h *httpHandler) groupTypesHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	groups, err := h.es.GroupsQuery()
+	if err != nil {
+		h.sendError(w, http.StatusBadRequest, err, "Error getting all group types")
+	} else {
+		h.sendResp(w, "groups", groups)
+	}
+}

@@ -325,3 +325,27 @@ func (es *eventStore) OpsdbQuery(from string, to string, envId string, serviceId
 	}()
 	return es.ds.OpsdbQuery(from, to, envId, serviceId, groupId)
 }
+
+func (es *eventStore) EnvsQuery() []EventEnvironment {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("EnvsQuery", now)
+	}()
+	return es.ds.GetEnvironments()
+}
+
+func (es *eventStore) TiersQuery() []EventService {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("TiersQuery", now)
+	}()
+	return es.ds.GetServices()
+}
+
+func (es *eventStore) GroupsQuery() ([]EventGroup, error) {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("TiersQuery", now)
+	}()
+	return es.ds.GetGroups()
+}
