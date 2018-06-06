@@ -113,7 +113,7 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 
 	/* ROUTING */
 	// GET requests
-	s.route.GET("/", latency("/search", s.httpHandler.searchEventsHandler))
+	s.route.GET("/", latency("/", s.httpHandler.searchEventsHandler))
 	s.route.GET("/search", latency("/search", s.httpHandler.searchEventsHandler))
 	s.route.GET("/detail", latency("/detail", s.httpHandler.detailsEventsHandler))
 	s.route.GET("/histogram", latency("/histogram", s.httpHandler.histogramEventsHandler))
@@ -128,6 +128,9 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 	s.route.GET("/count", latency("/count", s.httpHandler.countEventsHandler))
 	s.route.GET("/opsdb", latency("/opsdb", s.httpHandler.opsdbEventsHandler))
 	s.route.Handler("GET", "/metrics", promhttp.Handler())
+	s.route.GET("/types/env", latency("/types/env", s.httpHandler.envTypesHandler))
+	s.route.GET("/types/tier", latency("/types/tier", s.httpHandler.tierTypesHandler))
+	s.route.GET("/types/group", latency("/types/group", s.httpHandler.groupTypesHandler))
 
 	// PUT requests
 	s.route.PUT("/group", latency("/group", s.httpHandler.modifyGroupHandler))
