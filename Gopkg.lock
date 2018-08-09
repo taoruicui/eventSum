@@ -24,7 +24,6 @@
   name = "github.com/jacksontj/dataman"
   packages = [
     "src/client",
-    "src/client/direct",
     "src/datamantype",
     "src/httputil",
     "src/query",
@@ -178,6 +177,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "72f47b9f8ea4dded70f8b6eb5d3bdb5e342cbe5d01a5b48a22241e1e4ee672e3"
+  inputs-digest = "38a30b04d335485cbe19b0120dbf8b37d8bc7d361e6b219405772db8ce78c2de"
   solver-name = "gps-cdcl"
   solver-version = 1

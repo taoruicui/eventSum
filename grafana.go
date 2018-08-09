@@ -69,7 +69,7 @@ func (h *httpHandler) grafanaTest(w http.ResponseWriter, r *http.Request, _ http
 		}
 
 		for _, r := range resList {
-			evtFormatName := fmt.Sprintf("%s: %s", r.EvtName, r.EvtMessage)
+			evtFormatName := fmt.Sprintf("%s: %s(%s)", r.EvtName, r.EvtMessage, r.EvtDetails)
 			datapoints := [][]int{}
 			for i, bin := range r.Count {
 				t, _ := time.Parse("2006-01-02 15:04:05", r.TimeStamp[i])

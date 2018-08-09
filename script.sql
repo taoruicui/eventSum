@@ -56,6 +56,3 @@ CREATE TABLE IF NOT EXISTS event_instance_period (
   cas_value int8 DEFAULT 0,
   UNIQUE (event_instance_id, start_time, end_time)
 );
-
-
-CREATE INDEX IF NOT EXISTS updated_idx ON event_instance_period (updated);

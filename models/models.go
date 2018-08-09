@@ -140,6 +140,7 @@ type OpsdbResult struct {
 	EvtMessage      string
 	Count           []int
 	TimeStamp       []string
+	EvtDetails      string
 }
 
 func (o *OpsdbResult) SetCount(count int) {

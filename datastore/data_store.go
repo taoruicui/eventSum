@@ -1122,24 +1122,26 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 	//}
 	//
 	//return result, nil
-
 	var tmp = make(map[int]OpsdbResult)
 	var opsdbResult []OpsdbResult
 
 	var sqlString = fmt.Sprintf(
-		"select event_instance_id, event_base_id, event_name, updated, event_instance_period.count, event_message, event_group.name "+
+		"select event_instance_id, event_base_id, event_name, updated, event_instance_period.count, event_message, event_group.name, event_detail.raw_detail "+
 			"from event_instance_period "+
 			"join event_instance on event_instance_id = event_instance._id "+
 			"join event_base on event_base_id = event_base._id "+
 			"join event_group on event_base.event_group_id = event_group._id "+
+			"join event_detail on event_instance.event_detail_id = event_detail._id "+
 			"where updated >= '%s' "+
 			"and updated <= '%s' "+
-			"and event_base.event_environment_id = %s and "+
-			"service_id = %s and event_group_id = %s;", start, end, envId, serviceId, groupId)
+			"and event_base.event_environment_id = %s "+
+			"and service_id = %s "+
+			"and event_group_id = %s;", start, end, envId, serviceId, groupId)
 
 	rows, err := p.DB.Query(sqlString)
+	fmt.Println(sqlString)
+	fmt.Println(err)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
@@ -1151,9 +1153,9 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 		var eventBaseId, eventInstanceId int
 		var updated time.Time
 		var count int
-		var eventName, eventMessage, groupName, lastSeen string
+		var eventName, eventMessage, groupName, lastSeen, eventDetail string
 
-		if err := rows.Scan(&eventInstanceId, &eventBaseId, &eventName, &updated, &count, &eventMessage, &groupName); err != nil {
+		if err := rows.Scan(&eventInstanceId, &eventBaseId, &eventName, &updated, &count, &eventMessage, &groupName, &eventDetail); err != nil {
 			return nil, err
 		}
 
@@ -1169,7 +1171,7 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 			opsdbResult.Group = groupName
 			opsdbResult.Count = []int{count}
 			opsdbResult.TimeStamp = []string{lastSeen}
-
+			opsdbResult.EvtDetails = eventDetail
 			tmp[eventBaseId] = opsdbResult
 		} else {
 			val.Update(count, lastSeen)
@@ -1202,7 +1204,6 @@ func (p *postgresStore) Test(from string, to string, evtId int) (DataPointArrays
 
 	rows, err := p.DB.Query(sqlString)
 	if err != nil {
-		fmt.Println(err)
 		return res, err
 	}
 
