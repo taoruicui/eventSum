@@ -50,6 +50,5 @@ if __name__ == '__main__':
             for i in range (1, count):
                 res = requests.post('http://0.0.0.0:8080/capture', json=data)
                 print res
-        interval = random.randint(1,60)
-        time.sleep(interval)
+        time.sleep(0.05)
 

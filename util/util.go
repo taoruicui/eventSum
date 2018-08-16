@@ -188,3 +188,8 @@ func EpochToTime2(epoch string) (string, error) {
 	tm := time.Unix(t, 0)
 	return tm.UTC().Format("2006-01-02 15:04:05"), nil
 }
+
+func EncodeToJsonRawMsg(data interface{}) []byte {
+	jsonString, _ := json.Marshal(data)
+	return jsonString
+}

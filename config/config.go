@@ -1,9 +1,12 @@
 package config
 
 import (
+	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type Flags struct {
@@ -56,4 +59,21 @@ func ParseEventsumConfig(file string) (EventsumConfig, error) {
 		return configuration, fmt.Errorf("Error: ", decodeErr)
 	}
 	return configuration, nil
+}
+
+func ParseDataSourceInstanceConfig(c string) (string, error) {
+	f, err := os.Open(c)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	var line string
+	for scanner.Scan() {
+		line = strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "pg_string: ") {
+			return strings.Replace(line, "pg_string:", "", 1), nil
+		}
+	}
+	return "", errors.New("no config found error")
 }

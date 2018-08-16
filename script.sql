@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS event_base (
   service_id int8 DEFAULT NULL,
   event_type varchar(32),
   event_name varchar(512),
-  event_group_id int8 REFERENCES event_group(_id),
+  event_group_id int8 REFERENCES event_group(_id) DEFAULT 0,
   event_environment_id int8,
   processed_data json,
   processed_data_hash varchar(64),

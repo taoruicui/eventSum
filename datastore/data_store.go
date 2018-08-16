@@ -13,8 +13,6 @@ import (
 
 	"bytes"
 
-	_ "database/sql"
-
 	"github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
@@ -73,6 +71,14 @@ type DataStore interface {
 	GetDBConfig() *storagenode.DatasourceInstanceConfig
 	CountEvents(map[string]string) (CountStat, error)
 	OpsdbQuery(from string, to string, envId string, serviceId string, groupId string) ([]OpsdbResult, error)
+	FindEventBaseId(evt EventBase) (int64, error)
+	AddBaseEvent(evt EventBase) (int64, error)
+	FindEventInstanceId(evt EventInstance) (int64, error)
+	AddInstanceEvent(evt EventInstance) (int64, error)
+	FindEventDetailId(evt EventDetail) (int64, error)
+	AddEventDetails(evtDetail EventDetail) (int64, error)
+	UpdateEventInstancePeriod(evt EventInstancePeriod) error
+	AddEventInstancePeriods(evt EventInstancePeriod) error
 	Test(from string, to string, evtId int) (DataPointArrays, error)
 }
 
@@ -90,17 +96,17 @@ type postgresStore struct {
 }
 
 // Create a new dataStore
-func NewDataStore(config config.EventsumConfig) (DataStore, error) {
+func NewDataStore(c config.EventsumConfig) (DataStore, error) {
 	// Create a connection to Postgres Database through Dataman
 
-	storagenodeConfig, err := storagenode.DatasourceInstanceConfigFromFile(config.DataSourceInstance)
+	storagenodeConfig, err := storagenode.DatasourceInstanceConfigFromFile(c.DataSourceInstance)
 	if err != nil {
 		return nil, err
 	}
 
 	// Load meta
 	meta := &metadata.Meta{}
-	metaBytes, err := ioutil.ReadFile(config.DataSourceSchema)
+	metaBytes, err := ioutil.ReadFile(c.DataSourceSchema)
 	if err != nil {
 		return nil, err
 	}
@@ -124,18 +130,21 @@ func NewDataStore(config config.EventsumConfig) (DataStore, error) {
 	environments := []EventEnvironment{}
 	environmentsNameMap := make(map[string]EventEnvironment)
 
-	for k, v := range config.Services {
+	for k, v := range c.Services {
 		service := EventService{Id: v["service_id"], Name: k}
 		services = append(services, service)
 		servicesNameMap[k] = service
 	}
-	for k, v := range config.Environments {
+	for k, v := range c.Environments {
 		environment := EventEnvironment{Id: v["environment_id"], Name: k}
 		environments = append(environments, environment)
 		environmentsNameMap[k] = environment
 	}
 
-	connStr := "host=eventsum-prod.cnhd0jvdgiok.us-west-1.rds.amazonaws.com user=eventsum password=7eb498c039ce176d4da31183d06cc314ff930b68 port=5432"
+	connStr, err := config.ParseDataSourceInstanceConfig(c.DataSourceInstance)
+	if err != nil {
+		return nil, err
+	}
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		metrics.DBError("transport")
@@ -144,7 +153,7 @@ func NewDataStore(config config.EventsumConfig) (DataStore, error) {
 
 	client := &datamanclient.Client{Transport: transport}
 	return &postgresStore{
-		Name:                config.DatabaseName,
+		Name:                c.DatabaseName,
 		Client:              client,
 		DBConfig:            storagenodeConfig,
 		Services:            services,
@@ -1139,8 +1148,6 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 			"and event_group_id = %s;", start, end, envId, serviceId, groupId)
 
 	rows, err := p.DB.Query(sqlString)
-	fmt.Println(sqlString)
-	fmt.Println(err)
 	if err != nil {
 		return nil, err
 	}
@@ -1233,4 +1240,108 @@ func (p *postgresStore) Test(from string, to string, evtId int) (DataPointArrays
 	res.TimeStamp = timeStamps.String()
 	res.Count = counts.String()
 	return res, nil
+}
+
+func (p *postgresStore) FindEventBaseId(evt EventBase) (int64, error) {
+	var id int64
+	row := p.DB.QueryRow("SELECT _id FROM event_base WHERE service_id = $1 AND event_type = $2 AND event_environment_id = $3 AND processed_data_hash = $4",
+		evt.ServiceId, evt.EventType, evt.EventEnvironmentId, evt.ProcessedDataHash)
+	err := row.Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return p.AddBaseEvent(evt)
+		} else {
+			return -1, err
+		}
+	}
+	return id, nil
+}
+
+func (p *postgresStore) AddBaseEvent(evt EventBase) (int64, error) {
+	var id int64
+	row := p.DB.QueryRow("INSERT INTO event_base (service_id, event_type, event_name, event_group_id, event_environment_id, processed_data, processed_data_hash) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING _id",
+		evt.ServiceId, evt.EventType, evt.EventName, evt.EventGroupId, evt.EventEnvironmentId, util.EncodeToJsonRawMsg(evt.ProcessedData), evt.ProcessedDataHash)
+	err := row.Scan(&id)
+	if err != nil {
+		return -1, err
+	}
+	return id, nil
+}
+
+func (p *postgresStore) FindEventDetailId(evtDetail EventDetail) (int64, error) {
+	var id int64
+	row := p.DB.QueryRow("SELECT _id FROM event_detail WHERE processed_detail_hash = $1",
+		evtDetail.ProcessedDetailHash)
+	err := row.Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return p.AddEventDetails(evtDetail)
+		} else {
+			return -1, err
+		}
+	}
+	return id, nil
+}
+
+func (p *postgresStore) AddEventDetails(evtDetail EventDetail) (int64, error) {
+	var id int64
+	row := p.DB.QueryRow("INSERT INTO event_detail (raw_detail, processed_detail, processed_detail_hash) VALUES ($1, $2, $3) RETURNING _id",
+		util.EncodeToJsonRawMsg(evtDetail.RawDetail), util.EncodeToJsonRawMsg(evtDetail.ProcessedDetail), evtDetail.ProcessedDetailHash)
+	err := row.Scan(&id)
+	if err != nil {
+		return -1, err
+	}
+	return id, nil
+}
+
+func (p *postgresStore) FindEventInstanceId(evt EventInstance) (int64, error) {
+	var id int64
+	row := p.DB.QueryRow("SELECT _id FROM event_instance WHERE generic_data_hash = $1 AND event_environment_id = $2",
+		evt.GenericDataHash, evt.EventEnvironmentId)
+	err := row.Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return p.AddInstanceEvent(evt)
+		} else {
+			return -1, err
+		}
+	}
+	return id, nil
+}
+
+func (p *postgresStore) AddInstanceEvent(evt EventInstance) (int64, error) {
+	var id int64
+	row := p.DB.QueryRow("INSERT INTO event_instance (event_base_id, event_detail_id, event_environment_id, raw_data, generic_data, generic_data_hash, event_message) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING _id",
+		evt.EventBaseId, evt.EventDetailId, evt.EventEnvironmentId, util.EncodeToJsonRawMsg(evt.RawData), util.EncodeToJsonRawMsg(evt.GenericData), evt.GenericDataHash, evt.EventMessage)
+	err := row.Scan(&id)
+	if err != nil {
+		return -1, err
+	}
+	return id, nil
+}
+
+func (p *postgresStore) UpdateEventInstancePeriod(evt EventInstancePeriod) error {
+	var id int64
+	row := p.DB.QueryRow("UPDATE event_instance_period SET count = count + 1, updated = $1 WHERE event_instance_id = $2 AND start_time = $3 AND end_time = $4 RETURNING _id",
+		evt.Updated, evt.EventInstanceId, evt.StartTime, evt.EndTime)
+	err := row.Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return p.AddEventInstancePeriods(evt)
+		} else {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *postgresStore) AddEventInstancePeriods(evt EventInstancePeriod) error {
+	var id int64
+	row := p.DB.QueryRow("INSERT INTO event_instance_period (event_instance_id, start_time, end_time, updated, count) VALUES ($1, $2, $3, $4, $5) RETURNING _id",
+		evt.EventInstanceId, evt.StartTime, evt.EndTime, evt.Updated, 1)
+	err := row.Scan(&id)
+	if err != nil {
+		return err
+	}
+	return nil
 }
