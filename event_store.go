@@ -328,6 +328,8 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 	var eventInstance EventInstance
 	var eventInstancePeriod EventInstancePeriod
 
+	var eventInstancePeriodMap = make(map[string]*EventInstancePeriod)
+
 	for _, event := range evtsToAdd {
 
 		processFetchImageError(&event)
@@ -423,14 +425,34 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 			EventInstanceId: int(evtInstanceId),
 			StartTime:       startTime,
 			EndTime:         endTime,
-			Updated:         t,
 		}
 
-		err = es.ds.UpdateEventInstancePeriod(eventInstancePeriod)
-		if err != nil {
-			es.log.App().Errorf("error when updating event instance period: %v", err)
+		eipHash := util.Hash(eventInstancePeriod)
+
+		if tmpValue, ok := eventInstancePeriodMap[eipHash]; !ok {
+			eventInstancePeriodMap[eipHash] = &EventInstancePeriod{
+				EventInstanceId: int(evtInstanceId),
+				StartTime:       startTime,
+				EndTime:         endTime,
+				Count:           1,
+				Updated:         t,
+			}
+		} else {
+			tmpValue.Count += 1
+			tmpValue.Updated = t
 		}
 
+	}
+
+	for _, v := range eventInstancePeriodMap {
+		e := EventInstancePeriod{
+			EventInstanceId: v.EventInstanceId,
+			StartTime:       v.StartTime,
+			EndTime:         v.EndTime,
+			Count:           v.Count,
+			Updated:         v.Updated,
+		}
+		es.ds.UpdateEventInstancePeriod(e)
 	}
 }
 

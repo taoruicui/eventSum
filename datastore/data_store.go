@@ -1322,8 +1322,8 @@ func (p *postgresStore) AddInstanceEvent(evt EventInstance) (int64, error) {
 
 func (p *postgresStore) UpdateEventInstancePeriod(evt EventInstancePeriod) error {
 	var id int64
-	row := p.DB.QueryRow("UPDATE event_instance_period SET count = count + 1, updated = $1 WHERE event_instance_id = $2 AND start_time = $3 AND end_time = $4 RETURNING _id",
-		evt.Updated, evt.EventInstanceId, evt.StartTime, evt.EndTime)
+	row := p.DB.QueryRow("UPDATE event_instance_period SET count = count + $1, updated = $2 WHERE event_instance_id = $3 AND start_time = $4 AND end_time = $5 RETURNING _id",
+		evt.Count, evt.Updated, evt.EventInstanceId, evt.StartTime, evt.EndTime)
 	err := row.Scan(&id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1338,7 +1338,7 @@ func (p *postgresStore) UpdateEventInstancePeriod(evt EventInstancePeriod) error
 func (p *postgresStore) AddEventInstancePeriods(evt EventInstancePeriod) error {
 	var id int64
 	row := p.DB.QueryRow("INSERT INTO event_instance_period (event_instance_id, start_time, end_time, updated, count) VALUES ($1, $2, $3, $4, $5) RETURNING _id",
-		evt.EventInstanceId, evt.StartTime, evt.EndTime, evt.Updated, 1)
+		evt.EventInstanceId, evt.StartTime, evt.EndTime, evt.Updated, evt.Count)
 	err := row.Scan(&id)
 	if err != nil {
 		return err
