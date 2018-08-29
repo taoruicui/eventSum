@@ -456,3 +456,46 @@ func (h *httpHandler) groupTypesHandler(w http.ResponseWriter, r *http.Request, 
 		h.sendResp(w, "groups", groups)
 	}
 }
+
+func (h *httpHandler) cpuAlertHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	defer r.Body.Close()
+	decoder := json.NewDecoder(r.Body)
+	type Switch struct {
+		S string `json:"s""`
+	}
+	var s Switch
+	err := decoder.Decode(&s)
+	if err != nil {
+		h.log.App().Error("Failed parse cpu alert body")
+		return
+	}
+	if s.S == "on" {
+		h.log.App().Info("DB CPU alert triggered, start dropping to disk")
+		h.es.dropToDisk.TurnOn()
+	} else if s.S == "off" {
+		h.log.App().Info("DB CPU alert resolved, stop dropping to disk")
+		h.es.dropToDisk.TurnOff()
+	} else {
+		h.log.App().Info("the switch should either be turned on or off.")
+	}
+}
+
+func (h *httpHandler) diskAlertHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	defer r.Body.Close()
+	decoder := json.NewDecoder(r.Body)
+	type Switch struct {
+		S int
+	}
+	var s Switch
+	err := decoder.Decode(&s)
+	if err != nil {
+		h.log.App().Error("Failed parse disk alert body")
+		return
+	}
+	if s.S < 0 || s.S > 100 {
+		h.log.App().Error("throttling value should be in range of 0 to 100")
+	} else {
+		h.log.App().Infof("throttle the write traffic to %d%%", s.S)
+		h.es.dropEvent.Throttle(s.S)
+	}
+}

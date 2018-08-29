@@ -73,7 +73,7 @@ func (s *EventsumServer) Stop(hs *http.Server, timeout time.Duration) {
 	s.httpHandler.es.Stop()
 	s.logger.App().Printf("Shutdown with timeout: %s", timeout)
 	s.logger.App().Printf("Processing events still left in the queue")
-	close(s.httpHandler.es.channel._queue)
+	close(s.httpHandler.es.channel.queue)
 	s.httpHandler.es.SummarizeBatchEvents()
 
 	if err := hs.Shutdown(ctx); err != nil {
@@ -113,7 +113,11 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 
 	/* ROUTING */
 	// GET requests
-	s.route.GET("/", latency("/search", s.httpHandler.searchEventsHandler))
+	s.route.GET("/", latency("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
+		s.httpHandler.sendResp(w, "message", "To visit EventSum UI, please go to https://opsdb.prod.wish.com/eventsum")
+
+	}))
 	s.route.GET("/search", latency("/search", s.httpHandler.searchEventsHandler))
 	s.route.GET("/detail", latency("/detail", s.httpHandler.detailsEventsHandler))
 	s.route.GET("/histogram", latency("/histogram", s.httpHandler.histogramEventsHandler))
@@ -140,6 +144,8 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 	s.route.POST("/capture", latency("/capture", s.httpHandler.captureEventsHandler))
 	s.route.POST("/assign_group", latency("/assign_group", s.httpHandler.assignGroupHandler))
 	s.route.POST("/group", latency("/group", s.httpHandler.createGroupHandler))
+	s.route.POST("/db_cpu_alert", latency("/db_cpu_alert", s.httpHandler.cpuAlertHandler))
+	s.route.POST("/server_cpu_alert", latency("/server_cpu_alert", s.httpHandler.diskAlertHandler))
 
 	// DELETE requests
 	s.route.DELETE("/group", latency("/group", s.httpHandler.deleteGroupHandler))

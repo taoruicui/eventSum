@@ -3,6 +3,12 @@ package eventsum
 import (
 	"time"
 
+	"sync"
+
+	"math/rand"
+
+	"strings"
+
 	conf "github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/datastore"
 	"github.com/ContextLogic/eventsum/log"
@@ -13,7 +19,7 @@ import (
 
 // Wrapper struct for Event Channel
 type eventChannel struct {
-	_queue    chan UnaddedEvent
+	queue     chan UnaddedEvent
 	BatchSize int
 	ticker    *time.Ticker
 	quit      chan int
@@ -25,6 +31,52 @@ type eventStore struct {
 	log          *log.Logger
 	timeInterval int // interval time for event_instance_period
 	timeFormat   string
+	dropToDisk   DropEventSwitch   // switch to write evts to local disk logs
+	dropEvent    DropEventThrottle // switch to drop
+}
+
+type DropEventSwitch struct {
+	sync.Mutex
+	flag bool
+}
+
+func (d *DropEventSwitch) TurnOn() {
+	d.Lock()
+	defer d.Unlock()
+
+	d.flag = true
+}
+
+func (d *DropEventSwitch) Check() bool {
+	d.Lock()
+	defer d.Unlock()
+
+	return d.flag
+}
+
+func (d *DropEventSwitch) TurnOff() {
+	d.Lock()
+	defer d.Unlock()
+
+	d.flag = false
+}
+
+type DropEventThrottle struct {
+	sync.Mutex
+	Prob int //should be int between 0 to 100, this defines the probability of drop the events in the buffer. Proportional to the local machine cpu usage
+}
+
+func (d *DropEventThrottle) Throttle(prob int) {
+	d.Lock()
+	defer d.Unlock()
+	d.Prob = prob
+}
+
+func (d *DropEventThrottle) ToBeDropped() bool {
+	rand.Seed(time.Now().UnixNano())
+	d.Lock()
+	defer d.Unlock()
+	return rand.Intn(100) > d.Prob-1
 }
 
 // create new Event Store. This 'store' stores necessary information
@@ -42,6 +94,8 @@ func newEventStore(ds datastore.DataStore, config conf.EventsumConfig, log *log.
 		log,
 		config.TimeInterval,
 		config.TimeFormat,
+		DropEventSwitch{flag: false},
+		DropEventThrottle{Prob: 100},
 	}
 }
 
@@ -64,10 +118,20 @@ func (es *eventStore) Stop() {
 
 // Add new UnaddedEvent to channel, process if full
 func (es *eventStore) Send(exc UnaddedEvent) {
-	es.channel._queue <- exc
-	if len(es.channel._queue) == es.channel.BatchSize {
+	es.channel.queue <- exc
+	if len(es.channel.queue) == es.channel.BatchSize {
 		go es.SummarizeBatchEvents()
 	}
+}
+
+func processFetchImageError(event *UnaddedEvent) {
+	if event.Name != "FetchImageError" {
+		return
+	}
+	if strings.HasPrefix(event.Data.Message, "Cannot get image from URL") {
+		event.Data.Message = "Cannot get image from URL"
+	}
+
 }
 
 // Process Batch from channel and bulk insert into Db
@@ -78,8 +142,8 @@ func (es *eventStore) SummarizeBatchEvents() {
 	}()
 
 	var evtsToAdd []UnaddedEvent
-	for length := len(es.channel._queue); length > 0; length-- {
-		exc := <-es.channel._queue
+	for length := len(es.channel.queue); length > 0; length-- {
+		exc := <-es.channel.queue
 		evtsToAdd = append(evtsToAdd, exc)
 	}
 	if len(evtsToAdd) == 0 {
@@ -241,12 +305,32 @@ func (es *eventStore) SummarizeBatchEvents() {
 }
 
 func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
+
+	//TODO enable to write to disk in the future
+	//if es.dropToDisk.Check() {
+	//	if es.dropEvent.ToBeDropped() {
+	//		//drop the events directly
+	//		return
+	//	}
+	//	//otherwise write events to local disk file and to be backfilled later.
+	//	// es.log.DropEventToDiskLog(evtsToAdd)
+	//	return
+	//}
+
+	//TODO for now using throttling to gate how many events got written to DB.
+	if es.dropEvent.ToBeDropped() {
+		//drop the events directly
+		return
+	}
+
 	var eventBase EventBase
 	var eventDetail EventDetail
 	var eventInstance EventInstance
 	var eventInstancePeriod EventInstancePeriod
 
 	for _, event := range evtsToAdd {
+
+		processFetchImageError(&event)
 
 		rawEvent := event // Used for grouping
 		rawDetail := event.ExtraArgs
@@ -295,7 +379,7 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 		//either find base event id or create a new base event
 		baseEvtId, err := es.ds.FindEventBaseId(eventBase)
 		if err != nil {
-			es.log.Data().Errorf("error when getting base event id: %v", err)
+			es.log.App().Errorf("error when getting base event id: %v", err)
 			continue
 		}
 
@@ -309,7 +393,7 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 		//either find event detail id or create a new event detail
 		evtDetailId, err := es.ds.FindEventDetailId(eventDetail)
 		if err != nil {
-			es.log.Data().Errorf("error when getting event detail id: %v", err)
+			es.log.App().Errorf("error when getting event detail id: %v", err)
 			continue
 		}
 
@@ -327,7 +411,7 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 		//either find event instance id or create a new event instance
 		evtInstanceId, err := es.ds.FindEventInstanceId(eventInstance)
 		if err != nil {
-			es.log.Data().Errorf("error when getting event instance id: %v", err)
+			es.log.App().Errorf("error when getting event instance id: %v", err)
 			continue
 		}
 
@@ -344,10 +428,14 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 
 		err = es.ds.UpdateEventInstancePeriod(eventInstancePeriod)
 		if err != nil {
-			es.log.Data().Errorf("error when updating event instance period: %v", err)
+			es.log.App().Errorf("error when updating event instance period: %v", err)
 		}
 
 	}
+}
+
+func (es *eventStore) BackFillToDB() {
+	//TODO BackFillToDB
 }
 
 func (es *eventStore) GeneralQuery(
@@ -397,12 +485,12 @@ func (es *eventStore) AddEventGroup(group EventGroup) (EventGroup, error) {
 	return es.ds.AddEventGroup(group)
 }
 
-func (es *eventStore) GetEventsByGroup(group_id int, group_name string) ([]EventBase, error) {
+func (es *eventStore) GetEventsByGroup(groupId int, groupName string) ([]EventBase, error) {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("GetEventByGroup", now)
 	}()
-	return es.ds.GetEventsByGroup(group_id, group_name)
+	return es.ds.GetEventsByGroup(groupId, groupName)
 }
 
 func (es *eventStore) ModifyEventGroup(name string, info string, newName string) error {
@@ -413,12 +501,12 @@ func (es *eventStore) ModifyEventGroup(name string, info string, newName string)
 	return es.ds.ModifyEventGroup(name, info, newName)
 }
 
-func (es *eventStore) DeleteEventGroup(group_id int, name string) error {
+func (es *eventStore) DeleteEventGroup(groupId int, name string) error {
 	now := time.Now()
 	defer func() {
 		metrics.EventStoreLatency("DeleteEventGroup", now)
 	}()
-	return es.ds.DeleteEventGroup(group_id, name)
+	return es.ds.DeleteEventGroup(groupId, name)
 }
 
 func (es *eventStore) CountEvents(filter map[string]string) (CountStat, error) {

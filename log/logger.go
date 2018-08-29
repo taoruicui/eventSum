@@ -3,16 +3,17 @@ package log
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
+	"time"
+
 	"github.com/ContextLogic/eventsum/datastore"
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/rules"
 	"github.com/ContextLogic/eventsum/util"
 	log "github.com/sirupsen/logrus"
-	"os"
-	"path/filepath"
-	"reflect"
-	"time"
-	"fmt"
 )
 
 var GlobalRule *rules.Rule
@@ -28,6 +29,7 @@ type config struct {
 	Environment                string `json:"environment"`
 	AppDir                     string `json:"app_logging"`
 	DataDir                    string `json:"data_logging"`
+	EventDir                   string `json:"event_logging"`
 }
 
 // There are two types of logging in this service: App logginng and Data logging.
@@ -39,8 +41,9 @@ type Logger struct {
 	eventLog failedEventsLog
 	ds       datastore.DataStore
 
-	appDir  string
-	dataDir string
+	appDir   string
+	dataDir  string
+	eventDir string
 
 	endOfDay    time.Time    // used for log rotation
 	tickerDump  *time.Ticker // used for dumping logs
@@ -65,6 +68,29 @@ func (l *Logger) Start(c config) {
 		case <-l.tickerCheck.C:
 			l.PeriodicCheck(c)
 		}
+	}
+}
+
+func (l *Logger) DropEventToDiskLog(evts []UnaddedEvent) {
+
+	filename := fmt.Sprintf("%d-events-buffers", time.Now().Unix())
+
+	evtFile, err := open(filepath.Join(l.eventDir, filename))
+	defer evtFile.Close()
+
+	if err != nil {
+		//drop the event directly
+		return
+	}
+	for _, evt := range evts {
+		jsonData, err := json.Marshal(evt)
+		if err != nil {
+			//drop the event directly
+			continue
+		}
+
+		evtFile.WriteString(string(jsonData))
+		evtFile.WriteString("\n")
 	}
 }
 
@@ -108,7 +134,7 @@ func (l *Logger) SaveEventsToLogFile() {
 		"event_instance":        l.eventLog.Instances,
 		"event_instance_period": l.eventLog.Periods,
 		//"event_instance_period_map": l.eventLog.PeriodMap,
-		"event_detail":     l.eventLog.Details,
+		"event_detail": l.eventLog.Details,
 	}).Info("Dumping event data now")
 
 	// Clear the eventLog data after saving successfully
@@ -259,6 +285,7 @@ func parseConfig(file string) config {
 		5,
 		10,
 		"dev",
+		"log",
 		"log",
 		"log",
 	}

@@ -1,6 +1,7 @@
 {
   "app_logging": "log",
   "data_logging": "config",
+  "event_logging": "event",
   "log_save_data_interval": 5,
   "log_data_period_check_interval": 1000000,
   "environment": "dev"
