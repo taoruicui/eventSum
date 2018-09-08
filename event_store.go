@@ -402,7 +402,11 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 			continue
 		}
 
-		eventMessage := fmt.Sprintf("%v", rawEvent.Data.Message)
+		var eventMessage = ""
+
+		if rawEvent.Data.Message != nil {
+			eventMessage = fmt.Sprintf("%v", rawEvent.Data.Message)
+		}
 
 		//create instance event
 		eventInstance = EventInstance{
