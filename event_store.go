@@ -9,6 +9,8 @@ import (
 
 	"strings"
 
+	"fmt"
+
 	conf "github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/datastore"
 	"github.com/ContextLogic/eventsum/log"
@@ -128,10 +130,11 @@ func processFetchImageError(event *UnaddedEvent) {
 	if event.Name != "FetchImageError" {
 		return
 	}
-	if strings.HasPrefix(event.Data.Message, "Cannot get image from URL") {
-		event.Data.Message = "Cannot get image from URL"
+	if m, ok := event.Data.Message.(string); ok {
+		if strings.HasPrefix(m, "Cannot get image from URL") {
+			event.Data.Message = "Cannot get image from URL"
+		}
 	}
-
 }
 
 // Process Batch from channel and bulk insert into Db
@@ -399,6 +402,8 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 			continue
 		}
 
+		eventMessage := fmt.Sprintf("%v", rawEvent.Data.Message)
+
 		//create instance event
 		eventInstance = EventInstance{
 			EventDetailId:      int(evtDetailId),
@@ -407,7 +412,7 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 			RawData:            rawEvent.Data,
 			GenericData:        genericData,
 			GenericDataHash:    genericDataHash,
-			EventMessage:       rawEvent.Data.Message,
+			EventMessage:       eventMessage,
 		}
 
 		//either find event instance id or create a new event instance

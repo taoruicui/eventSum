@@ -461,7 +461,7 @@ func (h *httpHandler) cpuAlertHandler(w http.ResponseWriter, r *http.Request, _ 
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)
 	type Switch struct {
-		S string `json:"s""`
+		S string `json:"s"`
 	}
 	var s Switch
 	err := decoder.Decode(&s)
