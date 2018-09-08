@@ -423,6 +423,7 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 		evtInstanceId, err := es.ds.FindEventInstanceId(eventInstance)
 		if err != nil {
 			es.log.App().Errorf("error when getting event instance id: %v", err)
+			es.log.App().Errorf("message: %s\nraw_message: %v", eventMessage, rawEvent.Data.Message)
 			continue
 		}
 
