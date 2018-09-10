@@ -683,16 +683,32 @@ func (p *postgresStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) 
 
 	for _, frame := range result.RawData.(EventData).Raw.(map[string]interface{})["frames"].([]interface{}) {
 		var buffer bytes.Buffer
-		for _, s := range frame.(map[string]interface{})["pre_context"].([]interface{}) {
-			buffer.WriteString(s.(string))
-			buffer.WriteString("\n")
+
+		if preContext, ok := frame.(map[string]interface{})["pre_context"].([]interface{}); ok {
+			for _, s := range preContext {
+				buffer.WriteString(s.(string))
+				buffer.WriteString("\n")
+			}
+		} else {
+			continue
 		}
-		buffer.WriteString(frame.(map[string]interface{})["context_line"].(string))
-		buffer.WriteString("\n")
-		for _, s := range frame.(map[string]interface{})["post_context"].([]interface{}) {
-			buffer.WriteString(s.(string))
+
+		if contextLine, ok := frame.(map[string]interface{})["context_line"].(string); ok {
+			buffer.WriteString(contextLine)
 			buffer.WriteString("\n")
+		} else {
+			continue
 		}
+
+		if postContext, ok := frame.(map[string]interface{})["post_context"].([]interface{}); ok {
+			for _, s := range postContext {
+				buffer.WriteString(s.(string))
+				buffer.WriteString("\n")
+			}
+		} else {
+			continue
+		}
+
 		frame.(map[string]interface{})["code_snippet"] = buffer.String()
 		frame.(map[string]interface{})["start_lineno"] = int(frame.(map[string]interface{})["lineno"].(float64)) - len(frame.(map[string]interface{})["pre_context"].([]interface{}))
 		frame.(map[string]interface{})["highlight_lineno"] = len(frame.(map[string]interface{})["pre_context"].([]interface{})) + 1
