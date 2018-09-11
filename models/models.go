@@ -30,7 +30,7 @@ type UnaddedEvent struct {
 
 // Data object, payload of UnaddedEvent
 type EventData struct {
-	Message interface{} `json:"message" mapstructure:"message"`
+	Message string      `json:"message" mapstructure:"message"`
 	Raw     interface{} `json:"raw_data" mapstructure:"raw_data"`
 }
 

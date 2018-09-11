@@ -239,7 +239,7 @@ func (e EventResults) FilterBy(str string) EventResults {
 			evts = append(evts, evt)
 		}
 
-		if strings.Contains(evt.ProcessedData.Message.(string), str) {
+		if strings.Contains(evt.ProcessedData.Message, str) {
 			evts = append(evts, evt)
 		}
 	}
