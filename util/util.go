@@ -193,3 +193,22 @@ func EncodeToJsonRawMsg(data interface{}) []byte {
 	jsonString, _ := json.Marshal(data)
 	return jsonString
 }
+
+func ProcessEventRawMessage(evt *models.UnaddedEvent) {
+	switch evt.Data.RawMessage.(type) {
+	case string:
+		evt.Data.Message = fmt.Sprintf("%s", evt.Data.RawMessage)
+	case int:
+		evt.Data.Message = fmt.Sprintf("%d", evt.Data.RawMessage)
+	case float64:
+		evt.Data.Message = fmt.Sprintf("%f", evt.Data.RawMessage)
+	case map[string]interface{}:
+		if m, err := json.Marshal(evt.Data.RawMessage); err != nil {
+			evt.Data.Message = ""
+		} else {
+			evt.Data.Message = string(m)
+		}
+	default:
+		evt.Data.Message = ""
+	}
+}

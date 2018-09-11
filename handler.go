@@ -281,6 +281,9 @@ func (h *httpHandler) captureEventsHandler(w http.ResponseWriter, r *http.Reques
 		h.sendError(w, http.StatusBadRequest, err, "Error decoding JSON event")
 		return
 	}
+
+	util.ProcessEventRawMessage(&evt)
+
 	// Validate the unadded event
 	if _, err := time.Parse(h.timeFormat, evt.Timestamp); err != nil {
 		h.sendError(w, http.StatusBadRequest, err, fmt.Sprintf("Ensure timestamp is in correct format: '%v'", h.timeFormat))

@@ -333,7 +333,7 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 
 	for _, event := range evtsToAdd {
 
-		processFetchImageError(&event)
+		processFetchImageError(&event) //TODO a workaround for aggregating FetchImageErrors
 
 		rawEvent := event // Used for grouping
 		rawDetail := event.ExtraArgs

@@ -30,15 +30,18 @@ type UnaddedEvent struct {
 
 // Data object, payload of UnaddedEvent
 type EventData struct {
-	Message string      `json:"message" mapstructure:"message"`
-	Raw     interface{} `json:"raw_data" mapstructure:"raw_data"`
+	//Message string      `json:"message" mapstructure:"message"`
+	Message    string
+	RawMessage string      `json:"message" mapstructure:"message"`
+	Raw        interface{} `json:"raw_data" mapstructure:"raw_data"`
 }
 
 // Performs deepcopy
 func (e *EventData) Copy() EventData {
 	return EventData{
-		Message: e.Message,
-		Raw:     deepcopy.Copy(e.Raw),
+		Message:    e.Message,
+		RawMessage: e.RawMessage,
+		Raw:        deepcopy.Copy(e.Raw),
 	}
 }
 
