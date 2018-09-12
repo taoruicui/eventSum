@@ -671,6 +671,9 @@ func (p *postgresStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) 
 	firstSeen := firstEvtInsPeriod.Updated.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
 	lastSeen := lastEvtInsPeriod.Updated.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
 
+	instance.RawData.RawMessage = instance.RawData.Message
+	//fmt.Println(instance.RawData.Message)
+
 	result = EventDetailsResult{
 		ServiceId:  base.ServiceId,
 		EventType:  base.EventType,
