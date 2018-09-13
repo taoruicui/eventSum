@@ -212,3 +212,9 @@ func ProcessEventRawMessage(evt *models.UnaddedEvent) {
 		evt.Data.Message = ""
 	}
 }
+
+func ProcessGenericData(event *models.UnaddedEvent) error {
+	event.Data.Message = ""
+	event.Data.RawMessage = nil
+	return nil
+}

@@ -1324,14 +1324,19 @@ func (p *postgresStore) FindEventInstanceId(evt EventInstance) (int64, error) {
 		} else {
 			return -1, err
 		}
+	} else {
+		fmt.Println(evt.EventMessage)
+		p.DB.QueryRow("UPDATE event_instance SET raw_data = $1, event_message = $2", util.EncodeToJsonRawMsg(evt.RawData), evt.EventMessage)
 	}
 	return id, nil
 }
 
 func (p *postgresStore) AddInstanceEvent(evt EventInstance) (int64, error) {
 	var id int64
-	row := p.DB.QueryRow("INSERT INTO event_instance (event_base_id, event_detail_id, event_environment_id, raw_data, generic_data, generic_data_hash, event_message) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING _id",
-		evt.EventBaseId, evt.EventDetailId, evt.EventEnvironmentId, util.EncodeToJsonRawMsg(evt.RawData), util.EncodeToJsonRawMsg(evt.GenericData), evt.GenericDataHash, evt.EventMessage)
+	row := p.DB.QueryRow("INSERT INTO event_instance "+
+		"(event_base_id, event_detail_id, event_environment_id, raw_data, generic_data, generic_data_hash, event_message, created_at) "+
+		"VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING _id",
+		evt.EventBaseId, evt.EventDetailId, evt.EventEnvironmentId, util.EncodeToJsonRawMsg(evt.RawData), util.EncodeToJsonRawMsg(evt.GenericData), evt.GenericDataHash, evt.EventMessage, evt.CreatedAt)
 	err := row.Scan(&id)
 	if err != nil {
 		return -1, err

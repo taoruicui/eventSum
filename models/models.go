@@ -83,6 +83,7 @@ type EventInstance struct {
 	GenericData        EventData `mapstructure:"generic_data"`
 	GenericDataHash    string    `mapstructure:"generic_data_hash"`
 	EventMessage       string    `mapstructure: "event_message"`
+	CreatedAt          time.Time `mapstructure: "created_at"`
 
 	// ignored fields, used internally
 	ProcessedDataHash   string
@@ -161,4 +162,20 @@ func (o *OpsdbResult) Update(c int, t string) {
 type DataPointArrays struct {
 	Count     string
 	TimeStamp string
+}
+
+type StackTrace struct {
+	Frames []Frame `json:"frames" mapstructure:"frames"`
+}
+
+type Frame struct {
+	AbsPath     string                 `json:"abs_path" mapstructure:"abs_path"`
+	ContextLine string                 `json:"context_line" mapstructure:"context_line"`
+	Filename    string                 `json:"filename" mapstructure:"filename"`
+	Function    string                 `json:"function" mapstructure:"function"`
+	LineNo      int                    `json:"lineno" mapstructure:"lineno"`
+	Module      string                 `json:"module" mapstructure:"module"`
+	PostContext []string               `json:"post_context" mapstructure:"post_context"`
+	PreContext  []string               `json:"pre_context" mapstructure:"pre_context"`
+	Vars        map[string]interface{} `json:"vars" mapstructure:"vars"`
 }

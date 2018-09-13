@@ -342,6 +342,12 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 			es.log.App().Errorf("Error when processing instance: %v", err)
 			continue
 		}
+
+		if err = util.ProcessGenericData(&event); err != nil {
+			es.log.App().Errorf("Error when processing event instance generic data %v", err)
+			continue
+		}
+
 		genericData := event.Data
 		event, err = globalRule.ProcessFilter(event, "base")
 		if err != nil {
@@ -400,6 +406,9 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 			continue
 		}
 
+		t, err := time.Parse(es.timeFormat, rawEvent.Timestamp)
+		startTime, endTime := util.FindBoundingTime(t, es.timeInterval)
+
 		//create instance event
 		eventInstance = EventInstance{
 			EventDetailId:      int(evtDetailId),
@@ -409,6 +418,7 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 			GenericData:        genericData,
 			GenericDataHash:    genericDataHash,
 			EventMessage:       rawEvent.Data.Message,
+			CreatedAt:          t,
 		}
 
 		//either find event instance id or create a new event instance
@@ -417,9 +427,6 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 			es.log.App().Errorf("error when getting event instance id: %v", err)
 			continue
 		}
-
-		t, err := time.Parse(es.timeFormat, rawEvent.Timestamp)
-		startTime, endTime := util.FindBoundingTime(t, es.timeInterval)
 
 		//create event period
 		eventInstancePeriod = EventInstancePeriod{

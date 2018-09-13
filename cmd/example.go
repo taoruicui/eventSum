@@ -12,22 +12,6 @@ import (
 	logger "github.com/sirupsen/logrus"
 )
 
-type stackTrace struct {
-	Frames []frame `json:"frames" mapstructure:"frames"`
-}
-
-type frame struct {
-	AbsPath     string                 `json:"abs_path" mapstructure:"abs_path"`
-	ContextLine string                 `json:"context_line" mapstructure:"context_line"`
-	Filename    string                 `json:"filename" mapstructure:"filename"`
-	Function    string                 `json:"function" mapstructure:"function"`
-	LineNo      int                    `json:"lineno" mapstructure:"lineno"`
-	Module      string                 `json:"module" mapstructure:"module"`
-	PostContext []string               `json:"post_context" mapstructure:"post_context"`
-	PreContext  []string               `json:"pre_context" mapstructure:"pre_context"`
-	Vars        map[string]interface{} `json:"vars" mapstructure:"vars"`
-}
-
 func main() {
 	var config c.Flags
 	parser := flags.NewParser(&config, flags.Default)
@@ -52,7 +36,7 @@ and return (EventData, error)
 */
 
 func exceptionPythonRemoveLineNo(data models.EventData) (models.EventData, error) {
-	var stacktrace stackTrace
+	var stacktrace models.StackTrace
 	err := m.Decode(data.Raw, &stacktrace)
 	if err != nil {
 		return data, err
@@ -65,7 +49,8 @@ func exceptionPythonRemoveLineNo(data models.EventData) (models.EventData, error
 }
 
 func exceptionPythonRemoveStackVars(data models.EventData) (models.EventData, error) {
-	stacktrace := stackTrace{}
+
+	stacktrace := models.StackTrace{}
 	err := m.Decode(data.Raw, &stacktrace)
 	if err != nil {
 		return data, err
@@ -78,7 +63,8 @@ func exceptionPythonRemoveStackVars(data models.EventData) (models.EventData, er
 }
 
 func exceptionPythonProcessStackVars(data models.EventData) (models.EventData, error) {
-	stacktrace := stackTrace{}
+
+	stacktrace := models.StackTrace{}
 	err := m.Decode(data.Raw, &stacktrace)
 	if err != nil {
 		return data, err

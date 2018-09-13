@@ -1,9 +1,10 @@
 package rules
 
 import (
+	"reflect"
+
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/pkg/errors"
-	"reflect"
 )
 
 type Rule struct {

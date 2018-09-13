@@ -31,7 +31,7 @@ if __name__ == '__main__':
         data['event_name'] = exc_typ.__name__
         data['extra_args'] = {}
         data['event_data'] = {
-            'message': exc_value.message,
+            'message': "new message",
             'raw_data': get_stack_info(iter_traceback_frames(tb))
         }
         data['configurable_filters'] = {
@@ -40,8 +40,8 @@ if __name__ == '__main__':
         }
         data['configurable_groupings'] = []
 
-        count = random.randint(1,30)
-        for i in range (1, count):
+        # count = random.randint(1,30)
+        for i in range (1, 2):
             res = requests.post('http://0.0.0.0:8080/capture', json=data)
             print res
         
