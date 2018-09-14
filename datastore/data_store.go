@@ -1325,10 +1325,20 @@ func (p *postgresStore) FindEventInstanceId(evt EventInstance) (int64, error) {
 			return -1, err
 		}
 	} else {
-		fmt.Println(evt.EventMessage)
-		p.DB.QueryRow("UPDATE event_instance SET raw_data = $1, event_message = $2", util.EncodeToJsonRawMsg(evt.RawData), evt.EventMessage)
+		//row = p.DB.QueryRow("UPDATE event_instance SET raw_data = $1, event_message = $2 WHERE _id = $3;", util.EncodeToJsonRawMsg(evt.RawData), evt.EventMessage, id)
+		return id, p.UpdateEventInstance(evt, id)
 	}
 	return id, nil
+}
+
+func (p *postgresStore) UpdateEventInstance(evt EventInstance, targetId int64) error {
+	var id int64
+	row := p.DB.QueryRow("UPDATE event_instance SET raw_data = $1, event_message = $2 WHERE _id = $3 RETURNING _id", util.EncodeToJsonRawMsg(evt.RawData), evt.EventMessage, targetId)
+	err := row.Scan(&id)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *postgresStore) AddInstanceEvent(evt EventInstance) (int64, error) {
