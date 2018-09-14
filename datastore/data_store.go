@@ -1325,7 +1325,6 @@ func (p *postgresStore) FindEventInstanceId(evt EventInstance) (int64, error) {
 			return -1, err
 		}
 	} else {
-		//row = p.DB.QueryRow("UPDATE event_instance SET raw_data = $1, event_message = $2 WHERE _id = $3;", util.EncodeToJsonRawMsg(evt.RawData), evt.EventMessage, id)
 		return id, p.UpdateEventInstance(evt, id)
 	}
 	return id, nil
@@ -1356,8 +1355,8 @@ func (p *postgresStore) AddInstanceEvent(evt EventInstance) (int64, error) {
 
 func (p *postgresStore) UpdateEventInstancePeriod(evt EventInstancePeriod) error {
 	var id int64
-	row := p.DB.QueryRow("UPDATE event_instance_period SET count = count + $1, updated = $2 WHERE event_instance_id = $3 AND start_time = $4 AND end_time = $5 RETURNING _id",
-		evt.Count, evt.Updated, evt.EventInstanceId, evt.StartTime, evt.EndTime)
+	row := p.DB.QueryRow("UPDATE event_instance_period SET count = count + $1 WHERE event_instance_id = $2 AND start_time = $3 AND end_time = $4 RETURNING _id",
+		evt.Count, evt.EventInstanceId, evt.StartTime, evt.EndTime)
 	err := row.Scan(&id)
 	if err != nil {
 		if err == sql.ErrNoRows {

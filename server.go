@@ -137,6 +137,8 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 	s.route.GET("/types/tier", latency("/types/tier", s.httpHandler.tierTypesHandler))
 	s.route.GET("/types/group", latency("/types/group", s.httpHandler.groupTypesHandler))
 
+	s.route.GET("/recent_exceptions", latency("/recent_exceptions", s.httpHandler.recentExceptionHandler))
+
 	// PUT requests
 	s.route.PUT("/group", latency("/group", s.httpHandler.modifyGroupHandler))
 

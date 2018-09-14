@@ -7,8 +7,6 @@ import (
 
 	"math/rand"
 
-	"strings"
-
 	conf "github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/datastore"
 	"github.com/ContextLogic/eventsum/log"
@@ -122,17 +120,6 @@ func (es *eventStore) Send(exc UnaddedEvent) {
 	if len(es.channel.queue) == es.channel.BatchSize {
 		go es.SummarizeBatchEvents()
 	}
-}
-
-func processFetchImageError(event *UnaddedEvent) {
-	if event.Name != "FetchImageError" {
-		return
-	}
-
-	if strings.HasPrefix(event.Data.Message, "Cannot get image from URL") {
-		event.Data.Message = "Cannot get image from URL"
-	}
-
 }
 
 // Process Batch from channel and bulk insert into Db
@@ -332,8 +319,6 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 	var eventInstancePeriodMap = make(map[string]*EventInstancePeriod)
 
 	for _, event := range evtsToAdd {
-
-		processFetchImageError(&event) //TODO a workaround for aggregating FetchImageErrors
 
 		rawEvent := event // Used for grouping
 		rawDetail := event.ExtraArgs

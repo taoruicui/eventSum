@@ -502,3 +502,10 @@ func (h *httpHandler) diskAlertHandler(w http.ResponseWriter, r *http.Request, _
 		h.es.dropEvent.Throttle(s.S)
 	}
 }
+
+func (h *httpHandler) recentExceptionHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	//defer r.Body().Close()
+	//query := r.URL.Query()
+	//
+	//service := query.Get("service")
+}
