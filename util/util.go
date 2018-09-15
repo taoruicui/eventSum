@@ -218,3 +218,59 @@ func ProcessGenericData(event *models.UnaddedEvent) error {
 	event.Data.RawMessage = nil
 	return nil
 }
+
+func CompileDataPoints(start string, end string, record models.OpsdbResult, tInterval int) ([][]int, error) {
+
+	startTime, err := time.Parse("2006-01-02 15:04:05", start)
+	if err != nil {
+		return nil, err
+	}
+
+	endTime, err := time.Parse("2006-01-02 15:04:05", end)
+	if err != nil {
+		return nil, err
+	}
+
+	startUnix := startTime.Unix() * 1000
+	endUnix := endTime.Unix() * 1000
+
+	var interval int64
+	var length int
+
+	if endUnix-startUnix < int64(200*tInterval*60*1000) {
+		// means the minimum interval would be less than minimum interval we set in the config.
+		// we should try to keep the interval as the pre-set one.
+
+		interval = int64(tInterval * 60 * 1000)
+		length = int((endUnix - startUnix) / interval)
+
+	} else {
+		// increase the time interval to keep the datapoints ~200 per target.
+
+		interval = (endUnix - startUnix) / 200
+		length = 200
+	}
+
+	var datapoints = make([][]int, length)
+	for i := range datapoints {
+		datapoints[i] = make([]int, 2)
+	}
+
+	starting := int(startUnix + interval/2)
+	for i := range datapoints {
+		datapoints[i][1] = starting
+		starting += int(interval)
+	}
+
+	for i, tStr := range record.TimeStamp {
+		t, _ := time.Parse("2006-01-02 15:04:05", tStr)
+		tUnix := t.Add(7*time.Duration(time.Hour)).Unix() * 1000
+		index := int((tUnix - startUnix) / interval)
+		if index < 0 || index > 199 {
+			continue
+		}
+		datapoints[index][0] += record.Count[i]
+	}
+
+	return datapoints, nil
+}

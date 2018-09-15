@@ -6,12 +6,14 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
-	"strings"
+
 	_ "strings"
 
 	"strconv"
 
-	"time"
+	"github.com/ContextLogic/eventsum/util"
+
+	"strings"
 
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/julienschmidt/httprouter"
@@ -61,6 +63,11 @@ func (h *httpHandler) grafanaTest(w http.ResponseWriter, r *http.Request, _ http
 		}
 
 		resList, err := h.es.ds.OpsdbQuery(start, end, envString, serviceString, groupId)
+		if err != nil {
+			h.sendError(w, http.StatusInternalServerError, err, "failed query datapoints")
+			return
+		}
+
 		sort.Slice(resList, func(i, j int) bool {
 			return resList[i].CountSum > resList[j].CountSum
 		})
@@ -70,15 +77,20 @@ func (h *httpHandler) grafanaTest(w http.ResponseWriter, r *http.Request, _ http
 
 		for _, r := range resList {
 			evtFormatName := fmt.Sprintf("%s: %s(%s)", r.EvtName, r.EvtMessage, r.EvtDetails)
-			datapoints := [][]int{}
-			for i, bin := range r.Count {
-				t, _ := time.Parse("2006-01-02 15:04:05", r.TimeStamp[i])
-				tUnix := int(t.Add(7*time.Duration(time.Hour)).Unix() * 1000)
-				datapoints = append(datapoints, []int{bin, tUnix})
+			datapoints, err := util.CompileDataPoints(start, end, r, 1)
+			if err != nil {
+				h.sendError(w, http.StatusInternalServerError, err, "failed parsing time")
+				return
 			}
-			sort.Slice(datapoints, func(i, j int) bool {
-				return datapoints[i][1] < datapoints[j][1]
-			})
+			//datapoints := [][]int{}
+			//for i, bin := range r.Count {
+			//	t, _ := time.Parse("2006-01-02 15:04:05", r.TimeStamp[i])
+			//	tUnix := int(t.Add(7*time.Duration(time.Hour)).Unix() * 1000)
+			//	datapoints = append(datapoints, []int{bin, tUnix})
+			//}
+			//sort.Slice(datapoints, func(i, j int) bool {
+			//	return datapoints[i][1] < datapoints[j][1]
+			//})
 
 			result = append(result, GrafanaQueryResp{
 				Target:     evtFormatName,
