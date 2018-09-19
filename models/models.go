@@ -144,6 +144,7 @@ type OpsdbResult struct {
 	Count           []int
 	TimeStamp       []string
 	EvtDetails      string
+	FirstSeen       string
 }
 
 func (o *OpsdbResult) SetCount(count int) {

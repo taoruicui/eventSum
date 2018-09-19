@@ -1154,7 +1154,7 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 	var opsdbResult []OpsdbResult
 
 	var sqlString = fmt.Sprintf(
-		"select event_instance_id, event_base_id, event_name, updated, event_instance_period.count, event_message, event_group.name, event_detail.raw_detail "+
+		"select event_instance_id, event_base_id, event_name, updated, event_instance_period.count, event_message, event_group.name, event_detail.raw_detail, created_at "+
 			"from event_instance_period "+
 			"join event_instance on event_instance_id = event_instance._id "+
 			"join event_base on event_base_id = event_base._id "+
@@ -1179,13 +1179,19 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 		var eventBaseId, eventInstanceId int
 		var updated time.Time
 		var count int
-		var eventName, eventMessage, groupName, lastSeen, eventDetail string
+		var eventName, eventMessage, groupName, lastSeen, eventDetail, firstSeen string
+		var firstSeenString sql.NullString
 
-		if err := rows.Scan(&eventInstanceId, &eventBaseId, &eventName, &updated, &count, &eventMessage, &groupName, &eventDetail); err != nil {
+		if err := rows.Scan(&eventInstanceId, &eventBaseId, &eventName, &updated, &count, &eventMessage, &groupName, &eventDetail, &firstSeenString); err != nil {
 			return nil, err
 		}
 
 		lastSeen = updated.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
+
+		if firstSeenString.Valid {
+			firstSeenTime, _ := time.Parse("2006-01-02T15:04:05Z", firstSeenString.String)
+			firstSeen = firstSeenTime.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
+		}
 
 		if val, ok := tmp[eventBaseId]; !ok {
 			opsdbResult.EventInstanceId = eventInstanceId
@@ -1198,6 +1204,7 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 			opsdbResult.Count = []int{count}
 			opsdbResult.TimeStamp = []string{lastSeen}
 			opsdbResult.EvtDetails = eventDetail
+			opsdbResult.FirstSeen = firstSeen
 			tmp[eventBaseId] = opsdbResult
 		} else {
 			val.Update(count, lastSeen)
@@ -1208,6 +1215,7 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 			val.SetCount(val.CountSum)
 			tmp[eventBaseId] = val
 		}
+
 	}
 	for _, val := range tmp {
 		opsdbResult = append(opsdbResult, val)

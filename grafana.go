@@ -77,7 +77,7 @@ func (h *httpHandler) grafanaTest(w http.ResponseWriter, r *http.Request, _ http
 
 		for _, r := range resList {
 			evtFormatName := fmt.Sprintf("%s: %s(%s)", r.EvtName, r.EvtMessage, r.EvtDetails)
-			datapoints, err := util.CompileDataPoints(start, end, r, 1)
+			datapoints, err := util.CompileDataPoints(start, end, r, h.es.timeInterval)
 			if err != nil {
 				h.sendError(w, http.StatusInternalServerError, err, "failed parsing time")
 				return
