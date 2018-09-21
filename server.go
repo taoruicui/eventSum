@@ -124,8 +124,20 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 	s.route.GET("/test", latency("/test", s.httpHandler.test))
 	s.route.GET("/health", latency("/health", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
-		errMap := s.healthCheck()
-		s.httpHandler.sendResp(w, "errors", errMap)
+		if errMap := s.healthCheck(); errMap != nil {
+			s.httpHandler.sendError(w, 500, errors.New("Internal Service Error"), fmt.Sprintf("%v", errMap))
+		} else {
+			s.httpHandler.sendResp(w, "errors", errMap)
+		}
+
+	}))
+	s.route.GET("/status", latency("/status", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
+		if errMap := s.healthCheck(); errMap != nil {
+			s.httpHandler.sendError(w, 500, errors.New("Internal Service Error"), fmt.Sprintf("%v", errMap))
+		} else {
+			s.httpHandler.sendResp(w, "errors", errMap)
+		}
 
 	}))
 	s.route.GET("/group", latency("/group", s.httpHandler.searchGroupHandler))
@@ -200,11 +212,15 @@ func New(configFilename string) *EventsumServer {
 func (s *EventsumServer) healthCheck() map[string]interface{} {
 
 	pgString := fmt.Sprintf("%s dbname=%s", s.httpHandler.es.ds.GetDBConfig().StorageConfig["pg_string"], s.config.DatabaseName)
-	errs := make(map[string]interface{})
+	//errs := make(map[string]interface{})
 
-	errs["DBError"] = util.DBHealthCheck(pgString)
+	dbErr := util.DBHealthCheck(pgString)
 
-	errs["ServiceError"] = util.ServiceHealthCheck()
+	serviceErr := util.ServiceHealthCheck()
 
-	return errs
+	if dbErr != nil || serviceErr != nil {
+		return map[string]interface{}{"DBError": dbErr, "ServiceError": serviceErr}
+	} else {
+		return nil
+	}
 }
