@@ -1333,7 +1333,10 @@ func (p *postgresStore) FindEventInstanceId(evt EventInstance) (int64, error) {
 			return -1, err
 		}
 	} else {
-		return id, p.UpdateEventInstance(evt, id)
+		//TODO figure out a better way of updating an existing event instsance
+		//return id, p.UpdateEventInstance(evt, id)
+
+		return id, nil
 	}
 	return id, nil
 }
