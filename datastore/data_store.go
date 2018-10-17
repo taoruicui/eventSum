@@ -1193,18 +1193,36 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 				"and event_group_id = %s "+
 				"and region_id = %d;", start, end, envId, serviceId, groupId, regionID)
 	} else {
+		//sqlString = fmt.Sprintf(
+		//	"select event_instance_id, event_base_id, event_name, updated, sum(event_instance_period.count), event_message, event_group.name, event_detail.raw_detail, created_at "+
+		//		"from event_instance_period "+
+		//		"join event_instance on event_instance_id = event_instance._id "+
+		//		"join event_base on event_base_id = event_base._id "+
+		//		"join event_group on event_base.event_group_id = event_group._id "+
+		//		"join event_detail on event_instance.event_detail_id = event_detail._id "+
+		//		"where updated >= '%s' "+
+		//		"and updated <= '%s' "+
+		//		"and event_base.event_environment_id = %s "+
+		//		"and service_id = %s "+
+		//		"and event_group_id = %s;", start, end, envId, serviceId, groupId)
 		sqlString = fmt.Sprintf(
-			"select event_instance_id, event_base_id, event_name, updated, event_instance_period.count, event_message, event_group.name, event_detail.raw_detail, created_at "+
-				"from event_instance_period "+
-				"join event_instance on event_instance_id = event_instance._id "+
-				"join event_base on event_base_id = event_base._id "+
-				"join event_group on event_base.event_group_id = event_group._id "+
-				"join event_detail on event_instance.event_detail_id = event_detail._id "+
-				"where updated >= '%s' "+
-				"and updated <= '%s' "+
-				"and event_base.event_environment_id = %s "+
-				"and service_id = %s "+
-				"and event_group_id = %s;", start, end, envId, serviceId, groupId)
+			`with eip_temp AS (
+						select event_instance_id, sum(event_instance_period.count) as count, min(updated) as updated
+						from event_instance_period
+						where updated >= '%s'
+						and updated <= '%s'
+						group by event_instance_id, start_time, end_time
+						order by start_time
+					)
+					select eip_temp.event_instance_id,  event_base_id, event_name, eip_temp.updated, eip_temp.count, event_message, event_group.name, event_detail.raw_detail, created_at
+					from eip_temp
+					join event_instance on eip_temp.event_instance_id = event_instance._id
+					join event_base on event_base_id = event_base._id
+					join event_group on event_base.event_group_id = event_group._id
+					join event_detail on event_instance.event_detail_id = event_detail._id
+					where event_base.event_environment_id = %s
+					and service_id = %s
+					and event_group_id = %s;`, start, end, envId, serviceId, groupId)
 	}
 
 	rows, err := p.DB.Query(sqlString)
