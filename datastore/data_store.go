@@ -1385,7 +1385,7 @@ func (p *postgresStore) UpdateEventInstancePeriod(evt EventInstancePeriod) error
 
 func (p *postgresStore) AddEventInstancePeriods(evt EventInstancePeriod) error {
 	var id int64
-	row := p.DB.QueryRow("INSERT INTO event_instance_period (event_instance_id, start_time, end_time, updated, count, region) VALUES ($1, $2, $3, $4, $5. $6) RETURNING _id",
+	row := p.DB.QueryRow("INSERT INTO event_instance_period (event_instance_id, start_time, end_time, updated, count, region_id) VALUES ($1, $2, $3, $4, $5. $6) RETURNING _id",
 		evt.EventInstanceId, evt.StartTime, evt.EndTime, evt.Updated, evt.Count, p.Region)
 	err := row.Scan(&id)
 	if err != nil {
