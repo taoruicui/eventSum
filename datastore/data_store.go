@@ -1178,7 +1178,7 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 				"and service_id = %s "+
 				"and event_group_id = %s "+
 				"and (region_id = %d or region_id is NULL);", start, end, envId, serviceId, groupId, regionID)
-	} else {
+	} else if regionID == 2 {
 		sqlString = fmt.Sprintf(
 			"select event_instance_id, event_base_id, event_name, updated, event_instance_period.count, event_message, event_group.name, event_detail.raw_detail, created_at "+
 				"from event_instance_period "+
@@ -1192,6 +1192,19 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 				"and service_id = %s "+
 				"and event_group_id = %s "+
 				"and region_id = %d;", start, end, envId, serviceId, groupId, regionID)
+	} else {
+		sqlString = fmt.Sprintf(
+			"select event_instance_id, event_base_id, event_name, updated, event_instance_period.count, event_message, event_group.name, event_detail.raw_detail, created_at "+
+				"from event_instance_period "+
+				"join event_instance on event_instance_id = event_instance._id "+
+				"join event_base on event_base_id = event_base._id "+
+				"join event_group on event_base.event_group_id = event_group._id "+
+				"join event_detail on event_instance.event_detail_id = event_detail._id "+
+				"where updated >= '%s' "+
+				"and updated <= '%s' "+
+				"and event_base.event_environment_id = %s "+
+				"and service_id = %s "+
+				"and event_group_id = %s;", start, end, envId, serviceId, groupId)
 	}
 
 	rows, err := p.DB.Query(sqlString)
