@@ -249,11 +249,11 @@ func CompileDataPoints(start string, end string, record models.OpsdbResult, tInt
 				return res, err
 			}
 			res = append(res, []int{record.Count[i], int(prev.Unix() * 1000)})
-			if next.Sub(prev).Seconds() > float64(tInterval*60*2) {
+			if next.Sub(prev).Seconds() > float64(tInterval*60*3) {
 				res = append(res, []int{0, int(prev.Add((time.Duration(tInterval))*time.Minute).Unix() * 1000)})
 				res = append(res, []int{0, int(next.Add(-1*(time.Duration(tInterval))*time.Minute).Unix() * 1000)})
 
-			} else if next.Sub(prev).Seconds() > float64(tInterval*60) && next.Sub(prev).Seconds() <= float64(tInterval*60*2) {
+			} else if next.Sub(prev).Seconds() >= float64(tInterval*60*2) && next.Sub(prev).Seconds() <= float64(tInterval*60*3) {
 				res = append(res, []int{0, int((prev.Unix() + next.Unix()) / 2 * 1000)})
 			}
 		}
