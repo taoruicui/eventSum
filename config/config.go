@@ -26,6 +26,8 @@ type EventsumConfig struct {
 	TimeFormat         string                    `json:"time_format"`
 	Services           map[string]map[string]int `json:"services"`
 	Environments       map[string]map[string]int `json:"environments"`
+	RegionsMap         map[string]int            `json:"regions_map"`
+	Region             string                    `json:"region"`
 }
 
 func DefaultConfig() EventsumConfig {
@@ -41,6 +43,8 @@ func DefaultConfig() EventsumConfig {
 		TimeFormat:         "2006-01-02 15:04:05",
 		Services:           map[string]map[string]int{},
 		Environments:       map[string]map[string]int{},
+		RegionsMap:         map[string]int{},
+		Region:             "default",
 	}
 }
 
@@ -56,7 +60,7 @@ func ParseEventsumConfig(file string) (EventsumConfig, error) {
 	decoder := json.NewDecoder(f)
 	decodeErr := decoder.Decode(&configuration)
 	if decodeErr != nil {
-		return configuration, fmt.Errorf("Error: ", decodeErr)
+		return configuration, fmt.Errorf("error: %s", decodeErr)
 	}
 	return configuration, nil
 }

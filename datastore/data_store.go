@@ -93,6 +93,7 @@ type postgresStore struct {
 	ServicesNameMap     map[string]EventService
 	Environments        []EventEnvironment
 	EnvironmentsNameMap map[string]EventEnvironment
+	Region              int
 }
 
 // Create a new dataStore
@@ -151,6 +152,8 @@ func NewDataStore(c config.EventsumConfig) (DataStore, error) {
 		return nil, err
 	}
 
+	region := c.RegionsMap[c.Region]
+
 	client := &datamanclient.Client{Transport: transport}
 	return &postgresStore{
 		Name:                c.DatabaseName,
@@ -161,6 +164,7 @@ func NewDataStore(c config.EventsumConfig) (DataStore, error) {
 		Environments:        environments,
 		EnvironmentsNameMap: environmentsNameMap,
 		DB:                  db,
+		Region:              region,
 	}, nil
 }
 
@@ -1381,8 +1385,8 @@ func (p *postgresStore) UpdateEventInstancePeriod(evt EventInstancePeriod) error
 
 func (p *postgresStore) AddEventInstancePeriods(evt EventInstancePeriod) error {
 	var id int64
-	row := p.DB.QueryRow("INSERT INTO event_instance_period (event_instance_id, start_time, end_time, updated, count) VALUES ($1, $2, $3, $4, $5) RETURNING _id",
-		evt.EventInstanceId, evt.StartTime, evt.EndTime, evt.Updated, evt.Count)
+	row := p.DB.QueryRow("INSERT INTO event_instance_period (event_instance_id, start_time, end_time, updated, count, region) VALUES ($1, $2, $3, $4, $5. $6) RETURNING _id",
+		evt.EventInstanceId, evt.StartTime, evt.EndTime, evt.Updated, evt.Count, p.Region)
 	err := row.Scan(&id)
 	if err != nil {
 		return err
