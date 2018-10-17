@@ -57,6 +57,7 @@ type GrafanaTargetParam struct {
 	Limit           int      `json:"limit"`
 	EventType       []string `json:"event_type"`
 	EventName       []string `json:"event_name"`
+	Region          []string `json:"region"`
 }
 
 // Since grafana sends a special data format, we need a custom
@@ -120,6 +121,8 @@ func (t *GrafanaTargetParam) UnmarshalJSON(b []byte) error {
 			t.EventName = split
 		case "event_type":
 			t.EventType = split
+		case "region":
+			t.Region = split
 		default:
 			return errors.New(fmt.Sprintf("No param named %v", param))
 		}

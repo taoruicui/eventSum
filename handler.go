@@ -421,6 +421,12 @@ func (h *httpHandler) opsdbEventsHandler(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
+	region := query.Get("region")
+	regionID := 1
+	if region != "" {
+		regionID, _ = h.es.ds.GetRegionsMap()[region]
+	}
+
 	serviceString := strconv.Itoa(h.es.ds.GetServicesMap()[service].Id)
 	envString := strconv.Itoa(h.es.ds.GetEnvironmentsMap()[env].Id)
 	groupString := groupId
@@ -430,7 +436,7 @@ func (h *httpHandler) opsdbEventsHandler(w http.ResponseWriter, r *http.Request,
 	start, _ := util.EpochToTime2(from)
 	end, _ := util.EpochToTime2(to)
 
-	if res, err := h.es.OpsdbQuery(start, end, envString, serviceString, groupString); err != nil {
+	if res, err := h.es.OpsdbQuery(start, end, envString, serviceString, groupString, regionID); err != nil {
 		h.sendError(w, http.StatusBadRequest, err, "Error counting events")
 		return
 	} else {

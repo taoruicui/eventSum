@@ -57,12 +57,13 @@ func (h *httpHandler) grafanaTest(w http.ResponseWriter, r *http.Request, _ http
 		serviceString := strconv.Itoa(h.es.ds.GetServicesMap()[target.Target.ServiceName[0]].Id)
 		envString := strconv.Itoa(h.es.ds.GetEnvironmentsMap()[target.Target.EnvironmentName[0]].Id)
 		groupId, err := h.es.ds.GetGroupIdByGroupName(target.Target.GroupName[0])
+		regionID := h.es.ds.GetRegionsMap()[target.Target.Region[0]]
 		if err != nil {
 			h.sendError(w, http.StatusInternalServerError, err, "group name not found")
 			return
 		}
 
-		resList, err := h.es.ds.OpsdbQuery(start, end, envString, serviceString, groupId)
+		resList, err := h.es.ds.OpsdbQuery(start, end, envString, serviceString, groupId, regionID)
 		if err != nil {
 			h.sendError(w, http.StatusInternalServerError, err, "failed query datapoints")
 			return

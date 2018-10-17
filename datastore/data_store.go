@@ -49,6 +49,7 @@ type DataStore interface {
 	GetServicesMap() map[string]EventService
 	GetEnvironments() []EventEnvironment
 	GetEnvironmentsMap() map[string]EventEnvironment
+	GetRegionsMap() map[string]int
 	GetGroups() ([]EventGroup, error)
 	GetGroupIdByGroupName(name string) (string, error)
 	GetEventsByServiceId(id int) ([]EventBase, error)
@@ -70,7 +71,7 @@ type DataStore interface {
 	GetEventsByGroup(group_id int, group_name string) ([]EventBase, error)
 	GetDBConfig() *storagenode.DatasourceInstanceConfig
 	CountEvents(map[string]string) (CountStat, error)
-	OpsdbQuery(from string, to string, envId string, serviceId string, groupId string) ([]OpsdbResult, error)
+	OpsdbQuery(from string, to string, envId string, serviceId string, groupId string, regionID int) ([]OpsdbResult, error)
 	FindEventBaseId(evt EventBase) (int64, error)
 	AddBaseEvent(evt EventBase) (int64, error)
 	FindEventInstanceId(evt EventInstance) (int64, error)
@@ -93,6 +94,7 @@ type postgresStore struct {
 	ServicesNameMap     map[string]EventService
 	Environments        []EventEnvironment
 	EnvironmentsNameMap map[string]EventEnvironment
+	RegionsMap          map[string]int
 	Region              int
 }
 
@@ -165,6 +167,7 @@ func NewDataStore(c config.EventsumConfig) (DataStore, error) {
 		EnvironmentsNameMap: environmentsNameMap,
 		DB:                  db,
 		Region:              regionID,
+		RegionsMap:          c.RegionsMap,
 	}, nil
 }
 
@@ -362,6 +365,10 @@ func (p *postgresStore) GetServicesMap() map[string]EventService {
 
 func (p *postgresStore) GetEnvironmentsMap() map[string]EventEnvironment {
 	return p.EnvironmentsNameMap
+}
+
+func (p *postgresStore) GetRegionsMap() map[string]int {
+	return p.RegionsMap
 }
 
 // Return all event group ids that appear in event_base
@@ -1045,7 +1052,7 @@ func (p *postgresStore) CountEvents(filterMap map[string]string) (CountStat, err
 	return result, nil
 }
 
-func (p *postgresStore) OpsdbQuery(start string, end string, envId string, serviceId string, groupId string) ([]OpsdbResult, error) {
+func (p *postgresStore) OpsdbQuery(start string, end string, envId string, serviceId string, groupId string, regionID int) ([]OpsdbResult, error) {
 	////var tmp = make(map[int]OpsdbResult)
 	////var dataPointTmp = make(map[int]DataPoint)
 	////var result []OpsdbResult
@@ -1156,19 +1163,36 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 	//return result, nil
 	var tmp = make(map[int]OpsdbResult)
 	var opsdbResult []OpsdbResult
-
-	var sqlString = fmt.Sprintf(
-		"select event_instance_id, event_base_id, event_name, updated, event_instance_period.count, event_message, event_group.name, event_detail.raw_detail, created_at "+
-			"from event_instance_period "+
-			"join event_instance on event_instance_id = event_instance._id "+
-			"join event_base on event_base_id = event_base._id "+
-			"join event_group on event_base.event_group_id = event_group._id "+
-			"join event_detail on event_instance.event_detail_id = event_detail._id "+
-			"where updated >= '%s' "+
-			"and updated <= '%s' "+
-			"and event_base.event_environment_id = %s "+
-			"and service_id = %s "+
-			"and event_group_id = %s;", start, end, envId, serviceId, groupId)
+	var sqlString string
+	if regionID == 1 {
+		sqlString = fmt.Sprintf(
+			"select event_instance_id, event_base_id, event_name, updated, event_instance_period.count, event_message, event_group.name, event_detail.raw_detail, created_at "+
+				"from event_instance_period "+
+				"join event_instance on event_instance_id = event_instance._id "+
+				"join event_base on event_base_id = event_base._id "+
+				"join event_group on event_base.event_group_id = event_group._id "+
+				"join event_detail on event_instance.event_detail_id = event_detail._id "+
+				"where updated >= '%s' "+
+				"and updated <= '%s' "+
+				"and event_base.event_environment_id = %s "+
+				"and service_id = %s "+
+				"and event_group_id = %s "+
+				"and (region_id = %d or region_id is NULL);", start, end, envId, serviceId, groupId, regionID)
+	} else {
+		sqlString = fmt.Sprintf(
+			"select event_instance_id, event_base_id, event_name, updated, event_instance_period.count, event_message, event_group.name, event_detail.raw_detail, created_at "+
+				"from event_instance_period "+
+				"join event_instance on event_instance_id = event_instance._id "+
+				"join event_base on event_base_id = event_base._id "+
+				"join event_group on event_base.event_group_id = event_group._id "+
+				"join event_detail on event_instance.event_detail_id = event_detail._id "+
+				"where updated >= '%s' "+
+				"and updated <= '%s' "+
+				"and event_base.event_environment_id = %s "+
+				"and service_id = %s "+
+				"and event_group_id = %s "+
+				"and region_id = %d;", start, end, envId, serviceId, groupId, regionID)
+	}
 
 	rows, err := p.DB.Query(sqlString)
 	if err != nil {
@@ -1370,8 +1394,8 @@ func (p *postgresStore) AddInstanceEvent(evt EventInstance) (int64, error) {
 
 func (p *postgresStore) UpdateEventInstancePeriod(evt EventInstancePeriod) error {
 	var id int64
-	row := p.DB.QueryRow("UPDATE event_instance_period SET count = count + $1 WHERE event_instance_id = $2 AND start_time = $3 AND end_time = $4 RETURNING _id",
-		evt.Count, evt.EventInstanceId, evt.StartTime, evt.EndTime)
+	row := p.DB.QueryRow("UPDATE event_instance_period SET count = count + $1 WHERE event_instance_id = $2 AND start_time = $3 AND end_time = $4 AND region_id = $5 RETURNING _id",
+		evt.Count, evt.EventInstanceId, evt.StartTime, evt.EndTime, p.Region)
 	err := row.Scan(&id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1385,7 +1409,7 @@ func (p *postgresStore) UpdateEventInstancePeriod(evt EventInstancePeriod) error
 
 func (p *postgresStore) AddEventInstancePeriods(evt EventInstancePeriod) error {
 	var id int64
-	row := p.DB.QueryRow("INSERT INTO event_instance_period (event_instance_id, start_time, end_time, updated, count, region_id) VALUES ($1, $2, $3, $4, $5. $6) RETURNING _id",
+	row := p.DB.QueryRow("INSERT INTO event_instance_period (event_instance_id, start_time, end_time, updated, count, region_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING _id",
 		evt.EventInstanceId, evt.StartTime, evt.EndTime, evt.Updated, evt.Count, p.Region)
 	err := row.Scan(&id)
 	if err != nil {
