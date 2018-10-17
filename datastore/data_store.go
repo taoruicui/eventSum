@@ -152,7 +152,7 @@ func NewDataStore(c config.EventsumConfig) (DataStore, error) {
 		return nil, err
 	}
 
-	region := c.RegionsMap[c.Region]
+	regionID := c.RegionsMap[c.Region]
 
 	client := &datamanclient.Client{Transport: transport}
 	return &postgresStore{
@@ -164,7 +164,7 @@ func NewDataStore(c config.EventsumConfig) (DataStore, error) {
 		Environments:        environments,
 		EnvironmentsNameMap: environmentsNameMap,
 		DB:                  db,
-		Region:              region,
+		Region:              regionID,
 	}, nil
 }
 
