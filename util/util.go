@@ -221,56 +221,106 @@ func ProcessGenericData(event *models.UnaddedEvent) error {
 
 func CompileDataPoints(start string, end string, record models.OpsdbResult, tInterval int) ([][]int, error) {
 
+	var res [][]int
+
 	startTime, err := time.Parse("2006-01-02 15:04:05", start)
 	if err != nil {
-		return nil, err
+		return res, err
 	}
+
+	//pad zero at head if needed
+	head, err := time.Parse("2006-01-02 15:04:05", record.TimeStamp[0])
+	if err != nil {
+		return res, err
+	}
+	if head.Add(7*time.Hour).Sub(startTime) > time.Duration(tInterval)*time.Minute {
+		res = append(res, []int{0, int(head.Add(-1*(time.Duration(tInterval))*time.Minute).Unix() * 1000)})
+	}
+
+	// pad zeros between datapoints
+	if len(record.TimeStamp) > 1 {
+		for i := range record.TimeStamp[:len(record.TimeStamp)-1] {
+			prev, err := time.Parse("2006-01-02 15:04:05", record.TimeStamp[i])
+			if err != nil {
+				return res, err
+			}
+			next, err := time.Parse("2006-01-02 15:04:05", record.TimeStamp[i+1])
+			if err != nil {
+				return res, err
+			}
+			res = append(res, []int{record.Count[i], int(prev.Unix() * 1000)})
+			if next.Sub(prev).Seconds() > float64(tInterval*60*2) {
+				res = append(res, []int{0, int(prev.Add((time.Duration(tInterval))*time.Minute).Unix() * 1000)})
+				res = append(res, []int{0, int(next.Add(-1*(time.Duration(tInterval))*time.Minute).Unix() * 1000)})
+
+			} else if next.Sub(prev).Seconds() > float64(tInterval*60) && next.Sub(prev).Seconds() <= float64(tInterval*60*2) {
+				res = append(res, []int{0, int((prev.Unix() + next.Unix()) / 2 * 1000)})
+			}
+		}
+	}
+
+	//add last datapoint
+	lastTimeStamp, err := time.Parse("2006-01-02 15:04:05", record.TimeStamp[len(record.TimeStamp)-1])
+	res = append(res, []int{record.Count[len(record.Count)-1], int(lastTimeStamp.Unix() * 1000)})
 
 	endTime, err := time.Parse("2006-01-02 15:04:05", end)
 	if err != nil {
-		return nil, err
+		return res, err
 	}
 
-	startUnix := startTime.Unix() * 1000
-	endUnix := endTime.Unix() * 1000
-
-	var interval int64
-	var length int
-
-	if endUnix-startUnix < int64(200*tInterval*60*1000) {
-		// means the minimum interval would be less than minimum interval we set in the config.
-		// we should try to keep the interval as the pre-set one.
-
-		interval = int64(tInterval * 60 * 1000)
-		length = int((endUnix - startUnix) / interval)
-
-	} else {
-		// increase the time interval to keep the datapoints ~200 per target.
-
-		interval = (endUnix - startUnix) / 200
-		length = 200
+	//pad zero at tail if needed
+	tail, err := time.Parse("2006-01-02 15:04:05", record.TimeStamp[len(record.TimeStamp)-1])
+	if err != nil {
+		return res, err
+	}
+	if endTime.Sub(tail.Add(7*time.Hour)) > time.Duration(tInterval)*time.Minute {
+		res = append(res, []int{0, int(tail.Add((time.Duration(tInterval))*time.Minute).Unix() * 1000)})
 	}
 
-	var datapoints = make([][]int, length)
-	for i := range datapoints {
-		datapoints[i] = make([]int, 2)
+	for i := range res {
+		res[i][1] = res[i][1] + 7*60*60*1000
 	}
 
-	starting := int(startUnix + interval/2)
-	for i := range datapoints {
-		datapoints[i][1] = starting
-		starting += int(interval)
-	}
-
-	for i, tStr := range record.TimeStamp {
-		t, _ := time.Parse("2006-01-02 15:04:05", tStr)
-		tUnix := t.Add(7*time.Duration(time.Hour)).Unix() * 1000
-		index := int((tUnix - startUnix) / interval)
-		if index < 0 || index > 199 {
-			continue
-		}
-		datapoints[index][0] += record.Count[i]
-	}
-
-	return datapoints, nil
+	//startUnix := startTime.Unix() * 1000
+	//endUnix := endTime.Unix() * 1000
+	//
+	//var interval int64
+	//var length int
+	//
+	//if endUnix-startUnix < int64(200*tInterval*60*1000) {
+	//	// means the minimum interval would be less than minimum interval we set in the config.
+	//	// we should try to keep the interval as the pre-set one.
+	//
+	//	interval = int64(tInterval * 60 * 1000)
+	//	length = int((endUnix - startUnix) / interval)
+	//
+	//} else {
+	//	// increase the time interval to keep the datapoints ~200 per target.
+	//
+	//	interval = (endUnix - startUnix) / 200
+	//	length = 200
+	//}
+	//
+	//var datapoints = make([][]int, length)
+	//for i := range datapoints {
+	//	datapoints[i] = make([]int, 2)
+	//}
+	//
+	//starting := int(startUnix + interval/2)
+	//for i := range datapoints {
+	//	datapoints[i][1] = starting
+	//	starting += int(interval)
+	//}
+	//
+	//for i, tStr := range record.TimeStamp {
+	//	t, _ := time.Parse("2006-01-02 15:04:05", tStr)
+	//	tUnix := t.Add(7*time.Duration(time.Hour)).Unix() * 1000
+	//	index := int((tUnix - startUnix) / interval)
+	//	if index < 0 || index > 199 {
+	//		continue
+	//	}
+	//	datapoints[index][0] += record.Count[i]
+	//}
+	//
+	return res, nil
 }
