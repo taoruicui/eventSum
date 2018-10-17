@@ -148,6 +148,7 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 	s.route.GET("/types/env", latency("/types/env", s.httpHandler.envTypesHandler))
 	s.route.GET("/types/tier", latency("/types/tier", s.httpHandler.tierTypesHandler))
 	s.route.GET("/types/group", latency("/types/group", s.httpHandler.groupTypesHandler))
+	s.route.GET("/types/region", latency("/types/region", s.httpHandler.regionTypesHandler))
 
 	s.route.GET("/recent_exceptions", latency("/recent_exceptions", s.httpHandler.recentExceptionHandler))
 

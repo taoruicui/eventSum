@@ -466,6 +466,10 @@ func (h *httpHandler) groupTypesHandler(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
+func (h *httpHandler) regionTypesHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	h.sendResp(w, "tiers", h.es.RegionsQuery())
+}
+
 func (h *httpHandler) cpuAlertHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)

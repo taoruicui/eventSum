@@ -563,3 +563,20 @@ func (es *eventStore) GroupsQuery() ([]EventGroup, error) {
 	}()
 	return es.ds.GetGroups()
 }
+
+func (es *eventStore) RegionsQuery() []string {
+	now := time.Now()
+	defer func() {
+		metrics.EventStoreLatency("RegionsQuery", now)
+	}()
+	regionMap := es.ds.GetRegionsMap()
+	var regions []string
+	for k := range regionMap {
+		if k == "default" {
+			regions = append(regions, "global")
+		} else {
+			regions = append(regions, k)
+		}
+	}
+	return regions
+}
