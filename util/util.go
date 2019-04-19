@@ -233,7 +233,7 @@ func CompileDataPoints(start string, end string, record models.OpsdbResult, tInt
 	if err != nil {
 		return res, err
 	}
-	if head.Add(7*time.Hour).Sub(startTime) > time.Duration(tInterval)*time.Minute {
+	if head.Sub(startTime) > time.Duration(tInterval)*time.Minute {
 		res = append(res, []int{0, int(head.Add(-1*(time.Duration(tInterval))*time.Minute).Unix() * 1000)})
 	}
 
@@ -273,12 +273,8 @@ func CompileDataPoints(start string, end string, record models.OpsdbResult, tInt
 	if err != nil {
 		return res, err
 	}
-	if endTime.Sub(tail.Add(7*time.Hour)) > time.Duration(tInterval)*time.Minute {
+	if endTime.Sub(tail) > time.Duration(tInterval)*time.Minute {
 		res = append(res, []int{0, int(tail.Add((time.Duration(tInterval))*time.Minute).Unix() * 1000)})
-	}
-
-	for i := range res {
-		res[i][1] = res[i][1] + 7*60*60*1000
 	}
 
 	//startUnix := startTime.Unix() * 1000

@@ -679,8 +679,8 @@ func (p *postgresStore) GetEventDetailsbyId(id int) (EventDetailsResult, error) 
 	var firstEvtInsPeriod, lastEvtInsPeriod EventInstancePeriod
 	util.MapDecode(res.Return[0], &firstEvtInsPeriod, false)
 	util.MapDecode(res.Return[len(res.Return)-1], &lastEvtInsPeriod, false)
-	firstSeen := firstEvtInsPeriod.Updated.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
-	lastSeen := lastEvtInsPeriod.Updated.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
+	firstSeen := firstEvtInsPeriod.Updated.Format("2006-01-02 15:04:05")
+	lastSeen := lastEvtInsPeriod.Updated.Format("2006-01-02 15:04:05")
 
 	instance.RawData.RawMessage = instance.RawData.Message
 	//fmt.Println(instance.RawData.Message)
@@ -1245,11 +1245,11 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 			return nil, err
 		}
 
-		lastSeen = updated.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
+		lastSeen = updated.Format("2006-01-02 15:04:05")
 
 		if firstSeenString.Valid {
 			firstSeenTime, _ := time.Parse("2006-01-02T15:04:05Z", firstSeenString.String)
-			firstSeen = firstSeenTime.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
+			firstSeen = firstSeenTime.Format("2006-01-02 15:04:05")
 		}
 
 		if val, ok := tmp[eventBaseId]; !ok {
@@ -1314,7 +1314,7 @@ func (p *postgresStore) Test(from string, to string, evtId int) (DataPointArrays
 			return res, err
 		}
 
-		lastSeen := updated.Add(-7 * time.Duration(time.Hour)).Format("2006-01-02 15:04:05")
+		lastSeen := updated.Format("2006-01-02 15:04:05")
 
 		counts.WriteString(fmt.Sprintf("%d,", count))
 		timeStamps.WriteString(fmt.Sprintf("'%s',", lastSeen))
