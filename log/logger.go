@@ -327,29 +327,33 @@ func NewLogger(configFile string, ds datastore.DataStore) *Logger {
 	l.data.Formatter = &log.JSONFormatter{}
 
 	// If environment is dev, send output to stdout
-	if config.Environment == "dev" {
-		l.app.Out = os.Stdout
-		l.data.Out = os.Stdout
-		l.app.Level = log.DebugLevel
-		l.data.Level = log.DebugLevel
-	} else {
-		appFile, err := open(filepath.Join(l.appDir, l.endOfDay.Format("2006-01-02")))
+	//if config.Environment == "dev" {
+	//	l.app.Out = os.Stdout
+	//	l.data.Out = os.Stdout
+	//	l.app.Level = log.DebugLevel
+	//	l.data.Level = log.DebugLevel
+	//} else {
+	//	appFile, err := open(filepath.Join(l.appDir, l.endOfDay.Format("2006-01-02")))
+	//
+	//	if err != nil {
+	//		log.Warn(err)
+	//	} else {
+	//		l.app.Out = appFile
+	//	}
+	//
+	//	dataFile, err := open(filepath.Join(l.dataDir, l.endOfDay.Format("2006-01-02")))
+	//
+	//	if err != nil {
+	//		log.Warn(err)
+	//	} else {
+	//		l.data.Out = dataFile
+	//	}
+	//}
 
-		if err != nil {
-			log.Warn(err)
-		} else {
-			l.app.Out = appFile
-		}
-
-		dataFile, err := open(filepath.Join(l.dataDir, l.endOfDay.Format("2006-01-02")))
-
-		if err != nil {
-			log.Warn(err)
-		} else {
-			l.data.Out = dataFile
-		}
-
-	}
+	l.app.Out = os.Stdout
+	l.data.Out = os.Stdout
+	l.app.Level = log.DebugLevel
+	l.data.Level = log.DebugLevel
 
 	// run log processing in a goroutine
 	go l.Start(config)

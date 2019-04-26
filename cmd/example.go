@@ -19,7 +19,7 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	e := eventsum.New(config.ConfigFile)
+	e := eventsum.New(config)
 	e.AddFilter("exception_python_remove_line_no", exceptionPythonRemoveLineNo)
 	e.AddFilter("exception_python_process_stack_vars", exceptionPythonProcessStackVars)
 	e.AddFilter("exception_python_remove_stack_vars", exceptionPythonRemoveStackVars)

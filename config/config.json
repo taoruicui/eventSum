@@ -1,18 +1,19 @@
 {
   "data_source_instance": "config/datasourceinstance.yaml",
   "data_source_schema": "config/schema.json",
-  "database_name": "eventsum",
   "log_config_file": "config/logconfig.json",
+  "database_name": "eventsum",
   "event_batch_limit": 100,
   "event_time_limit": 5,
-  "time_format": "2006-01-02 15:04:05",
   "server_port": 8080,
+  "time_interval": 1,
   "services": {
     "default": {"service_id": 0},
     "wish_fe": {"service_id": 1},
     "wish_be": {"service_id": 2},
     "merchant_fe": {"service_id": 3},
-    "merchant_be": {"service_id": 4}
+    "merchant_be": {"service_id": 4},
+    "lemmings": {"service_id": 5}
   },
   "environments": {
     "default": {"environment_id": 0},
@@ -21,7 +22,6 @@
     "stage": {"environment_id": 3},
     "sandbox": {"environment_id": 4}
   },
-  "time_interval": 1,
   "regions_map":{
     "default":  0,
     "us-west-1": 1,

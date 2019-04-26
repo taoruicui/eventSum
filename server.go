@@ -175,9 +175,9 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 	return s
 }
 
-func New(configFilename string) *EventsumServer {
+func New(flag conf.Flags) *EventsumServer {
 	// Get configurations
-	config, err := conf.ParseEventsumConfig(configFilename)
+	config, err := conf.ParseEventsumConfig(flag.ConfigFile, flag.Region)
 	if err != nil {
 		panic(err)
 	}

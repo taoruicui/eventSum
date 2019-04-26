@@ -11,6 +11,7 @@ import (
 
 type Flags struct {
 	ConfigFile string `short:"c" long:"config" description:"location of configuration file"`
+	Region     string `short:"r" long:"region" description:"the region server locate at"`
 }
 
 // config are settings used ... XXX
@@ -49,7 +50,7 @@ func DefaultConfig() EventsumConfig {
 }
 
 // ParseEMConfig parses configuration out of a json file
-func ParseEventsumConfig(file string) (EventsumConfig, error) {
+func ParseEventsumConfig(file string, region string) (EventsumConfig, error) {
 
 	configuration := DefaultConfig()
 	f, err := os.Open(file)
@@ -62,6 +63,12 @@ func ParseEventsumConfig(file string) (EventsumConfig, error) {
 	if decodeErr != nil {
 		return configuration, fmt.Errorf("error: %s", decodeErr)
 	}
+
+	// override the region passed from flags
+	if region != "" {
+		configuration.Region = region
+	}
+
 	return configuration, nil
 }
 
