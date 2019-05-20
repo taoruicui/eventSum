@@ -1,3 +1,6 @@
+#storage_type: postgres
+#storage_config:
+#  pg_string: host=localhost user=eventsum port=5432 sslmode=disable
 storage_type: postgres
 storage_config:
-  pg_string: host=localhost user=eventsum port=5432 sslmode=disable
+   pg_string: host=10.10.22.63 user=eventsum password=7eb498c039ce176d4da31183d06cc314ff930b68 port=5432

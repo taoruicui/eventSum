@@ -80,7 +80,7 @@ type DataStore interface {
 	AddEventDetails(evtDetail EventDetail) (int64, error)
 	UpdateEventInstancePeriod(evt EventInstancePeriod) error
 	AddEventInstancePeriods(evt EventInstancePeriod) error
-	Test(from string, to string, evtId int) (DataPointArrays, error)
+	GetSingleEventTS(from string, to string, evtId, region int) (DataPointArrays, error)
 }
 
 type postgresStore struct {
@@ -1284,16 +1284,41 @@ func (p *postgresStore) OpsdbQuery(start string, end string, envId string, servi
 
 }
 
-func (p *postgresStore) Test(from string, to string, evtId int) (DataPointArrays, error) {
+func (p *postgresStore) GetSingleEventTS(from string, to string, evtId, region int) (DataPointArrays, error) {
 	res := DataPointArrays{}
+	var sqlString string
+	if region == -1 {
+		sqlString = fmt.Sprintf(
+			`select start_time, sum(event_instance_period.count)
+			from event_instance_period
+			where updated >= '%s'
+			and updated <= '%s'
+			and event_instance_id = %d
+			group by start_time`, from, to, evtId)
+	} else {
+		sqlString = fmt.Sprintf(
+			`select start_time, event_instance_period.count
+			from event_instance_period
+			where updated >= '%s'
+			and updated <= '%s'
+			and event_instance_id = %d
+			and region_id = %d`, from, to, evtId, region)
+	}
 
-	var sqlString = fmt.Sprintf(
-		"select updated, event_instance_period.count "+
-			"from event_instance_period "+
-			"join event_instance on event_instance_id = event_instance._id "+
-			"where updated >= '%s' "+
-			"and updated <= '%s' "+
-			"and event_instance_id = %d", from, to, evtId)
+	startTime, _ := time.Parse("2006-01-02 15:04:05", from)
+	endTime, _ := time.Parse("2006-01-02 15:04:05", to)
+
+	startTime = startTime.Round(time.Minute).Add(-1 * time.Minute)
+	endTime = endTime.Round(time.Minute)
+
+	var timeStamps []time.Time
+	var counts []int
+
+	for i := startTime; i.Before(endTime) || i.Equal(endTime); i = i.Add(time.Minute) {
+		timeStamps = append(timeStamps, i)
+		counts = append(counts, 0)
+	}
+	fmt.Println(timeStamps)
 
 	rows, err := p.DB.Query(sqlString)
 	if err != nil {
@@ -1302,9 +1327,9 @@ func (p *postgresStore) Test(from string, to string, evtId int) (DataPointArrays
 
 	defer rows.Close()
 
-	var counts, timeStamps bytes.Buffer
-	counts.WriteString("['data1',")
-	timeStamps.WriteString("['x1',")
+	var countsBuf, timeStampsBuf bytes.Buffer
+	countsBuf.WriteString("['data1',")
+	timeStampsBuf.WriteString("['x1',")
 
 	for rows.Next() {
 		var updated time.Time
@@ -1314,17 +1339,22 @@ func (p *postgresStore) Test(from string, to string, evtId int) (DataPointArrays
 			return res, err
 		}
 
-		lastSeen := updated.Format("2006-01-02 15:04:05")
-
-		counts.WriteString(fmt.Sprintf("%d,", count))
-		timeStamps.WriteString(fmt.Sprintf("'%s',", lastSeen))
+		index := updated.Sub(startTime) / time.Minute
+		counts[index] += count
 
 	}
-	counts.WriteString("]")
-	timeStamps.WriteString("]")
 
-	res.TimeStamp = timeStamps.String()
-	res.Count = counts.String()
+	for i, t := range timeStamps {
+		countsBuf.WriteString(fmt.Sprintf("%d,", counts[i]))
+		timeStampsBuf.WriteString(fmt.Sprintf("'%s',", t.Format("2006-01-02 15:04:05")))
+	}
+
+	countsBuf.WriteString("]")
+	timeStampsBuf.WriteString("]")
+
+	res.TimeStamp = timeStampsBuf.String()
+	res.Count = countsBuf.String()
+	fmt.Println(res)
 	return res, nil
 }
 

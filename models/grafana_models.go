@@ -58,6 +58,7 @@ type GrafanaTargetParam struct {
 	EventType       []string `json:"event_type"`
 	EventName       []string `json:"event_name"`
 	Region          []string `json:"region"`
+	//EventID         int64    `json:"evt_ID"`
 }
 
 // Since grafana sends a special data format, we need a custom

@@ -236,7 +236,13 @@ func (h *httpHandler) histogramEventsHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	response, err := h.es.ds.Test(startTime, endTime, evtId)
+	region := query.Get("region")
+	regionID := -1
+	if region != "" {
+		regionID, _ = h.es.ds.GetRegionsMap()[region]
+	}
+
+	response, err := h.es.ds.GetSingleEventTS(startTime, endTime, evtId, regionID)
 	h.sendResp(w, "histogram", response)
 }
 
