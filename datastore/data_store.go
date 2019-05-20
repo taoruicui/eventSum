@@ -71,6 +71,7 @@ type DataStore interface {
 	GetEventsByGroup(group_id int, group_name string) ([]EventBase, error)
 	GetDBConfig() *storagenode.DatasourceInstanceConfig
 	CountEvents(map[string]string) (CountStat, error)
+	OpsdbSingleQuery(start, end string, evtID int64, regionID int) ([]OpsdbResult, error)
 	OpsdbQuery(from string, to string, envId string, serviceId string, groupId string, regionID int) ([]OpsdbResult, error)
 	FindEventBaseId(evt EventBase) (int64, error)
 	AddBaseEvent(evt EventBase) (int64, error)
@@ -1050,6 +1051,57 @@ func (p *postgresStore) CountEvents(filterMap map[string]string) (CountStat, err
 	diff := end.Sub(start).Minutes()
 	result.CountPerMin = float64(result.Count) / diff
 	return result, nil
+}
+
+func (p *postgresStore) OpsdbSingleQuery(start, end string, evtID int64, regionID int) ([]OpsdbResult, error) {
+	var opsdbResult []OpsdbResult
+	var sqlString string
+	if regionID == 0 {
+		sqlString = fmt.Sprintf(
+			`select start_time, sum(event_instance_period.count)
+			from event_instance_period
+			where updated >= '%s'
+			and updated <= '%s'
+			and event_instance_id = %d
+			group by start_time`, start, end, evtID)
+	} else {
+		sqlString = fmt.Sprintf(
+			`select start_time, event_instance_period.count
+			from event_instance_period
+			where updated >= '%s'
+			and updated <= '%s'
+			and event_instance_id = %d
+			and region_id = %d
+			order by start_time DESC`, start, end, evtID, regionID)
+	}
+
+	rows, err := p.DB.Query(sqlString)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var counts []int
+	var timeStamps []string
+	for rows.Next() {
+		var updated time.Time
+		var count int
+		if err := rows.Scan(&updated, &count); err != nil {
+			return opsdbResult, err
+		}
+
+		lastSeen := updated.Format("2006-01-02 15:04:05")
+
+		counts = append(counts, count)
+		timeStamps = append(timeStamps, lastSeen)
+	}
+
+	opsdbResult = []OpsdbResult{{
+		Count:     counts,
+		TimeStamp: timeStamps,
+	}}
+
+	return opsdbResult, nil
 }
 
 func (p *postgresStore) OpsdbQuery(start string, end string, envId string, serviceId string, groupId string, regionID int) ([]OpsdbResult, error) {
