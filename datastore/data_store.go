@@ -1072,7 +1072,7 @@ func (p *postgresStore) OpsdbSingleQuery(start, end string, evtID int64, regionI
 			and updated <= '%s'
 			and event_instance_id = %d
 			and region_id = %d
-			order by start_time DESC`, start, end, evtID, regionID)
+			order by start_time ASC`, start, end, evtID, regionID)
 	}
 
 	rows, err := p.DB.Query(sqlString)
