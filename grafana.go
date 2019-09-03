@@ -54,26 +54,40 @@ func (h *httpHandler) grafanaTest(w http.ResponseWriter, r *http.Request, _ http
 	result := []GrafanaQueryResp{}
 
 	for _, target := range query.Targets {
-		serviceString := strconv.Itoa(h.es.ds.GetServicesMap()[target.Target.ServiceName[0]].Id)
-		envString := strconv.Itoa(h.es.ds.GetEnvironmentsMap()[target.Target.EnvironmentName[0]].Id)
-		groupId, err := h.es.ds.GetGroupIdByGroupName(target.Target.GroupName[0])
-		regionID := h.es.ds.GetRegionsMap()[target.Target.Region[0]]
-		if err != nil {
-			h.sendError(w, http.StatusInternalServerError, err, "group name not found")
-			return
+		var serviceString, envString, groupId string
+		var err error
+		if len(target.Target.ServiceName) > 0 {
+			serviceString = strconv.Itoa(h.es.ds.GetServicesMap()[target.Target.ServiceName[0]].Id)
+		}
+		if len(target.Target.EnvironmentName) > 0 {
+			envString = strconv.Itoa(h.es.ds.GetEnvironmentsMap()[target.Target.EnvironmentName[0]].Id)
+		}
+		if len(target.Target.GroupName) > 0 {
+			groupId, err = h.es.ds.GetGroupIdByGroupName(target.Target.GroupName[0])
+			if err != nil {
+				h.sendError(w, http.StatusInternalServerError, err, "group name not found")
+				return
+			}
 		}
 
-		resList, err := h.es.ds.OpsdbQuery(start, end, envString, serviceString, groupId, regionID)
+		regionID := h.es.ds.GetRegionsMap()[target.Target.Region[0]]
+
+		var resList []OpsdbResult
+		if target.Target.EvtID != 0 {
+			resList, err = h.es.ds.OpsdbSingleQuery(start, end, target.Target.EvtID, regionID)
+		} else {
+			resList, err = h.es.ds.OpsdbQuery(start, end, envString, serviceString, groupId, regionID)
+			sort.Slice(resList, func(i, j int) bool {
+				return resList[i].CountSum > resList[j].CountSum
+			})
+			if len(resList) > target.Target.Limit {
+				resList = resList[:target.Target.Limit]
+			}
+		}
+
 		if err != nil {
 			h.sendError(w, http.StatusInternalServerError, err, "failed query datapoints")
 			return
-		}
-
-		sort.Slice(resList, func(i, j int) bool {
-			return resList[i].CountSum > resList[j].CountSum
-		})
-		if len(resList) > target.Target.Limit {
-			resList = resList[:target.Target.Limit]
 		}
 
 		for _, r := range resList {

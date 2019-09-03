@@ -221,6 +221,10 @@ func ProcessGenericData(event *models.UnaddedEvent) error {
 
 func CompileDataPoints(start string, end string, record models.OpsdbResult, tInterval int) ([][]int, error) {
 
+	if len(record.TimeStamp) <= 0 {
+		return [][]int{}, nil
+	}
+
 	var res [][]int
 
 	startTime, err := time.Parse("2006-01-02 15:04:05", start)

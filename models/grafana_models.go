@@ -58,6 +58,7 @@ type GrafanaTargetParam struct {
 	EventType       []string `json:"event_type"`
 	EventName       []string `json:"event_name"`
 	Region          []string `json:"region"`
+	EvtID           int64    `json:"evt_id"`
 }
 
 // Since grafana sends a special data format, we need a custom
@@ -123,6 +124,12 @@ func (t *GrafanaTargetParam) UnmarshalJSON(b []byte) error {
 			t.EventType = split
 		case "region":
 			t.Region = split
+		case "evt_id":
+			id, err := strconv.ParseInt(values, 10, 64)
+			if err != nil {
+				return err
+			}
+			t.EvtID = id
 		default:
 			return errors.New(fmt.Sprintf("No param named %v", param))
 		}
