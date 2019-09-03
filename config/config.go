@@ -29,6 +29,7 @@ type EventsumConfig struct {
 	Environments       map[string]map[string]int `json:"environments"`
 	RegionsMap         map[string]int            `json:"regions_map"`
 	Region             string                    `json:"region"`
+	DrainSecond        int                       `json:"drain_second"` // in seconds
 }
 
 func DefaultConfig() EventsumConfig {
@@ -46,6 +47,7 @@ func DefaultConfig() EventsumConfig {
 		Environments:       map[string]map[string]int{},
 		RegionsMap:         map[string]int{},
 		Region:             "default",
+		DrainSecond:        0,
 	}
 }
 

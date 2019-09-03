@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -24,7 +25,9 @@ import (
 )
 
 /* GLOBAL VARIABLES */
-var globalRule rules.Rule
+var (
+	globalRule rules.Rule
+)
 
 type EventsumServer struct {
 	logger      *log.Logger
@@ -32,6 +35,32 @@ type EventsumServer struct {
 	httpHandler httpHandler
 	port        string
 	config      conf.EventsumConfig
+	stopped     IsStopped
+}
+
+type IsStopped struct {
+	sync.Mutex
+	value bool
+}
+
+func (is *IsStopped) stop() {
+	is.Lock()
+	defer is.Unlock()
+
+	is.value = true
+}
+
+func (is *IsStopped) start() {
+	is.Lock()
+	defer is.Unlock()
+
+	is.value = false
+}
+
+func (s *EventsumServer) isStopped() bool {
+	s.stopped.Lock()
+	defer s.stopped.Unlock()
+	return s.stopped.value
 }
 
 func (s *EventsumServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -45,6 +74,9 @@ func (s *EventsumServer) Start() {
 		Addr:    s.port,
 		Handler: s,
 	}
+
+	s.stopped.start()
+
 	// run queue in a goroutine
 	go s.httpHandler.es.Start()
 
@@ -65,6 +97,14 @@ func (s *EventsumServer) Stop(hs *http.Server, timeout time.Duration) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
+
+	s.stopped.stop()
+
+	if s.config.DrainSecond > 0 {
+		s.logger.App().Println("Failing the LB health check...")
+		timer := time.NewTimer(time.Second * time.Duration(s.config.DrainSecond))
+		<-timer.C
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -124,6 +164,11 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 	s.route.GET("/test", latency("/test", s.httpHandler.test))
 	s.route.GET("/health", latency("/health", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
+		if s.isStopped() {
+			s.httpHandler.sendError(w, 400, errors.New("Service shutting down"), "pod is shutting down")
+			return
+		}
+
 		if errMap := s.healthCheck(); errMap != nil {
 			s.httpHandler.sendError(w, 500, errors.New("Internal Service Error"), fmt.Sprintf("%v", errMap))
 		} else {
@@ -132,6 +177,11 @@ func newServer(options func(server *EventsumServer)) *EventsumServer {
 
 	}))
 	s.route.GET("/status", latency("/status", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
+		if s.isStopped() {
+			s.httpHandler.sendError(w, 400, errors.New("Service shutting down"), "pod is shutting down")
+			return
+		}
 
 		if errMap := s.healthCheck(); errMap != nil {
 			s.httpHandler.sendError(w, 500, errors.New("Internal Service Error"), fmt.Sprintf("%v", errMap))
