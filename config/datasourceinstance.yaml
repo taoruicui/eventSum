@@ -1,0 +1,4 @@
+storage_type: postgres
+storage_config:
+  pg_string: host=localhost user=eventsum port=5432
+
