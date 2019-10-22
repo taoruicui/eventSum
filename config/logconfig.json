@@ -1,0 +1,9 @@
+{	
+  "app_logging": "app",	
+  "data_logging": "data",	
+  "log_save_data_interval": 1800,	
+  "log_data_period_check_interval": 86400,	
+  "environment": "prod",	
+  "data_source_instance": "config/datasourceinstance.yaml",	
+  "data_source_schema": "config/schema.json"	
+}
