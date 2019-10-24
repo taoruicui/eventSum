@@ -9,11 +9,12 @@ import (
 	"reflect"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/ContextLogic/eventsum/datastore"
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/rules"
 	"github.com/ContextLogic/eventsum/util"
-	log "github.com/sirupsen/logrus"
 )
 
 var GlobalRule *rules.Rule

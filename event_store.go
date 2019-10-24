@@ -1,6 +1,8 @@
 package eventsum
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"sync"
@@ -351,6 +353,16 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 		processedDataHash := util.Hash(processedData)
 		processedDetailHash := util.Hash(processedDetail)
 
+		service, ok := es.GetServiceAggregationMapping(rawEvent)
+		if ok {
+			// Override service with rpc exception to `*_rpc` suffix
+			rawEvent.Service = service
+		} else {
+			continue
+		}
+
+		fmt.Print(rawEvent.Service)
+
 		serviceId, ok := es.ds.GetServicesMap()[rawEvent.Service]
 		if !ok {
 			continue
@@ -447,6 +459,15 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 		}
 		es.ds.UpdateEventInstancePeriod(e)
 	}
+}
+
+
+func (es *eventStore) GetServiceAggregationMapping(evt UnaddedEvent) (string, bool) {
+	if strings.Contains(evt.Name, "RPCException") {
+		s, ok := es.ds.GetServicesAggMap()[evt.Service]
+		return s, ok
+	}
+	return evt.Service, true
 }
 
 func (es *eventStore) BackFillToDB() {

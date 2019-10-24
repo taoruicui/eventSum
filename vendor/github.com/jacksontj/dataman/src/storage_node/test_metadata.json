@@ -1,0 +1,195 @@
+{
+
+    "databases": {
+        "example_forum": {
+            "name": "example_forum",
+            "shard_instances": {
+                "dbshard_example_forum_2": {
+                    "name": "dbshard_example_forum_2",
+                    "count": 2,
+                    "instance": 1,
+                    "collections": {
+                        "message": {
+                            "name": "message",
+                            "fields": {
+                                "id": {
+                                    "name": "id",
+                                    "field_type": "_int",
+                                    "not_null": true
+                                },
+                                "data": {
+                                    "name": "data",
+                                    "field_type": "_document",
+                                    "subfields": {
+                                        "content": {
+                                            "name": "content",
+                                            "field_type": "_string",
+                                            "not_null": true
+                                        },
+                                        "created": {
+                                            "name": "created",
+                                            "field_type": "_int",
+                                            "not_null": true
+                                        },
+                                        "created_by": {
+                                            "name": "created_by",
+                                            "field_type": "_string",
+                                            "not_null": true
+                                        },
+                                        "thread_id": {
+                                            "name": "thread_id",
+                                            "field_type": "_int",
+                                            "not_null": true,
+                                            "relation": {
+                                                "field_id": 18343,
+                                                "collection": "thread",
+                                                "field": "id"
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "indexes": {
+                                "id": {
+                                   "name": "id",
+                                   "fields": [
+                                     "id"
+                                   ],
+                                  "unique": true,
+                                  "primary": true
+                                },
+                                "created": {
+                                    "name": "created",
+                                    "fields": [
+                                        "data.created"
+                                    ]
+                                }
+                            }
+                        },
+                        "thread": {
+                            "name": "thread",
+                            "fields": {
+                                "id": {
+                                    "name": "id",
+                                    "field_type": "_int",
+                                    "not_null": true
+                                },
+                                "data": {
+                                    "name": "data",
+                                    "field_type": "_document",
+                                    "subfields": {
+                                        "created": {
+                                            "name": "created",
+                                            "field_type": "_int",
+                                            "not_null": true
+                                        },
+                                        "created_by": {
+                                            "name": "created_by",
+                                            "field_type": "_string",
+                                            "not_null": true
+                                        },
+                                        "title": {
+                                            "name": "title",
+                                            "field_type": "_string",
+                                            "not_null": true
+                                        }
+                                    }
+                                }
+                            },
+                            "indexes": {
+                                "id": {
+                                   "name": "id",
+                                   "fields": [
+                                     "id"
+                                   ],
+                                  "unique": true,
+                                  "primary": true
+                                },
+                                "created": {
+                                    "name": "created",
+                                    "fields": [
+                                        "data.created"
+                                    ]
+                                },
+                                "title": {
+                                    "name": "title",
+                                    "fields": [
+                                        "data.title"
+                                    ],
+                                    "unique": true
+                                }
+                            }
+                        },
+                        "user": {
+                            "name": "user",
+                            "fields": {
+                                "id": {
+                                    "name": "id",
+                                    "field_type": "_int",
+                                    "not_null": true
+                                },
+                                "username": {
+                                    "name": "username",
+                                    "field_type": "_string",
+                                    "not_null": true
+                                }
+                            },
+                            "indexes": {
+                                "id": {
+                                   "name": "id",
+                                   "fields": [
+                                     "id"
+                                   ],
+                                  "unique": true,
+                                  "primary": true
+                                },
+                                "username": {
+                                    "name": "username",
+                                    "fields": [
+                                        "username"
+                                    ],
+                                    "unique": true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "field_types": {
+        "_bool": {
+            "name": "_bool",
+            "dataman_type": "bool"
+        },
+        "_datetime": {
+            "name": "_datetime",
+            "dataman_type": "datetime"
+        },
+        "_document": {
+            "name": "_document",
+            "dataman_type": "document"
+        },
+        "_int": {
+            "name": "_int",
+            "dataman_type": "int"
+        },
+        "_string": {
+            "name": "_string",
+            "dataman_type": "string"
+        },
+        "_json": {
+            "name": "_json",
+            "dataman_type": "json"
+        },
+        "_serial": {
+            "name": "_serial",
+            "dataman_type": "serial"
+        },
+        "_text": {
+            "name": "_text",
+            "dataman_type": "text"
+        }
+    }
+
+}

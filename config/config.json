@@ -12,9 +12,15 @@
     "wish_fe": {"service_id": 1},	
     "wish_be": {"service_id": 2},	
     "merchant_fe": {"service_id": 3},	
-    "merchant_be": {"service_id": 4},	
-    "lemmings": {"service_id": 5}	
-  },	
+    "merchant_be": {"service_id": 4},
+    "lemmings": {"service_id": 5},
+    "wish_be_rpc": {"service_id":  6},
+    "merchant_be_rpc": {"service_id": 7}
+  },
+  "service_aggregation_mapping": {
+    "wish_be": "wish_be_rpc",
+    "merchant_be": "merchant_be_rpc"
+  },
   "environments": {	
     "default": {"environment_id": 0},	
     "prod": {"environment_id": 1},	

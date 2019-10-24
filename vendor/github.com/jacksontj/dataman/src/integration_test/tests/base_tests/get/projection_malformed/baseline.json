@@ -1,0 +1,4 @@
+{
+  "return": null,
+  "error": "\"fields\" must be a list of strings"
+}
