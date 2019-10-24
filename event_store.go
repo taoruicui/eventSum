@@ -1,7 +1,6 @@
 package eventsum
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -360,8 +359,6 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 		} else {
 			continue
 		}
-
-		fmt.Print(rawEvent.Service)
 
 		serviceId, ok := es.ds.GetServicesMap()[rawEvent.Service]
 		if !ok {
