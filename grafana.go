@@ -15,9 +15,10 @@ import (
 
 	"strings"
 
-	. "github.com/ContextLogic/eventsum/models"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
+
+	. "github.com/ContextLogic/eventsum/models"
 )
 
 // cors adds headers that Grafana requires to work as a direct access data

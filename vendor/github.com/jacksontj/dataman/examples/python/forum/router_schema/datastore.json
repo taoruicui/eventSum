@@ -1,0 +1,64 @@
+{
+	"name": "test_datastore",
+	"vshards": {
+		"example_forum_vshard": {
+			"name": "example_forum_vshard",
+			"count": 2,
+			"shards": [{
+					"shard_instance": 1,
+					"datastore_shard_instance": 1,
+					"provision_state": 3
+				},
+				{
+					"shard_instance": 2,
+					"datastore_shard_instance": 2,
+					"provision_state": 3
+				}
+			],
+			"provision_state": 3
+		},
+		"singleshard": {
+			"name": "singleshard",
+			"count": 1,
+			"shards": [{
+					"shard_instance": 1,
+					"datastore_shard_instance": 1,
+					"provision_state": 3
+				}
+			],
+			"provision_state": 3
+		}
+	},
+	"shards": {
+		"1": {
+			"name": "datastore_test-shard1",
+			"shard_instance": 1,
+			"replicas": {
+				"masters": [{
+					"datasource_instance": {
+						"_id": 1,
+						"name": "postgres1",
+						"storage_node_id": 1
+					},
+					"master": true
+				}],
+				"slaves": []
+			}
+		},
+		"2": {
+			"name": "test-shard2",
+			"shard_instance": 2,
+			"replicas": {
+				"masters": [{
+					"datasource_instance": {
+						"_id": 2,
+						"name": "postgres2",
+						"storage_node_id": 2
+					},
+					"master": true
+				}],
+				"slaves": []
+			}
+		}
+	}
+}

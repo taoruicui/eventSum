@@ -4,12 +4,13 @@ import (
 	"math"
 	"regexp"
 
-	"github.com/ContextLogic/eventsum"
-	c "github.com/ContextLogic/eventsum/config"
-	"github.com/ContextLogic/eventsum/models"
 	"github.com/jessevdk/go-flags"
 	m "github.com/mitchellh/mapstructure"
 	logger "github.com/sirupsen/logrus"
+
+	"github.com/ContextLogic/eventsum"
+	c "github.com/ContextLogic/eventsum/config"
+	"github.com/ContextLogic/eventsum/models"
 )
 
 func main() {

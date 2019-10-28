@@ -1,0 +1,50 @@
+## Go Gitignore: https://raw.githubusercontent.com/github/gitignore/master/Go.gitignore
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
+
+# Folders
+_obj
+_test
+
+# Architecture specific extensions/prefixes
+*.[568vq]
+[568vq].out
+
+*.cgo1.go
+*.cgo2.c
+_cgo_defun.c
+_cgo_gotypes.go
+_cgo_export.*
+
+_testmain.go
+
+*.exe
+*.test
+*.prof
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Intellij
+.idea/
+*.iml
+*.iws
+
+# Mac
+.DS_Store
+
+# vim swap files
+*.swp
+
+
+# TODO: ideally these binaries would be found auto-magically, probably by having 
+# them output into a "bin" directory of some type
+# Manual list of binaries we build to not include
+src/router_node/routernode/routernode
+src/task_node/tasknode/tasknode
+src/storage_node/storagenode/storagenode
+src/schemaexport/schemaexport
+src/client/example_usage/example_usage
+src/schemaimport/schemaimport

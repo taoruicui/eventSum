@@ -17,10 +17,11 @@ import (
 
 	"strconv"
 
-	"github.com/ContextLogic/eventsum/models"
 	"github.com/jacksontj/dataman/src/datamantype"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
+
+	"github.com/ContextLogic/eventsum/models"
 )
 
 // returns the start and end times of the interval bounding time t,

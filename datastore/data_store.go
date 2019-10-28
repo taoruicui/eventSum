@@ -13,16 +13,17 @@ import (
 
 	"bytes"
 
+	datamanclient "github.com/jacksontj/dataman/src/client"
+	"github.com/jacksontj/dataman/src/query"
+	storagenode "github.com/jacksontj/dataman/src/storage_node"
+	"github.com/jacksontj/dataman/src/storage_node/metadata"
+	"github.com/pkg/errors"
+
 	"github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/rules"
 	"github.com/ContextLogic/eventsum/util"
-	"github.com/jacksontj/dataman/src/client"
-	"github.com/jacksontj/dataman/src/query"
-	"github.com/jacksontj/dataman/src/storage_node"
-	"github.com/jacksontj/dataman/src/storage_node/metadata"
-	"github.com/pkg/errors"
 
 	"database/sql"
 
@@ -47,6 +48,7 @@ type DataStore interface {
 	AddEventDetail(evt *EventDetail) error
 	GetServices() []EventService
 	GetServicesMap() map[string]EventService
+	GetServicesAggMap() map[string]string
 	GetEnvironments() []EventEnvironment
 	GetEnvironmentsMap() map[string]EventEnvironment
 	GetRegionsMap() map[string]int
@@ -92,6 +94,7 @@ type postgresStore struct {
 
 	// Variables stored in memory (for faster access)
 	Services            []EventService
+	ServiceAggMap       map[string]string
 	ServicesNameMap     map[string]EventService
 	Environments        []EventEnvironment
 	EnvironmentsNameMap map[string]EventEnvironment
@@ -100,7 +103,7 @@ type postgresStore struct {
 }
 
 // Create a new dataStore
-func NewDataStore(c config.EventsumConfig) (DataStore, error) {
+func NewDataStore(c config.EventsumConfig) (*postgresStore, error) {
 	// Create a connection to Postgres Database through Dataman
 
 	storagenodeConfig, err := storagenode.DatasourceInstanceConfigFromFile(c.DataSourceInstance)
@@ -131,6 +134,7 @@ func NewDataStore(c config.EventsumConfig) (DataStore, error) {
 	// build services and environment variables from config file
 	services := []EventService{}
 	servicesNameMap := make(map[string]EventService)
+	serviceAggMap := make(map[string]string)
 	environments := []EventEnvironment{}
 	environmentsNameMap := make(map[string]EventEnvironment)
 
@@ -143,6 +147,10 @@ func NewDataStore(c config.EventsumConfig) (DataStore, error) {
 		environment := EventEnvironment{Id: v["environment_id"], Name: k}
 		environments = append(environments, environment)
 		environmentsNameMap[k] = environment
+	}
+	// Override the service with rpc exception to the *_rpc suffix service name
+	for k, v := range c.ServiceAggMapping {
+		serviceAggMap[k] = v
 	}
 
 	connStr, err := config.ParseDataSourceInstanceConfig(c.DataSourceInstance)
@@ -166,6 +174,7 @@ func NewDataStore(c config.EventsumConfig) (DataStore, error) {
 		ServicesNameMap:     servicesNameMap,
 		Environments:        environments,
 		EnvironmentsNameMap: environmentsNameMap,
+		ServiceAggMap:       serviceAggMap,
 		DB:                  db,
 		Region:              regionID,
 		RegionsMap:          c.RegionsMap,
@@ -366,6 +375,10 @@ func (p *postgresStore) GetServicesMap() map[string]EventService {
 
 func (p *postgresStore) GetEnvironmentsMap() map[string]EventEnvironment {
 	return p.EnvironmentsNameMap
+}
+
+func (p *postgresStore) GetServicesAggMap() map[string]string {
+	return p.ServiceAggMap
 }
 
 func (p *postgresStore) GetRegionsMap() map[string]int {

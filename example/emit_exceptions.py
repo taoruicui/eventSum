@@ -25,7 +25,7 @@ if __name__ == '__main__':
         exc_typ, exc_value, tb = sys.exc_info()
         data = {}
         data['timestamp'] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        data['service'] = "wish_fe"
+        data['service'] = "merchant_be"
         data['environment'] = "prod"
         data['event_type'] = "python"
         data['event_name'] = exc_typ.__name__

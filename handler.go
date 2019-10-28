@@ -8,11 +8,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/julienschmidt/httprouter"
+
 	"github.com/ContextLogic/eventsum/log"
 	"github.com/ContextLogic/eventsum/metrics"
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/util"
-	"github.com/julienschmidt/httprouter"
 )
 
 // Base class for handling HTTP Requests

@@ -12,6 +12,10 @@ import (
 
 	"fmt"
 
+	"github.com/julienschmidt/httprouter"
+	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	conf "github.com/ContextLogic/eventsum/config"
 	"github.com/ContextLogic/eventsum/datastore"
 	"github.com/ContextLogic/eventsum/log"
@@ -19,9 +23,6 @@ import (
 	. "github.com/ContextLogic/eventsum/models"
 	"github.com/ContextLogic/eventsum/rules"
 	"github.com/ContextLogic/eventsum/util"
-	"github.com/julienschmidt/httprouter"
-	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 /* GLOBAL VARIABLES */

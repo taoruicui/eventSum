@@ -8,10 +8,10 @@ import (
 )
 
 var (
-	httpReqLatencies *prometheus.HistogramVec
-	httpStatus *prometheus.CounterVec
+	httpReqLatencies       *prometheus.HistogramVec
+	httpStatus             *prometheus.CounterVec
 	eventStoreDbErrCounter *prometheus.CounterVec
-	eventStoreTimer *prometheus.HistogramVec
+	eventStoreTimer        *prometheus.HistogramVec
 )
 
 // RegisterPromMetrics registers all the metrics that eventsum uses.
