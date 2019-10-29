@@ -31,3 +31,6 @@ local_db_server_stop:
     fi
 
 clean: imports fmt lint
+
+run:
+	go run cmd/example.go -c `pwd`/config/config.json

@@ -334,6 +334,28 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 			continue
 		}
 
+		// Get service name from config.json, but for RPCException
+		// we consider service_aggregation_mapping to override service
+		// with rpc exception to `*_rpc` suffix, e.g. merchant_be -> merchant_be_rpc
+		service, ok := es.GetServiceAggregationMapping(rawEvent)
+		if ok {
+			rawEvent.Service = service
+		} else {
+			continue
+		}
+
+		// Get service id from config.json, e.g. "merchant_be": {"service_id": 4}
+		serviceId, ok := es.ds.GetServicesMap()[rawEvent.Service]
+		if !ok {
+			continue
+		}
+
+		// Get environment id from config.json, e.g. "prod": {"environment_id": 1}
+		environmentId, ok := es.ds.GetEnvironmentsMap()[rawEvent.Environment]
+		if !ok {
+			continue
+		}
+
 		genericData := event.Data
 		event, err = globalRule.ProcessFilter(event, "base")
 		if err != nil {
@@ -348,26 +370,12 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 		}
 		processedDetail := event.ExtraArgs
 
-		genericDataHash := util.Hash(genericData)
+		// We add service_id to hash generic data as to map between
+		// tables: "event_base" and "event_instance" for RPC Exception
+		genericDataHash := util.Hash(genericData, serviceId)
 		processedDataHash := util.Hash(processedData)
 		processedDetailHash := util.Hash(processedDetail)
 
-		service, ok := es.GetServiceAggregationMapping(rawEvent)
-		if ok {
-			// Override service with rpc exception to `*_rpc` suffix
-			rawEvent.Service = service
-		} else {
-			continue
-		}
-
-		serviceId, ok := es.ds.GetServicesMap()[rawEvent.Service]
-		if !ok {
-			continue
-		}
-		environmentId, ok := es.ds.GetEnvironmentsMap()[rawEvent.Environment]
-		if !ok {
-			continue
-		}
 		//create base event
 		eventBase = EventBase{
 			ServiceId:          serviceId.Id,
