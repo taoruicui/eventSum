@@ -370,7 +370,8 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 		}
 		processedDetail := event.ExtraArgs
 
-		// We add service_id to hash as
+		// We add service_id to hash generic data as to map between
+		// tables: "event_base" and "event_instance" for RPC Exception
 		genericDataHash := util.Hash(genericData, serviceId)
 		processedDataHash := util.Hash(processedData)
 		processedDetailHash := util.Hash(processedDetail)
