@@ -64,11 +64,23 @@ func Avg(vals ...int) int {
 	return avg
 }
 
-func Hash(i interface{}) string {
+func Hash(i interface{}, args ...interface{}) string {
+	var b []byte
 	b, err := json.Marshal(i)
 	if err != nil {
 		fmt.Println("Error", err)
 	}
+
+	if args != nil {
+		for _, arg := range args {
+			if b_arr, err := json.Marshal(arg); err != nil {
+				fmt.Println("Error parsing additional args", err)
+			} else {
+				b = append(b, b_arr...)
+			}
+		}
+	}
+
 	hasher := sha256.New()
 	hasher.Write(b)
 	return base64.URLEncoding.EncodeToString(hasher.Sum(nil))
