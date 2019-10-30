@@ -372,7 +372,13 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 
 		// We add service_id to hash generic data as to map between
 		// tables: "event_base" and "event_instance" for RPC Exception
-		genericDataHash := util.Hash(genericData, serviceId)
+		var genericDataHash string
+		isRPCException := es.CheckRPCException(event)
+		if isRPCException {
+			genericDataHash = util.Hash(genericData, serviceId)
+		} else {
+			genericDataHash = util.Hash(genericData)
+		}
 		processedDataHash := util.Hash(processedData)
 		processedDetailHash := util.Hash(processedDetail)
 
@@ -466,13 +472,18 @@ func (es *eventStore) SaveToDB(evtsToAdd []UnaddedEvent) {
 	}
 }
 
-
 func (es *eventStore) GetServiceAggregationMapping(evt UnaddedEvent) (string, bool) {
-	if strings.Contains(evt.Name, "RPCException") {
+	if es.CheckRPCException(evt) {
 		s, ok := es.ds.GetServicesAggMap()[evt.Service]
 		return s, ok
+	} else {
+		return evt.Service, true
 	}
-	return evt.Service, true
+}
+
+func (es *eventStore) CheckRPCException(evt UnaddedEvent) bool {
+	r := strings.Contains(evt.Name, "RPCException")
+	return r
 }
 
 func (es *eventStore) BackFillToDB() {
